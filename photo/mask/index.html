@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mask — bichromie &amp; aplats</title>
+<meta name="description" content="Douze photos passées en bichromie noir + une couleur, recouvertes d'une forme aléatoire en fusion multiply.">
+<style>
+  :root {
+    --paper: #f2efe7;
+    --ink: #14130f;
+    --muted: #6d6a60;
+    --rule: #d8d3c6;
+    --card: #ffffff;
+    --accent: #e4002b;
+    --shadow: 0 1px 2px rgba(20, 19, 15, .06), 0 12px 32px rgba(20, 19, 15, .07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #100f0d;
+      --ink: #f2efe7;
+      --muted: #9a958a;
+      --rule: #2c2a25;
+      --card: #1a1815;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 12px 32px rgba(0, 0, 0, .45);
+      --accent: #ff4d6d;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 0 16px 96px;
+    background: var(--paper);
+    color: var(--ink);
+    font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; }
+
+  header { padding: 72px 0 40px; border-bottom: 1px solid var(--rule); }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(44px, 11vw, 132px);
+    line-height: .88;
+    letter-spacing: -.045em;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+  h1 em { font-style: normal; color: var(--accent); }
+
+  .lede {
+    margin: 28px 0 0;
+    max-width: 58ch;
+    font-size: clamp(16px, 2.2vw, 19px);
+    color: var(--muted);
+  }
+
+  .meta {
+    margin-top: 28px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 28px;
+    font-size: 13px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 0;
+    margin-bottom: 8px;
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--rule);
+  }
+  .toolbar p { margin: 0; font-size: 13px; color: var(--muted); }
+  @media (hover: none) { .hint { display: none; } }
+
+  button {
+    font: inherit;
+    font-size: 13px;
+    letter-spacing: .04em;
+    padding: 8px 15px;
+    border-radius: 999px;
+    border: 1px solid var(--rule);
+    background: var(--card);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--ink); }
+  button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .grid {
+    margin-top: 32px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 28px;
+  }
+
+  figure {
+    margin: 0;
+    background: var(--card);
+    border-radius: 3px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .frame { position: relative; aspect-ratio: 3 / 4; background: var(--ink); }
+  .frame img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .frame .before { opacity: 0; transition: opacity .18s ease; }
+  body.show-before .frame .before,
+  .frame:hover .before,
+  .frame:focus-within .before { opacity: 1; }
+
+  .frame .tag {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .92);
+    color: #14130f;
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    opacity: 0;
+    transition: opacity .18s ease;
+  }
+  body.show-before .frame .tag,
+  .frame:hover .tag,
+  .frame:focus-within .tag { opacity: 1; }
+
+  figcaption { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+
+  .recipe { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 10px 4px 5px;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    font-size: 12px;
+    letter-spacing: .02em;
+  }
+  .swatch { width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .18); }
+  .chip svg { width: 13px; height: 13px; fill: currentColor; }
+
+  .credit { margin: 0; font-size: 12.5px; color: var(--muted); margin-top: auto; }
+  .credit a { color: inherit; text-underline-offset: 2px; }
+  .credit br { content: ""; display: block; margin-bottom: 3px; }
+  .seed { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; color: var(--muted); }
+
+  footer { margin-top: 72px; padding-top: 28px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 14px; }
+  footer code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 2px 6px;
+  }
+  footer p { max-width: 70ch; }
+
+  @media (max-width: 520px) {
+    header { padding-top: 44px; }
+    .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 18px; }
+    figcaption { padding: 12px 13px 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Noir<br>&amp; <em>une</em><br>couleur</h1>
+  <p class="lede">Douze photos passées à la même moulinette : bichromie sur une seule encre,
+  puis un aplat — triangle, cercle ou rectangle — posé au hasard en fusion multiply.
+  Aucun cadrage n'a été retouché à la main : tout vient du tirage d'une graine.</p>
+  <div class="meta">
+    <span>12 rendus</span>
+    <span>9 encres</span>
+    <span>graine 2017</span>
+    <span>photos&nbsp;: Unsplash</span>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button id="toggle" type="button" aria-pressed="false">Afficher les originaux</button>
+  <p class="hint">ou survolez une image</p>
+</div>
+
+<div class="grid">
+  <figure>
+    <div class="frame">
+      <img class="after" src="output/01-skateboard.jpg" alt="Un performeur de rue sur un skateboard devant la foule — bichromie mandarine avec un cercle en multiply" loading="lazy">
+      <img class="before" src="sources/01-skateboard.jpg" alt="Un performeur de rue sur un skateboard devant la foule — photo d'origine" loading="lazy">
+      <span class="tag">original</span>
+    </div>
+    <figcaption>
+      <div class="recipe">
+        <span class="chip" title="encre de la bichromie"><span class="swatch" style="background:#FF6B35"></span>mandarine</span>
+        <span class="chip" title="aplat en multiply"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/></svg><span class="swatch" style="background:#FF6B35"></span>66&nbsp;%</span>
+      </div>
+      <p class="credit">Un performeur de rue sur un skateboard devant la foule<br>photo <a href="https://unsplash.com/photos/SVNdzuAJPXk">Flaviu Costin</a> · <span class="seed">seed 2017</span></p>
+    </figcaption>
+  </figure>
+  <figure>
+    <div class="frame">
+      <img class="after" src="output/02-scarf.jpg" alt="Une personne assise sur un banc, grande écharpe rouge et blanche — bichromie olive avec un triangle en multiply" loading="lazy">
+      <img class="before" src="sources/02-scarf.jpg" alt="Une personne assise sur un banc, grande écharpe rouge et blanche — photo d'origine" loading="lazy">
+      <span class="tag">original</span>
+    </div>
+    <figcaption>
+      <div class="recipe">
+        <span class="chip" title="encre de la bichromie"><span class="swatch" style="background:#8FB339"></span>olive</span>
+        <span class="chip" title="aplat en multiply"><svg viewBox="0 0 16 16" aria-hidden="true"><polygon points="8,2 15,14 1,14"/></svg><span class="swatch" style="background:#8FB339"></span>77&nbsp;%</span>
+      </div>
+      <p class="credit">Une personne assise sur un banc, grande écharpe rouge et blanche<br>photo <a href="https://unsplash.com/photos/mpP3lF6flFw">XAVIER PHOTOGRAPHY</a> · <span class="seed">seed 2018</span></p>
+    </figcaption>
+  </figure>
+  <figure>
+    <div class="frame">
+      <img class="after" src="output/03-accordion.jpg" alt="Un homme tenant un accordéon devant la ville — bichromie outremer avec un triangle en multiply" loading="lazy">
+      <img class="before" src="sources/03-accordion.jpg" alt="Un homme tenant un accordéon devant la ville — photo d'origine" loading="lazy">
+      <span class="tag">original</span>
+    </div>
+    <figcaption>
+      <div class="recipe">
+        <span class="chip" title="encre de la bichromie"><span class="swatch" style="background:#2B50FF"></span>outremer</span>
+        <span class="chip" title="aplat en multiply"><svg viewBox="0 0 16 16" aria-hidden="true"><polygon points="8,2 15,14 1,14"/></svg><span class="swatch" style="background:#FF6B35"></span>64&nbsp;%</span>
+      </div>
+      <p class="credit">Un homme tenant un accordéon devant la ville<br>photo <a href="https://unsplash.com/photos/65_MCjL2Y0E">Sameer Srivastava</a> · <span class="seed">seed 2019</span></p>
+    </figcaption>
+  </figure>
+  <figure>
+    <div class="frame">
+      <img class="after" src="output/04-guitar.jpg" alt="Un homme à la guitare assis devant un drapeau suspendu — bichromie lagon avec un rectangle en multiply" loading="lazy">
+      <img class="before" src="sources/04-guitar.jpg" alt="Un homme à la guitare assis devant un drapeau suspendu — photo d'origine" loading="lazy">
+      <span class="tag">original</span>
+    </div>
+    <figcaption>
+      <div class="recipe">
+        <span class="chip" title="encre de la bichromie"><span class="swatch" style="background:#00D1B2"></span>lagon</span>
+        <span class="chip" title="aplat en multiply"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3" width="13" height="10"/></svg><span class="swatch" style="background:#00D1B2"></span>82&nbsp;%</span>
+      </div>
+      <p class="credit">Un homme à la guitare assis devant un drapeau suspendu<br>photo <a href="https://unsplash.com/photos/A-eBZyL8cZI">Christian Crocker</a> · <span class="seed">seed 2020</span></p>
+    </figcaption>
+  </figure>
+  <figure>
+    <div class="frame">
+      <img class="after" src="output/05-drums.jpg" alt="Un jeune batteur entouré de passants — bichromie cyan avec un rectangle en multiply" loading="lazy">
+      <img class="before" src="sources/05-drums.jpg" alt="Un jeune batteur entouré de passants — photo d'origine" loading="lazy">
+      <span class="tag">original</span>
+    </div>
+    <figcaption>
+      <div class="recipe">
+        <span class="chip" title="encre de la bichromie"><span class="swatch" style="background:#00B3D6"></span>cyan</span>
+        <span class="chip" title="aplat en multiply"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3" width="13" height="10"/></svg><span class="swatch" style="background:#FF6B35"></span>86&nbsp;%</span>
+      </div>
+      <p class="credit">Un jeune batteur entouré de passants<br>photo <a href="https://unsplash.com/photos/dBkNxzQaLjo">Rogerio Lau</a> · <span class="seed">seed 2021</span></p>
+    </figcaption>
+  </figure>
+  <figure>
+    <div class="frame">
+      <img class="after" src="output/06-central-park.jpg" alt="Photographe de rue à Central Park, New York — bichromie olive avec un cercle en multiply" loading="lazy">
+      <img class="before" src="sources/06-central-park.jpg" alt="Photographe de rue à Central Park, New York — photo d'origine" loading="lazy">
+      <span class="tag">original</span>
+    </div>
+    <figcaption>
+      <div class="recipe">
+        <span class="chip" title="encre de la bichromie"><span class="swatch" style="background:#8FB339"></span>olive</span>
+        <span class="chip" title="aplat en multiply"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/></svg><span class="swatch" style="background:#8FB339"></span>66&nbsp;%</span>
+      </div>
+      <p class="credit">Photographe de rue à Central Park, New York<br>photo <a href="https://unsplash.com/photos/Wb6kwlVeKb0">Dustin Bowdige</a> · <span class="seed">seed 2022</span></p>
+    </figcaption>
+  </figure>
+  <figure>
+    <div class="frame">
+      <img class="after" src="output/07-mime.jpg" alt="Un mime souriant, béret et marinière — bichromie cyan avec un rectangle en multiply" loading="lazy">
+      <img class="before" src="sources/07-mime.jpg" alt="Un mime souriant, béret et marinière — photo d'origine" loading="lazy">
+      <span class="tag">original</span>
+    </div>
+    <figcaption>
+      <div class="recipe">
+        <span class="chip" title="encre de la bichromie"><span class="swatch" style="background:#00B3D6"></span>cyan</span>
+        <span class="chip" title="aplat en multiply"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3" width="13" height="10"/></svg><span class="swatch" style="background:#E4002B"></span>66&nbsp;%</span>
+      </div>
+      <p class="credit">Un mime souriant, béret et marinière<br>photo <a href="https://unsplash.com/photos/Qakrj20TCvk">atelierbyvineeth</a> · <span class="seed">seed 2023</span></p>
+    </figcaption>
+  </figure>
+  <figure>
+    <div class="frame">
+      <img class="after" src="output/08-ghat.jpg" alt="Un homme debout sur une marche de pierre, Yamuna ghat — bichromie vermillon avec un triangle en multiply" loading="lazy">
+      <img class="before" src="sources/08-ghat.jpg" alt="Un homme debout sur une marche de pierre, Yamuna ghat — photo d'origine" loading="lazy">
+      <span class="tag">original</span>
+    </div>
+    <figcaption>
+      <div class="recipe">
+        <span class="chip" title="encre de la bichromie"><span class="swatch" style="background:#E4002B"></span>vermillon</span>
+        <span class="chip" title="aplat en multiply"><svg viewBox="0 0 16 16" aria-hidden="true"><polygon points="8,2 15,14 1,14"/></svg><span class="swatch" style="background:#7B2FF7"></span>62&nbsp;%</span>
+      </div>
+      <p class="credit">Un homme debout sur une marche de pierre, Yamuna ghat<br>photo <a href="https://unsplash.com/photos/3agNcuUo-no">Ankit Sharma</a> · <span class="seed">seed 2024</span></p>
+    </figcaption>
+  </figure>
+  <figure>
+    <div class="frame">
+      <img class="after" src="output/09-laugh-blue.jpg" alt="Une personne qui rit, chemise bleue texturée — bichromie olive avec un triangle en multiply" loading="lazy">
+      <img class="before" src="sources/09-laugh-blue.jpg" alt="Une personne qui rit, chemise bleue texturée — photo d'origine" loading="lazy">
+      <span class="tag">original</span>
+    </div>
+    <figcaption>
+      <div class="recipe">
+        <span class="chip" title="encre de la bichromie"><span class="swatch" style="background:#8FB339"></span>olive</span>
+        <span class="chip" title="aplat en multiply"><svg viewBox="0 0 16 16" aria-hidden="true"><polygon points="8,2 15,14 1,14"/></svg><span class="swatch" style="background:#E4002B"></span>88&nbsp;%</span>
+      </div>
+      <p class="credit">Une personne qui rit, chemise bleue texturée<br>photo <a href="https://unsplash.com/photos/y3kC_7Qhmjk">nrd</a> · <span class="seed">seed 2025</span></p>
+    </figcaption>
+  </figure>
+  <figure>
+    <div class="frame">
+      <img class="after" src="output/10-smile.jpg" alt="Portrait souriant sur fond sombre — bichromie menthe avec un cercle en multiply" loading="lazy">
+      <img class="before" src="sources/10-smile.jpg" alt="Portrait souriant sur fond sombre — photo d'origine" loading="lazy">
+      <span class="tag">original</span>
+    </div>
+    <figcaption>
+      <div class="recipe">
+        <span class="chip" title="encre de la bichromie"><span class="swatch" style="background:#00A878"></span>menthe</span>
+        <span class="chip" title="aplat en multiply"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/></svg><span class="swatch" style="background:#00D1B2"></span>78&nbsp;%</span>
+      </div>
+      <p class="credit">Portrait souriant sur fond sombre<br>photo <a href="https://unsplash.com/photos/yuOAcypoF1I">Christian Bowen</a> · <span class="seed">seed 2026</span></p>
+    </figcaption>
+  </figure>
+  <figure>
+    <div class="frame">
+      <img class="after" src="output/11-lisbon.jpg" alt="Visage complice sur un marché de Lisbonne — bichromie menthe avec un cercle en multiply" loading="lazy">
+      <img class="before" src="sources/11-lisbon.jpg" alt="Visage complice sur un marché de Lisbonne — photo d'origine" loading="lazy">
+      <span class="tag">original</span>
+    </div>
+    <figcaption>
+      <div class="recipe">
+        <span class="chip" title="encre de la bichromie"><span class="swatch" style="background:#00A878"></span>menthe</span>
+        <span class="chip" title="aplat en multiply"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/></svg><span class="swatch" style="background:#00A878"></span>78&nbsp;%</span>
+      </div>
+      <p class="credit">Visage complice sur un marché de Lisbonne<br>photo <a href="https://unsplash.com/photos/C5XyLljkMrY">ben o&#x27;bro</a> · <span class="seed">seed 2027</span></p>
+    </figcaption>
+  </figure>
+  <figure>
+    <div class="frame">
+      <img class="after" src="output/12-sweater.jpg" alt="Un homme en pull gris, éclat de rire — bichromie safran avec un triangle en multiply" loading="lazy">
+      <img class="before" src="sources/12-sweater.jpg" alt="Un homme en pull gris, éclat de rire — photo d'origine" loading="lazy">
+      <span class="tag">original</span>
+    </div>
+    <figcaption>
+      <div class="recipe">
+        <span class="chip" title="encre de la bichromie"><span class="swatch" style="background:#FFC300"></span>safran</span>
+        <span class="chip" title="aplat en multiply"><svg viewBox="0 0 16 16" aria-hidden="true"><polygon points="8,2 15,14 1,14"/></svg><span class="swatch" style="background:#00B3D6"></span>68&nbsp;%</span>
+      </div>
+      <p class="credit">Un homme en pull gris, éclat de rire<br>photo <a href="https://unsplash.com/photos/4YzILMQDQFg">HLS 44</a> · <span class="seed">seed 2028</span></p>
+    </figcaption>
+  </figure>
+</div>
+
+<footer>
+  <p><strong>Rejouer&nbsp;:</strong> <code>python3 fetch_sources.py</code> puis
+  <code>python3 mask.py sources/ -o output/ --seed 2017 --manifest output/recipes.json</code>.
+  Sans <code>--seed</code>, chaque passage retire une nouvelle série&nbsp;; la graine indiquée
+  sous chaque image suffit à retrouver un rendu précis.</p>
+  <p>Photos sous licence Unsplash, créditées sous chaque rendu. Les originaux sont dans
+  <code>sources/</code>, les rendus dans <code>output/</code>.</p>
+</footer>
+
+</div>
+<script>
+  const button = document.getElementById('toggle');
+  button.addEventListener('click', () => {
+    const on = document.body.classList.toggle('show-before');
+    button.setAttribute('aria-pressed', String(on));
+    button.textContent = on ? 'Afficher les rendus' : 'Afficher les originaux';
+  });
+</script>
+</body>
+</html>
