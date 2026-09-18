@@ -89,6 +89,51 @@ def mix(a: tuple[int, int, int], b: tuple[int, int, int], t: float) -> tuple[int
 # Étape 1 — duotone
 # --------------------------------------------------------------------------
 
+def transfer_curve(
+    color: tuple[int, int, int],
+    shadow: tuple[int, int, int] | None = None,
+    highlight: tuple[int, int, int] | None = None,
+    contrast: float = 1.15,
+    midpoint: float = 0.55,
+    samples: int = 256,
+) -> list[list[float]]:
+    """La courbe de transfert de la bichromie : `samples` points par canal, en 0–1.
+
+    La rampe passe par trois points plutôt que deux. Un simple noir -> couleur
+    plafonne les hautes lumières à la densité de l'encre : toute l'image devient
+    sourde, et un aplat en multiply posé dessus n'a plus rien à assombrir. En
+    faisant passer la rampe par la couleur à mi-parcours puis vers un blanc
+    teinté, on garde des blancs qui respirent et la couleur reste lisible dans
+    les demi-tons — c'est la mécanique d'une bichromie imprimée.
+
+    `shadow` reste quasi noir mais conserve la teinte de l'encre ; `midpoint`
+    place la couleur pure sur l'échelle des gris ; le contraste est replié dans
+    la courbe plutôt qu'appliqué à part, pour que la courbe décrive à elle seule
+    tout le passage du gris à la bichromie.
+
+    C'est la définition unique de la bichromie : `duotone` l'échantillonne en
+    256 points pour Pillow, la page CSS en une poignée pour un `feFuncR/G/B`
+    de filtre SVG. Les deux rendus restent donc alignés par construction.
+    """
+    if shadow is None:
+        shadow = mix(color, (0, 0, 0), 0.90)
+    if highlight is None:
+        highlight = mix(color, (255, 255, 255), 0.88)
+
+    curve: list[list[float]] = [[], [], []]
+    for index in range(samples):
+        gray = index / (samples - 1)
+        # Contraste autour du gris moyen, borné à l'intervalle utile.
+        v = min(1.0, max(0.0, (gray - 0.5) * contrast + 0.5))
+        if v <= midpoint:
+            low, high, t = shadow, color, v / midpoint
+        else:
+            low, high, t = color, highlight, (v - midpoint) / (1 - midpoint)
+        for channel in range(3):
+            curve[channel].append((low[channel] + (high[channel] - low[channel]) * t) / 255)
+    return curve
+
+
 def duotone(
     img: Image.Image,
     color: tuple[int, int, int],
@@ -97,41 +142,11 @@ def duotone(
     contrast: float = 1.15,
     midpoint: float = 0.55,
 ) -> Image.Image:
-    """Ramène l'image sur une rampe à deux encres : noir et `color`.
-
-    La rampe passe par trois points plutôt que deux. Un simple noir -> couleur
-    plafonne les hautes lumières à la densité de l'encre : tout l'image devient
-    sourde, et un aplat en multiply posé dessus n'a plus rien à assombrir. En
-    faisant passer la rampe par la couleur à mi-parcours puis vers un blanc
-    teinté, on garde des blancs qui respirent et la couleur reste lisible dans
-    les demi-tons — c'est la mécanique d'une bichromie imprimée.
-
-    `shadow` reste quasi noir mais conserve la teinte de l'encre ;
-    `midpoint` place la couleur pure sur l'échelle des gris.
-    """
-    if shadow is None:
-        shadow = mix(color, (0, 0, 0), 0.90)
-    if highlight is None:
-        highlight = mix(color, (255, 255, 255), 0.88)
-
+    """Ramène l'image sur une rampe à deux encres : noir et `color`."""
+    curve = transfer_curve(color, shadow, highlight, contrast, midpoint, samples=256)
+    # Image.point sur une image L renvoyant du RGB attend les trois LUT bout à bout.
+    lut = [round(value * 255) for channel in curve for value in channel]
     gray = ImageOps.grayscale(img.convert("RGB"))
-
-    if contrast != 1.0:
-        gray = gray.point(lambda v: max(0, min(255, round((v - 128) * contrast + 128))))
-
-    knee = max(1, min(254, round(midpoint * 255)))
-
-    # Une LUT par canal : Image.point sur une image L renvoyant du RGB.
-    lut: list[int] = []
-    for channel in range(3):
-        for v in range(256):
-            if v <= knee:
-                t = v / knee
-                lut.append(round(shadow[channel] + (color[channel] - shadow[channel]) * t))
-            else:
-                t = (v - knee) / (255 - knee)
-                lut.append(round(color[channel] + (highlight[channel] - color[channel]) * t))
-
     return gray.convert("RGB").point(lut)
 
 
@@ -139,75 +154,88 @@ def duotone(
 # Étape 2 — forme aléatoire en multiply
 # --------------------------------------------------------------------------
 
-def _triangle_points(rng: random.Random, w: int, h: int) -> list[tuple[float, float]]:
-    """Triangle isocèle, taille et orientation tirées au sort."""
-    cx = rng.uniform(0.15, 0.85) * w
-    cy = rng.uniform(0.15, 0.85) * h
-    radius = rng.uniform(0.22, 0.48) * min(w, h)
-    rotation = rng.uniform(0, 2 * math.pi)
-    return [
-        (cx + radius * math.cos(rotation + i * 2 * math.pi / 3),
-         cy + radius * math.sin(rotation + i * 2 * math.pi / 3))
-        for i in range(3)
-    ]
+def shape_geometry(shape: str, rng: random.Random, ratio: float) -> dict:
+    """Tire la géométrie d'une forme, en coordonnées normalisées (0–1).
 
+    Normalisée veut dire : x rapporté à la largeur, y à la hauteur. La géométrie
+    ne dépend donc plus de la taille du rendu, et la même description sert à
+    Pillow comme à un `clip-path` CSS. `ratio` est largeur / hauteur, nécessaire
+    parce que les rayons sont tirés par rapport au petit côté.
 
-def _rectangle_points(rng: random.Random, w: int, h: int) -> list[tuple[float, float]]:
-    """Rectangle quelconque, légèrement incliné."""
-    cx = rng.uniform(0.2, 0.8) * w
-    cy = rng.uniform(0.2, 0.8) * h
-    half_w = rng.uniform(0.16, 0.42) * w
-    half_h = rng.uniform(0.16, 0.42) * h
-    angle = math.radians(rng.uniform(-28, 28))
-    cos_a, sin_a = math.cos(angle), math.sin(angle)
-    corners = [(-half_w, -half_h), (half_w, -half_h), (half_w, half_h), (-half_w, half_h)]
-    return [(cx + x * cos_a - y * sin_a, cy + x * sin_a + y * cos_a) for x, y in corners]
-
-
-def shape_mask(
-    size: tuple[int, int],
-    shape: str,
-    rng: random.Random,
-    opacity: float,
-) -> Image.Image:
-    """Masque niveaux de gris : `opacity * 255` dans la forme, 0 ailleurs."""
-    w, h = size
-    big = (w * SUPERSAMPLE, h * SUPERSAMPLE)
-    layer = Image.new("L", big, 0)
-    draw = ImageDraw.Draw(layer)
-    level = round(max(0.0, min(1.0, opacity)) * 255)
+    L'ordre des tirages est celui du rendu d'origine : une graine donnée
+    redonne exactement la même forme.
+    """
+    # Le petit côté, exprimé dans chaque axe.
+    short_x = min(1.0, 1 / ratio)   # min(w, h) / w
+    short_y = min(1.0, ratio)       # min(w, h) / h
 
     if shape == "circle":
-        cx = rng.uniform(0.2, 0.8) * w
-        cy = rng.uniform(0.2, 0.8) * h
-        r = rng.uniform(0.18, 0.40) * min(w, h)
-        box = [(cx - r) * SUPERSAMPLE, (cy - r) * SUPERSAMPLE,
-               (cx + r) * SUPERSAMPLE, (cy + r) * SUPERSAMPLE]
+        cx = rng.uniform(0.2, 0.8)
+        cy = rng.uniform(0.2, 0.8)
+        r = rng.uniform(0.18, 0.40)
+        return {"shape": "circle", "cx": cx, "cy": cy,
+                "rx": r * short_x, "ry": r * short_y}
+
+    if shape == "triangle":
+        cx = rng.uniform(0.15, 0.85)
+        cy = rng.uniform(0.15, 0.85)
+        radius = rng.uniform(0.22, 0.48)
+        rotation = rng.uniform(0, 2 * math.pi)
+        points = [
+            (cx + radius * short_x * math.cos(rotation + i * 2 * math.pi / 3),
+             cy + radius * short_y * math.sin(rotation + i * 2 * math.pi / 3))
+            for i in range(3)
+        ]
+        return {"shape": "triangle", "points": points}
+
+    if shape == "rectangle":
+        cx = rng.uniform(0.2, 0.8)
+        cy = rng.uniform(0.2, 0.8)
+        half_w = rng.uniform(0.16, 0.42)
+        half_h = rng.uniform(0.16, 0.42)
+        angle = math.radians(rng.uniform(-28, 28))
+        cos_a, sin_a = math.cos(angle), math.sin(angle)
+        corners = [(-half_w, -half_h), (half_w, -half_h), (half_w, half_h), (-half_w, half_h)]
+        # La rotation se fait dans l'espace des pixels, pas dans l'espace normalisé :
+        # sans cela un rectangle penché se déformerait avec le rapport de l'image.
+        points = [
+            (cx + (x * cos_a - y * sin_a / ratio),
+             cy + (x * sin_a * ratio + y * cos_a))
+            for x, y in corners
+        ]
+        return {"shape": "rectangle", "points": points}
+
+    raise ValueError(f"forme inconnue : {shape!r} (attendu : {', '.join(SHAPES)})")
+
+
+def shape_mask(size: tuple[int, int], geometry: dict, opacity: float) -> Image.Image:
+    """Masque niveaux de gris : `opacity * 255` dans la forme, 0 ailleurs."""
+    w, h = size
+    layer = Image.new("L", (w * SUPERSAMPLE, h * SUPERSAMPLE), 0)
+    draw = ImageDraw.Draw(layer)
+    level = round(max(0.0, min(1.0, opacity)) * 255)
+    sx, sy = w * SUPERSAMPLE, h * SUPERSAMPLE
+
+    if geometry["shape"] == "circle":
+        box = [(geometry["cx"] - geometry["rx"]) * sx, (geometry["cy"] - geometry["ry"]) * sy,
+               (geometry["cx"] + geometry["rx"]) * sx, (geometry["cy"] + geometry["ry"]) * sy]
         draw.ellipse(box, fill=level)
-    elif shape == "triangle":
-        pts = _triangle_points(rng, w, h)
-        draw.polygon([(x * SUPERSAMPLE, y * SUPERSAMPLE) for x, y in pts], fill=level)
-    elif shape == "rectangle":
-        pts = _rectangle_points(rng, w, h)
-        draw.polygon([(x * SUPERSAMPLE, y * SUPERSAMPLE) for x, y in pts], fill=level)
     else:
-        raise ValueError(f"forme inconnue : {shape!r} (attendu : {', '.join(SHAPES)})")
+        draw.polygon([(x * sx, y * sy) for x, y in geometry["points"]], fill=level)
 
     return layer.resize((w, h), Image.LANCZOS)
 
 
 def multiply_shape(
     base: Image.Image,
-    shape: str,
+    geometry: dict,
     color: tuple[int, int, int],
-    rng: random.Random,
     opacity: float = 0.85,
 ) -> Image.Image:
     """Pose un aplat de `color` en fusion multiply, limité à la forme."""
-    mask = shape_mask(base.size, shape, rng, opacity)
+    mask = shape_mask(base.size, geometry, opacity)
     flat = Image.new("RGB", base.size, color)
-    multiplied = ImageChops.multiply(base, flat)
-    return Image.composite(multiplied, base, mask)
+    return Image.composite(ImageChops.multiply(base, flat), base, mask)
 
 
 # --------------------------------------------------------------------------
@@ -225,6 +253,7 @@ class Recipe:
     shape_name: str
     opacity: float
     contrast: float
+    geometry: dict
 
 
 def render(
@@ -270,8 +299,9 @@ def render(
     if contrast is None:
         contrast = round(rng.uniform(1.05, 1.35), 2)
 
+    geometry = shape_geometry(shape, rng, img.width / img.height)
     out = duotone(img, duo_rgb, contrast=contrast)
-    out = multiply_shape(out, shape, shape_rgb, rng, opacity)
+    out = multiply_shape(out, geometry, shape_rgb, opacity)
 
     recipe = Recipe(
         seed=seed,
@@ -282,6 +312,7 @@ def render(
         shape_name=shape_name,
         opacity=opacity,
         contrast=contrast,
+        geometry=geometry,
     )
     return out, recipe
 

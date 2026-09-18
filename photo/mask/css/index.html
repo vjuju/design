@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mask CSS — la même bichromie, sans cuisson</title>
+<meta name="description" content="La même bichromie et le même aplat en multiply, mais calculés par le navigateur : filtre SVG inline et clip-path, sans une ligne de JavaScript.">
+<style>
+  :root {
+    --paper: #f2efe7;
+    --ink: #14130f;
+    --muted: #6d6a60;
+    --rule: #d8d3c6;
+    --card: #ffffff;
+    --accent: #e4002b;
+    --shadow: 0 1px 2px rgba(20, 19, 15, .06), 0 12px 32px rgba(20, 19, 15, .07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #100f0d;
+      --ink: #f2efe7;
+      --muted: #9a958a;
+      --rule: #2c2a25;
+      --card: #1a1815;
+      --accent: #ff4d6d;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 12px 32px rgba(0, 0, 0, .45);
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 0 16px 96px;
+    background: var(--paper);
+    color: var(--ink);
+    font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; }
+
+  a { color: inherit; text-underline-offset: 2px; }
+
+  header { padding: 64px 0 40px; border-bottom: 1px solid var(--rule); }
+
+  .back {
+    display: inline-block;
+    margin-bottom: 26px;
+    font-size: 13px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(42px, 10.5vw, 124px);
+    line-height: .88;
+    letter-spacing: -.045em;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+  h1 em { font-style: normal; color: var(--accent); }
+
+  .lede {
+    margin: 28px 0 0;
+    max-width: 60ch;
+    font-size: clamp(16px, 2.2vw, 19px);
+    color: var(--muted);
+  }
+
+  /* ---- Sélecteur de vue : quatre boutons radio, zéro JavaScript ---- */
+
+  .views { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+  .toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 0;
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .toolbar label {
+    font-size: 13px;
+    letter-spacing: .04em;
+    padding: 8px 15px;
+    border-radius: 999px;
+    border: 1px solid var(--rule);
+    background: var(--card);
+    cursor: pointer;
+    user-select: none;
+  }
+  .toolbar label:hover { border-color: var(--ink); }
+  .toolbar .hint { margin: 0 0 0 6px; font-size: 13px; color: var(--muted); border: 0; padding: 0; }
+
+  #v-css:checked    ~ .toolbar label[for="v-css"],
+  #v-python:checked ~ .toolbar label[for="v-python"],
+  #v-raw:checked    ~ .toolbar label[for="v-raw"],
+  #v-diff:checked   ~ .toolbar label[for="v-diff"] {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  .views:focus-visible + .toolbar label,
+  #v-css:focus-visible    ~ .toolbar label[for="v-css"],
+  #v-python:focus-visible ~ .toolbar label[for="v-python"],
+  #v-raw:focus-visible    ~ .toolbar label[for="v-raw"],
+  #v-diff:focus-visible   ~ .toolbar label[for="v-diff"] {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* ---- La grille ---- */
+
+  .grid {
+    margin-top: 32px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 28px;
+    align-items: start;
+  }
+
+  figure {
+    margin: 0;
+    background: var(--card);
+    border-radius: 3px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+
+  /* `isolation` enferme le multiply dans le cadre : l'aplat teinte la photo,
+     pas la page derrière elle. */
+  .frame {
+    position: relative;
+    isolation: isolate;
+    aspect-ratio: var(--ratio);
+    background: var(--ink);
+  }
+
+  .frame img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* Étape 1 — la bichromie, par le filtre SVG déclaré en bas de page. */
+  .live { filter: var(--duo); }
+
+  /* Étape 2 — l'aplat : une forme découpée au clip-path, en fusion multiply. */
+  .flat {
+    position: absolute;
+    inset: 0;
+    background: var(--flat);
+    clip-path: var(--clip);
+    mix-blend-mode: multiply;
+    opacity: var(--op);
+  }
+
+  /* Le rendu cuit par Pillow, empilé par-dessus et masqué par défaut. */
+  .baked { opacity: 0; }
+
+  #v-python:checked ~ .grid .baked { opacity: 1; }
+
+  #v-raw:checked ~ .grid .live { filter: none; }
+  #v-raw:checked ~ .grid .flat { opacity: 0; }
+
+  /* Écart : le JPEG en `difference` par-dessus le rendu CSS donne |CSS − Python|,
+     presque noir quand les deux coïncident. On l'amplifie pour le rendre lisible. */
+  #v-diff:checked ~ .grid .baked { opacity: 1; mix-blend-mode: difference; }
+  #v-diff:checked ~ .grid .frame { filter: brightness(6); }
+
+  figcaption { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 12px; }
+
+  .recipe { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 10px 4px 5px;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    font-size: 12px;
+  }
+  .swatch { width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .18); }
+  .chip svg { width: 13px; height: 13px; fill: currentColor; }
+
+  .credit { margin: 0; font-size: 12.5px; color: var(--muted); }
+  .seed { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; }
+
+  /* ---- Notes ---- */
+
+  .notes { margin-top: 72px; padding-top: 28px; border-top: 1px solid var(--rule); }
+  .notes h2 { font-size: 22px; letter-spacing: -.02em; margin: 0 0 18px; }
+  .notes h3 { font-size: 15px; margin: 28px 0 6px; }
+  .notes p, .notes li { color: var(--muted); max-width: 72ch; }
+  .notes code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 2px 6px;
+  }
+
+  @media (max-width: 520px) {
+    header { padding-top: 40px; }
+    .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 18px; }
+    figcaption { padding: 12px 13px 14px; }
+    .toolbar .hint { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <a class="back" href="../">← la planche cuite</a>
+  <h1>Sans<br><em>cuisson</em></h1>
+  <p class="lede">La même bichromie et le même aplat, mais aucun pixel n'est calculé à l'avance&nbsp;:
+  le navigateur charge les photos d'origine et fait tout le travail. Un filtre SVG pour les deux encres,
+  un <code>clip-path</code> en <code>mix-blend-mode: multiply</code> pour la forme.
+  Pas une ligne de JavaScript, y compris pour les boutons ci-dessous.</p>
+</header>
+
+<input class="views" type="radio" name="view" id="v-css" checked>
+<input class="views" type="radio" name="view" id="v-python">
+<input class="views" type="radio" name="view" id="v-raw">
+<input class="views" type="radio" name="view" id="v-diff">
+
+<div class="toolbar">
+  <label for="v-css">CSS</label>
+  <label for="v-python">Python</label>
+  <label for="v-raw">Original</label>
+  <label for="v-diff">Écart ×6</label>
+  <p class="hint">« Écart » superpose les deux rendus en <code>difference</code> : plus c'est noir, plus ils coïncident.</p>
+</div>
+
+<div class="grid">
+      <figure style="--ratio: 400 / 600; --duo: url(#duo-01); --flat: #FF6B35; --clip: ellipse(28.085% 18.724% at 63.873% 70.918%); --op: 0.66">
+        <div class="frame">
+          <img class="live" src="../sources/01-skateboard.jpg" alt="Un performeur de rue sur un skateboard devant la foule — bichromie mandarine avec un cercle en multiply" loading="lazy" decoding="async">
+          <span class="flat"></span>
+          <img class="baked" src="../output/01-skateboard.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async">
+        </div>
+        <figcaption>
+          <div class="recipe">
+            <span class="chip" title="encre de la bichromie"><span class="swatch" style="background:#FF6B35"></span>mandarine</span>
+            <span class="chip" title="aplat en multiply"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/></svg><span class="swatch" style="background:#FF6B35"></span>66&nbsp;%</span>
+          </div>
+          <p class="credit">Un performeur de rue sur un skateboard devant la foule<br>photo <a href="https://unsplash.com/photos/SVNdzuAJPXk">Flaviu Costin</a> · <span class="seed">seed 2017</span></p>
+        </figcaption>
+      </figure>
+      <figure style="--ratio: 400 / 533; --duo: url(#duo-02); --flat: #8FB339; --clip: polygon(50.882% 56.989%, 4.399% 67.933%, 15.011% 32.251%); --op: 0.77">
+        <div class="frame">
+          <img class="live" src="../sources/02-scarf.jpg" alt="Une personne assise sur un banc, grande écharpe rouge et blanche — bichromie olive avec un triangle en multiply" loading="lazy" decoding="async">
+          <span class="flat"></span>
+          <img class="baked" src="../output/02-scarf.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async">
+        </div>
+        <figcaption>
+          <div class="recipe">
+            <span class="chip" title="encre de la bichromie"><span class="swatch" style="background:#8FB339"></span>olive</span>
+            <span class="chip" title="aplat en multiply"><svg viewBox="0 0 16 16" aria-hidden="true"><polygon points="8,2 15,14 1,14"/></svg><span class="swatch" style="background:#8FB339"></span>77&nbsp;%</span>
+          </div>
+          <p class="credit">Une personne assise sur un banc, grande écharpe rouge et blanche<br>photo <a href="https://unsplash.com/photos/mpP3lF6flFw">XAVIER PHOTOGRAPHY</a> · <span class="seed">seed 2018</span></p>
+        </figcaption>
+      </figure>
+      <figure style="--ratio: 400 / 600; --duo: url(#duo-03); --flat: #FF6B35; --clip: polygon(100.475% 30.536%, 48.566% 63.845%, 31.25% 17.22%); --op: 0.64">
+        <div class="frame">
+          <img class="live" src="../sources/03-accordion.jpg" alt="Un homme tenant un accordéon devant la ville — bichromie outremer avec un triangle en multiply" loading="lazy" decoding="async">
+          <span class="flat"></span>
+          <img class="baked" src="../output/03-accordion.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async">
+        </div>
+        <figcaption>
+          <div class="recipe">
+            <span class="chip" title="encre de la bichromie"><span class="swatch" style="background:#2B50FF"></span>outremer</span>
+            <span class="chip" title="aplat en multiply"><svg viewBox="0 0 16 16" aria-hidden="true"><polygon points="8,2 15,14 1,14"/></svg><span class="swatch" style="background:#FF6B35"></span>64&nbsp;%</span>
+          </div>
+          <p class="credit">Un homme tenant un accordéon devant la ville<br>photo <a href="https://unsplash.com/photos/65_MCjL2Y0E">Sameer Srivastava</a> · <span class="seed">seed 2019</span></p>
+        </figcaption>
+      </figure>
+      <figure style="--ratio: 400 / 600; --duo: url(#duo-04); --flat: #00D1B2; --clip: polygon(16.376% 44.819%, 76.56% 43.164%, 80.523% 107.218%, 20.339% 108.873%); --op: 0.82">
+        <div class="frame">
+          <img class="live" src="../sources/04-guitar.jpg" alt="Un homme à la guitare assis devant un drapeau suspendu — bichromie lagon avec un rectangle en multiply" loading="lazy" decoding="async">
+          <span class="flat"></span>
+          <img class="baked" src="../output/04-guitar.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async">
+        </div>
+        <figcaption>
+          <div class="recipe">
+            <span class="chip" title="encre de la bichromie"><span class="swatch" style="background:#00D1B2"></span>lagon</span>
+            <span class="chip" title="aplat en multiply"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3" width="13" height="10"/></svg><span class="swatch" style="background:#00D1B2"></span>82&nbsp;%</span>
+          </div>
+          <p class="credit">Un homme à la guitare assis devant un drapeau suspendu<br>photo <a href="https://unsplash.com/photos/A-eBZyL8cZI">Christian Crocker</a> · <span class="seed">seed 2020</span></p>
+        </figcaption>
+      </figure>
+      <figure style="--ratio: 400 / 600; --duo: url(#duo-05); --flat: #FF6B35; --clip: polygon(10.223% 39.226%, 54.422% 26.293%, 82.995% 69.694%, 38.795% 82.626%); --op: 0.86">
+        <div class="frame">
+          <img class="live" src="../sources/05-drums.jpg" alt="Un jeune batteur entouré de passants — bichromie cyan avec un rectangle en multiply" loading="lazy" decoding="async">
+          <span class="flat"></span>
+          <img class="baked" src="../output/05-drums.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async">
+        </div>
+        <figcaption>
+          <div class="recipe">
+            <span class="chip" title="encre de la bichromie"><span class="swatch" style="background:#00B3D6"></span>cyan</span>
+            <span class="chip" title="aplat en multiply"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3" width="13" height="10"/></svg><span class="swatch" style="background:#FF6B35"></span>86&nbsp;%</span>
+          </div>
+          <p class="credit">Un jeune batteur entouré de passants<br>photo <a href="https://unsplash.com/photos/dBkNxzQaLjo">Rogerio Lau</a> · <span class="seed">seed 2021</span></p>
+        </figcaption>
+      </figure>
+      <figure style="--ratio: 400 / 600; --duo: url(#duo-06); --flat: #8FB339; --clip: ellipse(27.072% 18.048% at 67.018% 78.922%); --op: 0.66">
+        <div class="frame">
+          <img class="live" src="../sources/06-central-park.jpg" alt="Photographe de rue à Central Park, New York — bichromie olive avec un cercle en multiply" loading="lazy" decoding="async">
+          <span class="flat"></span>
+          <img class="baked" src="../output/06-central-park.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async">
+        </div>
+        <figcaption>
+          <div class="recipe">
+            <span class="chip" title="encre de la bichromie"><span class="swatch" style="background:#8FB339"></span>olive</span>
+            <span class="chip" title="aplat en multiply"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/></svg><span class="swatch" style="background:#8FB339"></span>66&nbsp;%</span>
+          </div>
+          <p class="credit">Photographe de rue à Central Park, New York<br>photo <a href="https://unsplash.com/photos/Wb6kwlVeKb0">Dustin Bowdige</a> · <span class="seed">seed 2022</span></p>
+        </figcaption>
+      </figure>
+      <figure style="--ratio: 400 / 600; --duo: url(#duo-07); --flat: #E4002B; --clip: polygon(28.217% 0.106%, 65.95% 5.005%, 52.251% 51.899%, 14.518% 47.001%); --op: 0.66">
+        <div class="frame">
+          <img class="live" src="../sources/07-mime.jpg" alt="Un mime souriant, béret et marinière — bichromie cyan avec un rectangle en multiply" loading="lazy" decoding="async">
+          <span class="flat"></span>
+          <img class="baked" src="../output/07-mime.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async">
+        </div>
+        <figcaption>
+          <div class="recipe">
+            <span class="chip" title="encre de la bichromie"><span class="swatch" style="background:#00B3D6"></span>cyan</span>
+            <span class="chip" title="aplat en multiply"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3" width="13" height="10"/></svg><span class="swatch" style="background:#E4002B"></span>66&nbsp;%</span>
+          </div>
+          <p class="credit">Un mime souriant, béret et marinière<br>photo <a href="https://unsplash.com/photos/Qakrj20TCvk">atelierbyvineeth</a> · <span class="seed">seed 2023</span></p>
+        </figcaption>
+      </figure>
+      <figure style="--ratio: 400 / 600; --duo: url(#duo-08); --flat: #7B2FF7; --clip: polygon(44.483% 50.056%, 103.211% 63.547%, 56.322% 90.708%); --op: 0.62">
+        <div class="frame">
+          <img class="live" src="../sources/08-ghat.jpg" alt="Un homme debout sur une marche de pierre, Yamuna ghat — bichromie vermillon avec un triangle en multiply" loading="lazy" decoding="async">
+          <span class="flat"></span>
+          <img class="baked" src="../output/08-ghat.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async">
+        </div>
+        <figcaption>
+          <div class="recipe">
+            <span class="chip" title="encre de la bichromie"><span class="swatch" style="background:#E4002B"></span>vermillon</span>
+            <span class="chip" title="aplat en multiply"><svg viewBox="0 0 16 16" aria-hidden="true"><polygon points="8,2 15,14 1,14"/></svg><span class="swatch" style="background:#7B2FF7"></span>62&nbsp;%</span>
+          </div>
+          <p class="credit">Un homme debout sur une marche de pierre, Yamuna ghat<br>photo <a href="https://unsplash.com/photos/3agNcuUo-no">Ankit Sharma</a> · <span class="seed">seed 2024</span></p>
+        </figcaption>
+      </figure>
+      <figure style="--ratio: 400 / 533; --duo: url(#duo-09); --flat: #E4002B; --clip: polygon(20.232% 55.435%, 35.05% 20.736%, 67.683% 47.716%); --op: 0.88">
+        <div class="frame">
+          <img class="live" src="../sources/09-laugh-blue.jpg" alt="Une personne qui rit, chemise bleue texturée — bichromie olive avec un triangle en multiply" loading="lazy" decoding="async">
+          <span class="flat"></span>
+          <img class="baked" src="../output/09-laugh-blue.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async">
+        </div>
+        <figcaption>
+          <div class="recipe">
+            <span class="chip" title="encre de la bichromie"><span class="swatch" style="background:#8FB339"></span>olive</span>
+            <span class="chip" title="aplat en multiply"><svg viewBox="0 0 16 16" aria-hidden="true"><polygon points="8,2 15,14 1,14"/></svg><span class="swatch" style="background:#E4002B"></span>88&nbsp;%</span>
+          </div>
+          <p class="credit">Une personne qui rit, chemise bleue texturée<br>photo <a href="https://unsplash.com/photos/y3kC_7Qhmjk">nrd</a> · <span class="seed">seed 2025</span></p>
+        </figcaption>
+      </figure>
+      <figure style="--ratio: 400 / 600; --duo: url(#duo-10); --flat: #00D1B2; --clip: ellipse(31.673% 21.115% at 73.047% 73.688%); --op: 0.78">
+        <div class="frame">
+          <img class="live" src="../sources/10-smile.jpg" alt="Portrait souriant sur fond sombre — bichromie menthe avec un cercle en multiply" loading="lazy" decoding="async">
+          <span class="flat"></span>
+          <img class="baked" src="../output/10-smile.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async">
+        </div>
+        <figcaption>
+          <div class="recipe">
+            <span class="chip" title="encre de la bichromie"><span class="swatch" style="background:#00A878"></span>menthe</span>
+            <span class="chip" title="aplat en multiply"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/></svg><span class="swatch" style="background:#00D1B2"></span>78&nbsp;%</span>
+          </div>
+          <p class="credit">Portrait souriant sur fond sombre<br>photo <a href="https://unsplash.com/photos/yuOAcypoF1I">Christian Bowen</a> · <span class="seed">seed 2026</span></p>
+        </figcaption>
+      </figure>
+      <figure style="--ratio: 400 / 600; --duo: url(#duo-11); --flat: #00A878; --clip: ellipse(26.773% 17.848% at 57.543% 68.353%); --op: 0.78">
+        <div class="frame">
+          <img class="live" src="../sources/11-lisbon.jpg" alt="Visage complice sur un marché de Lisbonne — bichromie menthe avec un cercle en multiply" loading="lazy" decoding="async">
+          <span class="flat"></span>
+          <img class="baked" src="../output/11-lisbon.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async">
+        </div>
+        <figcaption>
+          <div class="recipe">
+            <span class="chip" title="encre de la bichromie"><span class="swatch" style="background:#00A878"></span>menthe</span>
+            <span class="chip" title="aplat en multiply"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/></svg><span class="swatch" style="background:#00A878"></span>78&nbsp;%</span>
+          </div>
+          <p class="credit">Visage complice sur un marché de Lisbonne<br>photo <a href="https://unsplash.com/photos/C5XyLljkMrY">ben o&#x27;bro</a> · <span class="seed">seed 2027</span></p>
+        </figcaption>
+      </figure>
+      <figure style="--ratio: 400 / 600; --duo: url(#duo-12); --flat: #00B3D6; --clip: polygon(37.434% 48.201%, 46.658% 4.531%, 98.774% 31.691%); --op: 0.68">
+        <div class="frame">
+          <img class="live" src="../sources/12-sweater.jpg" alt="Un homme en pull gris, éclat de rire — bichromie safran avec un triangle en multiply" loading="lazy" decoding="async">
+          <span class="flat"></span>
+          <img class="baked" src="../output/12-sweater.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async">
+        </div>
+        <figcaption>
+          <div class="recipe">
+            <span class="chip" title="encre de la bichromie"><span class="swatch" style="background:#FFC300"></span>safran</span>
+            <span class="chip" title="aplat en multiply"><svg viewBox="0 0 16 16" aria-hidden="true"><polygon points="8,2 15,14 1,14"/></svg><span class="swatch" style="background:#00B3D6"></span>68&nbsp;%</span>
+          </div>
+          <p class="credit">Un homme en pull gris, éclat de rire<br>photo <a href="https://unsplash.com/photos/4YzILMQDQFg">HLS 44</a> · <span class="seed">seed 2028</span></p>
+        </figcaption>
+      </figure>
+</div>
+
+<div class="notes">
+  <h2>Comment ça tient</h2>
+
+  <h3>La bichromie</h3>
+  <p>Un filtre SVG inline par image, appliqué en <code>filter: url(#duo-01)</code>. Trois primitives
+  enchaînées&nbsp;: un <code>feColorMatrix</code> qui passe en gris, un <code>feComponentTransfer</code>
+  linéaire pour le contraste, un second en table pour la rampe à trois points.</p>
+  <p>Deux détails décident de la fidélité. D'abord les coefficients du gris&nbsp;: le
+  <code>saturate 0</code> de SVG utilise le Rec.&nbsp;709, Pillow le ITU-R&nbsp;601 — il a fallu écrire la
+  matrice à la main pour que les demi-tons tombent au même endroit. Ensuite <code>color-interpolation-filters="sRGB"</code>,
+  sans quoi le navigateur calcule en linéaire et la bichromie part ailleurs.</p>
+  <p>La table fait 21 points. Ce n'est pas un chiffre rond&nbsp;: le coude de la rampe est à 55&nbsp;%,
+  et 0,55&nbsp;× 20 = 11, donc avec 21 points le coude tombe exactement sur un nœud et l'interpolation du
+  navigateur redonne la courbe sans approximation. Sortir le contraste de la table sert à ça&nbsp;: ses
+  deux ruptures de pente, elles, ne tomberaient jamais juste.</p>
+
+  <h3>L'aplat</h3>
+  <p>Un <code>&lt;span&gt;</code> plein cadre, rempli d'une couleur, découpé par
+  <code>clip-path</code> — <code>polygon()</code> pour le triangle et le rectangle,
+  <code>ellipse()</code> pour le cercle — et fusionné en <code>mix-blend-mode: multiply</code>.
+  Les pourcentages d'un <code>clip-path</code> se résolvent sur la dimension correspondante de la boîte,
+  donc la forme tirée au sort côté Python se transpose telle quelle, quelle que soit la taille d'affichage.
+  Le cadre porte <code>isolation: isolate</code> pour que le multiply s'arrête à la photo.</p>
+
+  <h3>Ce que ça change</h3>
+  <p>Le rendu CSS travaille sur la photo d'origine, à l'affichage&nbsp;: changer une encre, une opacité ou
+  une forme ne coûte rien, et l'image reste nette à n'importe quelle taille. En contrepartie, rien n'est
+  exportable&nbsp;: pas de fichier à déposer dans une maquette, et le résultat dépend du navigateur.
+  Le script Python, lui, produit des JPEG qu'on peut envoyer à un imprimeur.</p>
+  <p>La vue « Écart » sert à vérifier que les deux chemins racontent bien la même chose.
+  Ce qui reste visible vient de la compression JPEG du rendu cuit et du lissage des bords de forme —
+  pas de la bichromie, dont la courbe est reproduite exactement.</p>
+</div>
+
+</div>
+
+<!-- Les filtres : un par image, hors flux. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <filter id="duo-01" x="0" y="0" width="100%" height="100%"
+            color-interpolation-filters="sRGB">
+      <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+      <feComponentTransfer>
+      <feFuncR type="linear" slope="1.2" intercept="-0.1"/>
+      <feFuncG type="linear" slope="1.2" intercept="-0.1"/>
+      <feFuncB type="linear" slope="1.2" intercept="-0.1"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+      <feFuncR type="table" tableValues="0.102 0.1836 0.2652 0.3469 0.4285 0.5102 0.5918 0.6734 0.7551 0.8367 0.9184 1 1 1 1 1 1 1 1 1 1"/>
+      <feFuncG type="table" tableValues="0.0431 0.0774 0.1116 0.1458 0.18 0.2143 0.2485 0.2827 0.3169 0.3512 0.3854 0.4196 0.4763 0.5329 0.5895 0.6462 0.7028 0.7595 0.8161 0.8728 0.9294"/>
+      <feFuncB type="table" tableValues="0.0196 0.0367 0.0538 0.0709 0.0881 0.1052 0.1223 0.1394 0.1565 0.1736 0.1907 0.2078 0.2854 0.363 0.4405 0.5181 0.5956 0.6732 0.7508 0.8283 0.9059"/>
+      </feComponentTransfer>
+    </filter>
+    <filter id="duo-02" x="0" y="0" width="100%" height="100%"
+            color-interpolation-filters="sRGB">
+      <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+      <feComponentTransfer>
+      <feFuncR type="linear" slope="1.2" intercept="-0.1"/>
+      <feFuncG type="linear" slope="1.2" intercept="-0.1"/>
+      <feFuncB type="linear" slope="1.2" intercept="-0.1"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+      <feFuncR type="table" tableValues="0.0549 0.1009 0.1469 0.1929 0.2389 0.2848 0.3308 0.3768 0.4228 0.4688 0.5148 0.5608 0.6039 0.6471 0.6902 0.7333 0.7765 0.8196 0.8627 0.9059 0.949"/>
+      <feFuncG type="table" tableValues="0.0706 0.128 0.1854 0.2428 0.3002 0.3576 0.415 0.4724 0.5298 0.5872 0.6446 0.702 0.7312 0.7603 0.7895 0.8187 0.8479 0.8771 0.9063 0.9355 0.9647"/>
+      <feFuncB type="table" tableValues="0.0235 0.0417 0.0599 0.0781 0.0963 0.1144 0.1326 0.1508 0.169 0.1872 0.2053 0.2235 0.2993 0.3752 0.451 0.5268 0.6026 0.6784 0.7542 0.8301 0.9059"/>
+      </feComponentTransfer>
+    </filter>
+    <filter id="duo-03" x="0" y="0" width="100%" height="100%"
+            color-interpolation-filters="sRGB">
+      <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+      <feComponentTransfer>
+      <feFuncR type="linear" slope="1.12" intercept="-0.06"/>
+      <feFuncG type="linear" slope="1.12" intercept="-0.06"/>
+      <feFuncB type="linear" slope="1.12" intercept="-0.06"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+      <feFuncR type="table" tableValues="0.0157 0.0296 0.0435 0.0574 0.0713 0.0852 0.0991 0.113 0.1269 0.1408 0.1547 0.1686 0.2501 0.3316 0.4131 0.4946 0.576 0.6575 0.739 0.8205 0.902"/>
+      <feFuncG type="table" tableValues="0.0314 0.057 0.0827 0.1084 0.134 0.1597 0.1854 0.2111 0.2367 0.2624 0.2881 0.3137 0.3808 0.4479 0.515 0.5821 0.6492 0.7163 0.7834 0.8505 0.9176"/>
+      <feFuncB type="table" tableValues="0.102 0.1836 0.2652 0.3469 0.4285 0.5102 0.5918 0.6734 0.7551 0.8367 0.9184 1 1 1 1 1 1 1 1 1 1"/>
+      </feComponentTransfer>
+    </filter>
+    <filter id="duo-04" x="0" y="0" width="100%" height="100%"
+            color-interpolation-filters="sRGB">
+      <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+      <feComponentTransfer>
+      <feFuncR type="linear" slope="1.33" intercept="-0.165"/>
+      <feFuncG type="linear" slope="1.33" intercept="-0.165"/>
+      <feFuncB type="linear" slope="1.33" intercept="-0.165"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+      <feFuncR type="table" tableValues="0 0 0 0 0 0 0 0 0 0 0 0 0.0976 0.1952 0.2928 0.3904 0.488 0.5856 0.6832 0.7808 0.8784"/>
+      <feFuncG type="table" tableValues="0.0824 0.1494 0.2164 0.2834 0.3504 0.4175 0.4845 0.5515 0.6185 0.6856 0.7526 0.8196 0.837 0.8545 0.8719 0.8893 0.9068 0.9242 0.9416 0.959 0.9765"/>
+      <feFuncB type="table" tableValues="0.0706 0.1276 0.1847 0.2417 0.2988 0.3558 0.4128 0.4699 0.5269 0.584 0.641 0.698 0.7277 0.7573 0.7869 0.8166 0.8462 0.8758 0.9054 0.9351 0.9647"/>
+      </feComponentTransfer>
+    </filter>
+    <filter id="duo-05" x="0" y="0" width="100%" height="100%"
+            color-interpolation-filters="sRGB">
+      <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+      <feComponentTransfer>
+      <feFuncR type="linear" slope="1.06" intercept="-0.03"/>
+      <feFuncG type="linear" slope="1.06" intercept="-0.03"/>
+      <feFuncB type="linear" slope="1.06" intercept="-0.03"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+      <feFuncR type="table" tableValues="0 0 0 0 0 0 0 0 0 0 0 0 0.0976 0.1952 0.2928 0.3904 0.488 0.5856 0.6832 0.7808 0.8784"/>
+      <feFuncG type="table" tableValues="0.0706 0.128 0.1854 0.2428 0.3002 0.3576 0.415 0.4724 0.5298 0.5872 0.6446 0.702 0.7312 0.7603 0.7895 0.8187 0.8479 0.8771 0.9063 0.9355 0.9647"/>
+      <feFuncB type="table" tableValues="0.0824 0.1512 0.22 0.2888 0.3576 0.4264 0.4952 0.564 0.6328 0.7016 0.7704 0.8392 0.8549 0.8706 0.8863 0.902 0.9176 0.9333 0.949 0.9647 0.9804"/>
+      </feComponentTransfer>
+    </filter>
+    <filter id="duo-06" x="0" y="0" width="100%" height="100%"
+            color-interpolation-filters="sRGB">
+      <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+      <feComponentTransfer>
+      <feFuncR type="linear" slope="1.07" intercept="-0.035"/>
+      <feFuncG type="linear" slope="1.07" intercept="-0.035"/>
+      <feFuncB type="linear" slope="1.07" intercept="-0.035"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+      <feFuncR type="table" tableValues="0.0549 0.1009 0.1469 0.1929 0.2389 0.2848 0.3308 0.3768 0.4228 0.4688 0.5148 0.5608 0.6039 0.6471 0.6902 0.7333 0.7765 0.8196 0.8627 0.9059 0.949"/>
+      <feFuncG type="table" tableValues="0.0706 0.128 0.1854 0.2428 0.3002 0.3576 0.415 0.4724 0.5298 0.5872 0.6446 0.702 0.7312 0.7603 0.7895 0.8187 0.8479 0.8771 0.9063 0.9355 0.9647"/>
+      <feFuncB type="table" tableValues="0.0235 0.0417 0.0599 0.0781 0.0963 0.1144 0.1326 0.1508 0.169 0.1872 0.2053 0.2235 0.2993 0.3752 0.451 0.5268 0.6026 0.6784 0.7542 0.8301 0.9059"/>
+      </feComponentTransfer>
+    </filter>
+    <filter id="duo-07" x="0" y="0" width="100%" height="100%"
+            color-interpolation-filters="sRGB">
+      <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+      <feComponentTransfer>
+      <feFuncR type="linear" slope="1.22" intercept="-0.11"/>
+      <feFuncG type="linear" slope="1.22" intercept="-0.11"/>
+      <feFuncB type="linear" slope="1.22" intercept="-0.11"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+      <feFuncR type="table" tableValues="0 0 0 0 0 0 0 0 0 0 0 0 0.0976 0.1952 0.2928 0.3904 0.488 0.5856 0.6832 0.7808 0.8784"/>
+      <feFuncG type="table" tableValues="0.0706 0.128 0.1854 0.2428 0.3002 0.3576 0.415 0.4724 0.5298 0.5872 0.6446 0.702 0.7312 0.7603 0.7895 0.8187 0.8479 0.8771 0.9063 0.9355 0.9647"/>
+      <feFuncB type="table" tableValues="0.0824 0.1512 0.22 0.2888 0.3576 0.4264 0.4952 0.564 0.6328 0.7016 0.7704 0.8392 0.8549 0.8706 0.8863 0.902 0.9176 0.9333 0.949 0.9647 0.9804"/>
+      </feComponentTransfer>
+    </filter>
+    <filter id="duo-08" x="0" y="0" width="100%" height="100%"
+            color-interpolation-filters="sRGB">
+      <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+      <feComponentTransfer>
+      <feFuncR type="linear" slope="1.27" intercept="-0.135"/>
+      <feFuncG type="linear" slope="1.27" intercept="-0.135"/>
+      <feFuncB type="linear" slope="1.27" intercept="-0.135"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+      <feFuncR type="table" tableValues="0.0902 0.1633 0.2364 0.3094 0.3825 0.4556 0.5287 0.6018 0.6749 0.748 0.821 0.8941 0.9046 0.915 0.9255 0.9359 0.9464 0.9569 0.9673 0.9778 0.9882"/>
+      <feFuncG type="table" tableValues="0 0 0 0 0 0 0 0 0 0 0 0 0.0976 0.1952 0.2928 0.3904 0.488 0.5856 0.6832 0.7808 0.8784"/>
+      <feFuncB type="table" tableValues="0.0157 0.0296 0.0435 0.0574 0.0713 0.0852 0.0991 0.113 0.1269 0.1408 0.1547 0.1686 0.2501 0.3316 0.4131 0.4946 0.576 0.6575 0.739 0.8205 0.902"/>
+      </feComponentTransfer>
+    </filter>
+    <filter id="duo-09" x="0" y="0" width="100%" height="100%"
+            color-interpolation-filters="sRGB">
+      <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+      <feComponentTransfer>
+      <feFuncR type="linear" slope="1.21" intercept="-0.105"/>
+      <feFuncG type="linear" slope="1.21" intercept="-0.105"/>
+      <feFuncB type="linear" slope="1.21" intercept="-0.105"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+      <feFuncR type="table" tableValues="0.0549 0.1009 0.1469 0.1929 0.2389 0.2848 0.3308 0.3768 0.4228 0.4688 0.5148 0.5608 0.6039 0.6471 0.6902 0.7333 0.7765 0.8196 0.8627 0.9059 0.949"/>
+      <feFuncG type="table" tableValues="0.0706 0.128 0.1854 0.2428 0.3002 0.3576 0.415 0.4724 0.5298 0.5872 0.6446 0.702 0.7312 0.7603 0.7895 0.8187 0.8479 0.8771 0.9063 0.9355 0.9647"/>
+      <feFuncB type="table" tableValues="0.0235 0.0417 0.0599 0.0781 0.0963 0.1144 0.1326 0.1508 0.169 0.1872 0.2053 0.2235 0.2993 0.3752 0.451 0.5268 0.6026 0.6784 0.7542 0.8301 0.9059"/>
+      </feComponentTransfer>
+    </filter>
+    <filter id="duo-10" x="0" y="0" width="100%" height="100%"
+            color-interpolation-filters="sRGB">
+      <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+      <feComponentTransfer>
+      <feFuncR type="linear" slope="1.34" intercept="-0.17"/>
+      <feFuncG type="linear" slope="1.34" intercept="-0.17"/>
+      <feFuncB type="linear" slope="1.34" intercept="-0.17"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+      <feFuncR type="table" tableValues="0 0 0 0 0 0 0 0 0 0 0 0 0.0976 0.1952 0.2928 0.3904 0.488 0.5856 0.6832 0.7808 0.8784"/>
+      <feFuncG type="table" tableValues="0.0667 0.1205 0.1743 0.2282 0.282 0.3358 0.3897 0.4435 0.4973 0.5512 0.605 0.6588 0.6924 0.7259 0.7595 0.793 0.8266 0.8601 0.8937 0.9272 0.9608"/>
+      <feFuncB type="table" tableValues="0.0471 0.0856 0.1241 0.1626 0.2011 0.2396 0.2781 0.3166 0.3551 0.3936 0.4321 0.4706 0.5224 0.5743 0.6261 0.678 0.7298 0.7817 0.8336 0.8854 0.9373"/>
+      </feComponentTransfer>
+    </filter>
+    <filter id="duo-11" x="0" y="0" width="100%" height="100%"
+            color-interpolation-filters="sRGB">
+      <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+      <feComponentTransfer>
+      <feFuncR type="linear" slope="1.29" intercept="-0.145"/>
+      <feFuncG type="linear" slope="1.29" intercept="-0.145"/>
+      <feFuncB type="linear" slope="1.29" intercept="-0.145"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+      <feFuncR type="table" tableValues="0 0 0 0 0 0 0 0 0 0 0 0 0.0976 0.1952 0.2928 0.3904 0.488 0.5856 0.6832 0.7808 0.8784"/>
+      <feFuncG type="table" tableValues="0.0667 0.1205 0.1743 0.2282 0.282 0.3358 0.3897 0.4435 0.4973 0.5512 0.605 0.6588 0.6924 0.7259 0.7595 0.793 0.8266 0.8601 0.8937 0.9272 0.9608"/>
+      <feFuncB type="table" tableValues="0.0471 0.0856 0.1241 0.1626 0.2011 0.2396 0.2781 0.3166 0.3551 0.3936 0.4321 0.4706 0.5224 0.5743 0.6261 0.678 0.7298 0.7817 0.8336 0.8854 0.9373"/>
+      </feComponentTransfer>
+    </filter>
+    <filter id="duo-12" x="0" y="0" width="100%" height="100%"
+            color-interpolation-filters="sRGB">
+      <feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0.299 0.587 0.114 0 0  0 0 0 1 0"/>
+      <feComponentTransfer>
+      <feFuncR type="linear" slope="1.34" intercept="-0.17"/>
+      <feFuncG type="linear" slope="1.34" intercept="-0.17"/>
+      <feFuncB type="linear" slope="1.34" intercept="-0.17"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+      <feFuncR type="table" tableValues="0.102 0.1836 0.2652 0.3469 0.4285 0.5102 0.5918 0.6734 0.7551 0.8367 0.9184 1 1 1 1 1 1 1 1 1 1"/>
+      <feFuncG type="table" tableValues="0.0784 0.1408 0.2032 0.2656 0.328 0.3904 0.4528 0.5152 0.5775 0.6399 0.7023 0.7647 0.7878 0.8109 0.834 0.8571 0.8802 0.9033 0.9264 0.9495 0.9725"/>
+      <feFuncB type="table" tableValues="0 0 0 0 0 0 0 0 0 0 0 0 0.0976 0.1952 0.2928 0.3904 0.488 0.5856 0.6832 0.7808 0.8784"/>
+      </feComponentTransfer>
+    </filter>
+  </defs>
+</svg>
+
+</body>
+</html>

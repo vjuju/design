@@ -86,6 +86,8 @@
   }
   .toolbar p { margin: 0; font-size: 13px; color: var(--muted); }
   @media (hover: none) { .hint { display: none; } }
+  .toolbar .sibling { margin-left: auto; font-size: 13px; color: var(--muted); }
+  .toolbar .sibling:hover { color: var(--ink); }
 
   button {
     font: inherit;
@@ -210,6 +212,7 @@
 <div class="toolbar">
   <button id="toggle" type="button" aria-pressed="false">Afficher les originaux</button>
   <p class="hint">ou survolez une image</p>
+  <a class="sibling" href="css/">La même chose en CSS pur →</a>
 </div>
 
 <div class="grid">

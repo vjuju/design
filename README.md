@@ -10,6 +10,7 @@ piste, avec le script qui fabrique et la planche qui montre le résultat.
 | Dossier | Piste |
 | --- | --- |
 | [`photo/mask/`](photo/mask/) | bichromie noir + une couleur, avec un aplat de forme aléatoire en fusion multiply |
+| [`photo/mask/css/`](photo/mask/css/) | le même traitement rejoué par le navigateur : filtre SVG + `clip-path`, sans JavaScript |
 
 ## Publication
 

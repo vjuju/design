@@ -97,6 +97,13 @@
   }
 
   .entry p { margin: 0; color: var(--muted); max-width: 46ch; }
+  .entry code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 1px 5px;
+  }
 
   .go {
     margin-top: auto;
@@ -151,6 +158,22 @@
       <img src="photo/mask/output/07-mime.jpg" alt="Un mime en bichromie cyan, barré d'un rectangle vermillon" loading="lazy">
       <img src="photo/mask/output/09-laugh-blue.jpg" alt="Un portrait rieur en bichromie olive, barré d'un triangle vermillon" loading="lazy">
       <img src="photo/mask/output/04-guitar.jpg" alt="Un guitariste en bichromie lagon" loading="lazy">
+    </div>
+  </a>
+
+  <a class="entry" href="photo/mask/css/">
+    <div class="text">
+      <span class="kicker">photo / mask / css</span>
+      <h2>La même chose, sans cuisson</h2>
+      <p>Le même traitement rejoué par le navigateur : un filtre SVG pour la bichromie,
+      un <code>clip-path</code> en multiply pour l'aplat. Aucun pixel calculé à l'avance,
+      pas une ligne de JavaScript.</p>
+      <span class="go">Comparer les deux <span>→</span></span>
+    </div>
+    <div class="strip">
+      <img src="photo/mask/output/05-drums.jpg" alt="Un batteur de rue en bichromie cyan, barré d'un rectangle mandarine" loading="lazy">
+      <img src="photo/mask/output/08-ghat.jpg" alt="Une silhouette en bichromie vermillon, barrée d'un triangle violet" loading="lazy">
+      <img src="photo/mask/output/12-sweater.jpg" alt="Un éclat de rire en bichromie safran, barré d'un triangle cyan" loading="lazy">
     </div>
   </a>
 

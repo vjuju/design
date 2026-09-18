@@ -12,10 +12,13 @@ seconde passe d'encre sur du papier.
 | `mask.py` | le script de traitement (duotone + aplat), utilisable en CLI |
 | `fetch_sources.py` | télécharge les photos listées dans `sources.json` |
 | `build_page.py` | génère `index.html` à partir des manifestes |
+| `build_css_page.py` | génère `css/index.html`, la version calculée par le navigateur |
+| `css_template.html` | le gabarit de cette seconde page |
 | `sources.json` | les douze photos Unsplash, avec crédits |
 | `sources/` | les originaux |
 | `output/` | les rendus + `recipes.json` (la recette de chaque image) |
 | `index.html` | la planche des douze résultats |
+| `css/index.html` | la même planche, refaite en HTML/CSS pur |
 
 ## Rejouer la série
 
@@ -24,6 +27,7 @@ pip install Pillow
 python3 fetch_sources.py
 python3 mask.py sources/ -o output/ --seed 2017 --manifest output/recipes.json --max-size 900
 python3 build_page.py
+python3 build_css_page.py
 ```
 
 Ouvrir ensuite `index.html`. Sans `--seed`, chaque passage tire une nouvelle série.
@@ -71,3 +75,37 @@ résolutions sans changement.
 
 Photos sous [licence Unsplash](https://unsplash.com/license), créditées sous
 chaque rendu de la planche.
+
+## La version sans cuisson
+
+`css/index.html` refait exactement le même traitement, mais dans le navigateur
+et sur les photos d'origine : aucun pixel n'est calculé à l'avance, et il n'y a
+pas une ligne de JavaScript — le sélecteur de vue est un groupe de boutons radio.
+
+* **La bichromie** est un filtre SVG inline appliqué en `filter: url(#duo-01)` :
+  un `feColorMatrix` pour le gris, un `feComponentTransfer` linéaire pour le
+  contraste, un second en table pour la rampe.
+* **L'aplat** est un `<span>` plein cadre découpé au `clip-path` et fusionné en
+  `mix-blend-mode: multiply`, le cadre portant `isolation: isolate`.
+
+Trois détails décident de la fidélité :
+
+1. `color-interpolation-filters="sRGB"` sur le filtre. Par défaut un filtre SVG
+   calcule en RGB linéaire, et la bichromie part complètement ailleurs.
+2. Les coefficients du gris écrits à la main. Le `saturate 0` de SVG applique le
+   Rec. 709, alors que `ImageOps.grayscale` de Pillow applique le ITU-R 601.
+3. Une table de 21 points, contraste sorti à part. Le coude de la rampe est à
+   55 %, et 0,55 × 20 = 11 : avec 21 points il tombe pile sur un nœud, et
+   l'interpolation du navigateur redonne la courbe sans approximation. Mesuré
+   sur les douze recettes, l'écart avec la LUT 256 points est nul ; en repliant
+   le contraste dans la table il montait à 4,6/255.
+
+La page a une vue « Écart » qui superpose les deux rendus en `difference` avec
+un gain de 6. Mesuré au pixel, l'écart moyen entre les deux chemins est de
+1,2/255 : ce qui reste vient de la compression JPEG du rendu cuit et du lissage
+des bords de forme, pas de la bichromie.
+
+Les deux rendus partagent leur définition : `transfer_curve()` et
+`shape_geometry()` dans `mask.py` servent aussi bien à Pillow qu'au générateur
+de la page CSS, et la géométrie tirée au sort est enregistrée dans
+`output/recipes.json` en coordonnées normalisées.

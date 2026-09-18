@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mask CSS — la même bichromie, sans cuisson</title>
+<meta name="description" content="La même bichromie et le même aplat en multiply, mais calculés par le navigateur : filtre SVG inline et clip-path, sans une ligne de JavaScript.">
+<style>
+  :root {
+    --paper: #f2efe7;
+    --ink: #14130f;
+    --muted: #6d6a60;
+    --rule: #d8d3c6;
+    --card: #ffffff;
+    --accent: #e4002b;
+    --shadow: 0 1px 2px rgba(20, 19, 15, .06), 0 12px 32px rgba(20, 19, 15, .07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #100f0d;
+      --ink: #f2efe7;
+      --muted: #9a958a;
+      --rule: #2c2a25;
+      --card: #1a1815;
+      --accent: #ff4d6d;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 12px 32px rgba(0, 0, 0, .45);
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 0 16px 96px;
+    background: var(--paper);
+    color: var(--ink);
+    font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; }
+
+  a { color: inherit; text-underline-offset: 2px; }
+
+  header { padding: 64px 0 40px; border-bottom: 1px solid var(--rule); }
+
+  .back {
+    display: inline-block;
+    margin-bottom: 26px;
+    font-size: 13px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(42px, 10.5vw, 124px);
+    line-height: .88;
+    letter-spacing: -.045em;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+  h1 em { font-style: normal; color: var(--accent); }
+
+  .lede {
+    margin: 28px 0 0;
+    max-width: 60ch;
+    font-size: clamp(16px, 2.2vw, 19px);
+    color: var(--muted);
+  }
+
+  /* ---- Sélecteur de vue : quatre boutons radio, zéro JavaScript ---- */
+
+  .views { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+  .toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 0;
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .toolbar label {
+    font-size: 13px;
+    letter-spacing: .04em;
+    padding: 8px 15px;
+    border-radius: 999px;
+    border: 1px solid var(--rule);
+    background: var(--card);
+    cursor: pointer;
+    user-select: none;
+  }
+  .toolbar label:hover { border-color: var(--ink); }
+  .toolbar .hint { margin: 0 0 0 6px; font-size: 13px; color: var(--muted); border: 0; padding: 0; }
+
+  #v-css:checked    ~ .toolbar label[for="v-css"],
+  #v-python:checked ~ .toolbar label[for="v-python"],
+  #v-raw:checked    ~ .toolbar label[for="v-raw"],
+  #v-diff:checked   ~ .toolbar label[for="v-diff"] {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  .views:focus-visible + .toolbar label,
+  #v-css:focus-visible    ~ .toolbar label[for="v-css"],
+  #v-python:focus-visible ~ .toolbar label[for="v-python"],
+  #v-raw:focus-visible    ~ .toolbar label[for="v-raw"],
+  #v-diff:focus-visible   ~ .toolbar label[for="v-diff"] {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* ---- La grille ---- */
+
+  .grid {
+    margin-top: 32px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 28px;
+    align-items: start;
+  }
+
+  figure {
+    margin: 0;
+    background: var(--card);
+    border-radius: 3px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+
+  /* `isolation` enferme le multiply dans le cadre : l'aplat teinte la photo,
+     pas la page derrière elle. */
+  .frame {
+    position: relative;
+    isolation: isolate;
+    aspect-ratio: var(--ratio);
+    background: var(--ink);
+  }
+
+  .frame img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* Étape 1 — la bichromie, par le filtre SVG déclaré en bas de page. */
+  .live { filter: var(--duo); }
+
+  /* Étape 2 — l'aplat : une forme découpée au clip-path, en fusion multiply. */
+  .flat {
+    position: absolute;
+    inset: 0;
+    background: var(--flat);
+    clip-path: var(--clip);
+    mix-blend-mode: multiply;
+    opacity: var(--op);
+  }
+
+  /* Le rendu cuit par Pillow, empilé par-dessus et masqué par défaut. */
+  .baked { opacity: 0; }
+
+  #v-python:checked ~ .grid .baked { opacity: 1; }
+
+  #v-raw:checked ~ .grid .live { filter: none; }
+  #v-raw:checked ~ .grid .flat { opacity: 0; }
+
+  /* Écart : le JPEG en `difference` par-dessus le rendu CSS donne |CSS − Python|,
+     presque noir quand les deux coïncident. On l'amplifie pour le rendre lisible. */
+  #v-diff:checked ~ .grid .baked { opacity: 1; mix-blend-mode: difference; }
+  #v-diff:checked ~ .grid .frame { filter: brightness(6); }
+
+  figcaption { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 12px; }
+
+  .recipe { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 10px 4px 5px;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    font-size: 12px;
+  }
+  .swatch { width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .18); }
+  .chip svg { width: 13px; height: 13px; fill: currentColor; }
+
+  .credit { margin: 0; font-size: 12.5px; color: var(--muted); }
+  .seed { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; }
+
+  /* ---- Notes ---- */
+
+  .notes { margin-top: 72px; padding-top: 28px; border-top: 1px solid var(--rule); }
+  .notes h2 { font-size: 22px; letter-spacing: -.02em; margin: 0 0 18px; }
+  .notes h3 { font-size: 15px; margin: 28px 0 6px; }
+  .notes p, .notes li { color: var(--muted); max-width: 72ch; }
+  .notes code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 2px 6px;
+  }
+
+  @media (max-width: 520px) {
+    header { padding-top: 40px; }
+    .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 18px; }
+    figcaption { padding: 12px 13px 14px; }
+    .toolbar .hint { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <a class="back" href="../">← la planche cuite</a>
+  <h1>Sans<br><em>cuisson</em></h1>
+  <p class="lede">La même bichromie et le même aplat, mais aucun pixel n'est calculé à l'avance&nbsp;:
+  le navigateur charge les photos d'origine et fait tout le travail. Un filtre SVG pour les deux encres,
+  un <code>clip-path</code> en <code>mix-blend-mode: multiply</code> pour la forme.
+  Pas une ligne de JavaScript, y compris pour les boutons ci-dessous.</p>
+</header>
+
+<input class="views" type="radio" name="view" id="v-css" checked>
+<input class="views" type="radio" name="view" id="v-python">
+<input class="views" type="radio" name="view" id="v-raw">
+<input class="views" type="radio" name="view" id="v-diff">
+
+<div class="toolbar">
+  <label for="v-css">CSS</label>
+  <label for="v-python">Python</label>
+  <label for="v-raw">Original</label>
+  <label for="v-diff">Écart ×6</label>
+  <p class="hint">« Écart » superpose les deux rendus en <code>difference</code> : plus c'est noir, plus ils coïncident.</p>
+</div>
+
+<div class="grid">
+<!--CARDS-->
+</div>
+
+<div class="notes">
+  <h2>Comment ça tient</h2>
+
+  <h3>La bichromie</h3>
+  <p>Un filtre SVG inline par image, appliqué en <code>filter: url(#duo-01)</code>. Trois primitives
+  enchaînées&nbsp;: un <code>feColorMatrix</code> qui passe en gris, un <code>feComponentTransfer</code>
+  linéaire pour le contraste, un second en table pour la rampe à trois points.</p>
+  <p>Deux détails décident de la fidélité. D'abord les coefficients du gris&nbsp;: le
+  <code>saturate 0</code> de SVG utilise le Rec.&nbsp;709, Pillow le ITU-R&nbsp;601 — il a fallu écrire la
+  matrice à la main pour que les demi-tons tombent au même endroit. Ensuite <code>color-interpolation-filters="sRGB"</code>,
+  sans quoi le navigateur calcule en linéaire et la bichromie part ailleurs.</p>
+  <p>La table fait <!--POINTS--> points. Ce n'est pas un chiffre rond&nbsp;: le coude de la rampe est à 55&nbsp;%,
+  et 0,55&nbsp;× 20 = 11, donc avec 21 points le coude tombe exactement sur un nœud et l'interpolation du
+  navigateur redonne la courbe sans approximation. Sortir le contraste de la table sert à ça&nbsp;: ses
+  deux ruptures de pente, elles, ne tomberaient jamais juste.</p>
+
+  <h3>L'aplat</h3>
+  <p>Un <code>&lt;span&gt;</code> plein cadre, rempli d'une couleur, découpé par
+  <code>clip-path</code> — <code>polygon()</code> pour le triangle et le rectangle,
+  <code>ellipse()</code> pour le cercle — et fusionné en <code>mix-blend-mode: multiply</code>.
+  Les pourcentages d'un <code>clip-path</code> se résolvent sur la dimension correspondante de la boîte,
+  donc la forme tirée au sort côté Python se transpose telle quelle, quelle que soit la taille d'affichage.
+  Le cadre porte <code>isolation: isolate</code> pour que le multiply s'arrête à la photo.</p>
+
+  <h3>Ce que ça change</h3>
+  <p>Le rendu CSS travaille sur la photo d'origine, à l'affichage&nbsp;: changer une encre, une opacité ou
+  une forme ne coûte rien, et l'image reste nette à n'importe quelle taille. En contrepartie, rien n'est
+  exportable&nbsp;: pas de fichier à déposer dans une maquette, et le résultat dépend du navigateur.
+  Le script Python, lui, produit des JPEG qu'on peut envoyer à un imprimeur.</p>
+  <p>La vue « Écart » sert à vérifier que les deux chemins racontent bien la même chose.
+  Ce qui reste visible vient de la compression JPEG du rendu cuit et du lissage des bords de forme —
+  pas de la bichromie, dont la courbe est reproduite exactement.</p>
+</div>
+
+</div>
+
+<!-- Les filtres : un par image, hors flux. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+<!--FILTERS-->
+  </defs>
+</svg>
+
+</body>
+</html>
