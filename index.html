@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design — bac à sable</title>
+<meta name="description" content="Un repo pour tester des idées de design : chaque dossier est une piste, avec son script et sa planche de résultats.">
+<style>
+  :root {
+    --paper: #f2efe7;
+    --ink: #14130f;
+    --muted: #6d6a60;
+    --rule: #d8d3c6;
+    --card: #ffffff;
+    --accent: #e4002b;
+    --shadow: 0 1px 2px rgba(20, 19, 15, .06), 0 12px 32px rgba(20, 19, 15, .07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #100f0d;
+      --ink: #f2efe7;
+      --muted: #9a958a;
+      --rule: #2c2a25;
+      --card: #1a1815;
+      --accent: #ff4d6d;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 12px 32px rgba(0, 0, 0, .45);
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 0 16px 96px;
+    background: var(--paper);
+    color: var(--ink);
+    font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; }
+
+  header { padding: 72px 0 40px; border-bottom: 1px solid var(--rule); }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(48px, 13vw, 150px);
+    line-height: .86;
+    letter-spacing: -.05em;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+  h1 em { font-style: normal; color: var(--accent); }
+
+  .lede {
+    margin: 28px 0 0;
+    max-width: 56ch;
+    font-size: clamp(16px, 2.2vw, 19px);
+    color: var(--muted);
+  }
+
+  .list { margin-top: 56px; display: flex; flex-direction: column; gap: 28px; }
+
+  .entry {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    gap: 0;
+    background: var(--card);
+    border-radius: 3px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    color: inherit;
+    text-decoration: none;
+    transition: transform .18s ease, box-shadow .18s ease;
+  }
+  .entry:hover, .entry:focus-visible {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(20, 19, 15, .08), 0 20px 46px rgba(20, 19, 15, .12);
+  }
+  .entry:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  .entry .text { padding: 36px 34px 34px; display: flex; flex-direction: column; gap: 14px; }
+
+  .kicker {
+    font-size: 12px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .entry h2 {
+    margin: 0;
+    font-size: clamp(26px, 3.4vw, 38px);
+    line-height: 1.04;
+    letter-spacing: -.025em;
+    font-weight: 700;
+  }
+
+  .entry p { margin: 0; color: var(--muted); max-width: 46ch; }
+
+  .go {
+    margin-top: auto;
+    padding-top: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: .01em;
+  }
+  .go span { color: var(--accent); }
+
+  .strip { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--ink); }
+  .strip img { width: 100%; height: 100%; object-fit: cover; display: block; aspect-ratio: 3 / 4; }
+
+  footer {
+    margin-top: 64px;
+    padding-top: 28px;
+    border-top: 1px solid var(--rule);
+    color: var(--muted);
+    font-size: 14px;
+  }
+  footer a { color: inherit; }
+
+  @media (max-width: 720px) {
+    header { padding-top: 44px; }
+    .entry { grid-template-columns: 1fr; }
+    .strip { order: -1; }
+    .strip img { aspect-ratio: 1 / 1; }
+    .entry .text { padding: 24px 22px 26px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Bac<br>à <em>sable</em></h1>
+  <p class="lede">Un repo pour tester des idées de design. Chaque dossier est une piste&nbsp;:
+  un script qui fabrique, une planche qui montre ce que ça donne.</p>
+</header>
+
+<div class="list">
+
+  <a class="entry" href="photo/mask/">
+    <div class="text">
+      <span class="kicker">photo / mask</span>
+      <h2>Noir &amp; une couleur</h2>
+      <p>Douze photos ramenées à deux encres, recouvertes d'une forme tirée au sort
+      en fusion multiply. Rien n'est cadré à la main : tout vient d'une graine.</p>
+      <span class="go">Voir la planche <span>→</span></span>
+    </div>
+    <div class="strip">
+      <img src="photo/mask/output/07-mime.jpg" alt="Un mime en bichromie cyan, barré d'un rectangle vermillon" loading="lazy">
+      <img src="photo/mask/output/09-laugh-blue.jpg" alt="Un portrait rieur en bichromie olive, barré d'un triangle vermillon" loading="lazy">
+      <img src="photo/mask/output/04-guitar.jpg" alt="Un guitariste en bichromie lagon" loading="lazy">
+    </div>
+  </a>
+
+</div>
+
+<footer>
+  <p>Sources et scripts : <a href="https://github.com/vjuju/design">github.com/vjuju/design</a>.
+  Photographies sous <a href="https://unsplash.com/license">licence Unsplash</a>, créditées sur chaque planche.</p>
+</footer>
+
+</div>
+</body>
+</html>

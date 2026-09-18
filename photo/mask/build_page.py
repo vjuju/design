@@ -218,9 +218,9 @@ PAGE = """<!DOCTYPE html>
 
 <header>
   <h1>Noir<br>&amp; <em>une</em><br>couleur</h1>
-  <p class="lede">Douze photos passées à la même moulinette : bichromie sur une seule encre,
+  <p class="lede">Douze photos passées à la même moulinette&nbsp;: bichromie sur une seule encre,
   puis un aplat — triangle, cercle ou rectangle — posé au hasard en fusion multiply.
-  Aucun cadrage n'a été retouché à la main : tout vient du tirage d'une graine.</p>
+  Aucun cadrage n'a été retouché à la main&nbsp;: tout vient du tirage d'une graine.</p>
   <div class="meta">
     <span>{count} rendus</span>
     <span>{inks} encres</span>
