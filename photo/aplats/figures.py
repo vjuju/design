@@ -8,8 +8,9 @@ vibre.
 2. Autour de chacune on pose une silhouette élargie, dans une couleur de la
    palette, légèrement décalée comme un repérage raté de sérigraphie. Sur un
    fond clair, fusion multiply : la couleur éclate et le sujet reste lisible
-   au travers. Sur un fond sombre, où le multiply ne donnerait rien, l'aplat
-   devient un halo couvrant autour du sujet.
+   au travers. Sur un fond sombre, où le multiply ne donnerait rien, la forme
+   entière est recolorée : la couleur pure sur les clairs de la photo, une
+   version sombre de la même couleur sur ses noirs.
    La silhouette n'est pas un masque de pixels : son contour est réduit à
    quelques points de passage, et une courbe lisse les relie.
 3. La silhouette est cernée d'un gros trait noir chaud, de largeur constante.
@@ -57,17 +58,13 @@ def render(photo, rng, args):
             continue
         off = 0.012 * d
         curve = curve + [rng.uniform(-off, off), rng.uniform(-off, off)]
-        inner = pop.curve_of(shape, k, tol)
-
         # On ne dessine et ne peint que dans le rectangle de la forme.
-        box = pop.box_of([curve] + ([inner] if inner is not None else []), 2, photo.shape)
+        box = pop.box_of([curve], 2, photo.shape)
         x0, y0, x1, y1 = box
         fill = pop.fill_alpha(box, curve)
-        # Le bord intérieur du halo n'est pas cerné de noir : lui reste lissé.
-        core = pop.fill_alpha(box, inner, ss=2) if inner is not None else fill * 0
-        mode, alpha = pop.blend_for(photo[y0:y1, x0:x1], (fill > 0.5) & (core < 0.5))
-        if mode == "normal":                 # fond sombre : halo couvrant,
-            fill = fill * (1 - core)         # le sujet reste visible
+        mode, alpha = pop.blend_for(photo[y0:y1, x0:x1], fill > 0.5)
+        if mode == "normal":                 # fond sombre : le multiply s'y
+            mode, alpha = "tint", 0.92       # éteindrait, on recolore
         pop.paint(canvas, fill, color, mode, alpha, box=box)
         curves.append(curve)
 

@@ -76,7 +76,10 @@ bouts ronds, dessiné en sur-échantillonnage pour l'antialiasing.
 
 **La fusion** (`pop.blend_for`) : sur une zone claire, l'aplat est en
 *multiply* — la couleur éclate et la photo reste visible au travers. Sur une
-zone sombre le multiply ne donnerait rien : l'aplat devient couvrant.
+zone sombre le multiply ne donnerait rien : l'aplat devient couvrant, ou,
+dans `figures.py`, une *teinte* (`paint(..., "tint")`) qui recolore toute la
+forme — couleur pure sur les clairs, version sombre de la même couleur sur
+les noirs, luminance étirée sur la zone peinte pour garder les détails.
 
 ## Limites
 

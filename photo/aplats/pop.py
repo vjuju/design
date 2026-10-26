@@ -270,7 +270,8 @@ def soft(m: np.ndarray) -> np.ndarray:
 
 def paint(canvas: np.ndarray, mask: np.ndarray, color: str,
           mode: str = "multiply", opacity: float = 1.0, box: tuple | None = None) -> None:
-    """Pose un aplat. multiply : la photo transparaît ; normal : il la couvre.
+    """Pose un aplat. multiply : la photo transparaît ; normal : il la couvre ;
+    tint : il la recolore entièrement en gardant ses valeurs (voir plus bas).
 
     Avec `box` (x0, y0, x1, y1), `mask` ne couvre que ce rectangle et seul lui
     est recalculé : le reste de l'image n'est pas touché.
@@ -280,6 +281,18 @@ def paint(canvas: np.ndarray, mask: np.ndarray, color: str,
         canvas = canvas[y0:y1, x0:x1]          # vue : on écrit dans l'original
     alpha = (mask if mask.dtype != bool else soft(mask)) * opacity
     c = rgb(color)
+    if mode == "tint":
+        # Teinte : la couleur pure là où la photo est claire, une version
+        # sombre de la même couleur là où elle est noire. La luminance est
+        # étirée sur la seule zone peinte, si bien qu'un sujet sombre sur fond
+        # sombre garde ses détails tout en prenant entièrement la couleur.
+        lum = luminance(canvas)
+        inside = alpha > 0.5
+        lo, hi = np.percentile(lum[inside], [3, 97]) if inside.any() else (0.0, 1.0)
+        ramp = np.clip((lum - lo) / max(hi - lo, 1e-3), 0, 1)[..., None]
+        top = c * (0.28 + 0.72 * ramp)
+        canvas += (top - canvas) * alpha[..., None]
+        return
     # Un trait ou une couronne ne couvre qu'une petite partie de son
     # rectangle : on ne recalcule alors que les pixels touchés.
     sel = alpha > 0
