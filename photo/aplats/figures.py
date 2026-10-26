@@ -8,15 +8,14 @@ vibre.
 2. Autour de chacune on pose une silhouette élargie, dans une couleur de la
    palette, légèrement décalée comme un repérage raté de sérigraphie. Sur un
    fond clair, fusion multiply : la couleur éclate et le sujet reste lisible
-   au travers. Sur un fond sombre, où le multiply ne
-   donnerait rien, l'aplat devient un halo couvrant autour du sujet.
+   au travers. Sur un fond sombre, où le multiply ne donnerait rien, l'aplat
+   devient un halo couvrant autour du sujet.
    La silhouette n'est pas un masque de pixels : son contour est réduit à
    quelques points de passage, et une courbe lisse les relie.
 3. La silhouette est cernée d'un gros trait noir chaud, de largeur constante.
 4. Autour du sujet principal, les vibrations de Keith Haring : un petit
    arc, doublé d'un plus petit à l'extérieur, souligne ses angles les plus
-   marqués, et quelques traits
-   droits rayonnants ailleurs.
+   marqués, et quelques traits droits rayonnants ailleurs.
 
     python3 figures.py photo.jpg
     python3 figures.py sources/ --variants 3 --seed 7
@@ -38,7 +37,6 @@ def add_args(ap) -> None:
 
 
 def render(photo, rng, args):
-    h, w = photo.shape[:2]
     d = pop.diag(photo.shape)
     canvas = photo.copy()
 
@@ -59,24 +57,30 @@ def render(photo, rng, args):
             continue
         off = 0.012 * d
         curve = curve + [rng.uniform(-off, off), rng.uniform(-off, off)]
-        fill = pop.fill_alpha((h, w), curve)
-
         inner = pop.curve_of(shape, k, tol)
-        core = pop.fill_alpha((h, w), inner) if inner is not None else fill * 0
-        mode, alpha = pop.blend_for(photo, (fill > 0.5) & (core < 0.5))
+
+        # On ne dessine et ne peint que dans le rectangle de la forme.
+        box = pop.box_of([curve] + ([inner] if inner is not None else []), 2, photo.shape)
+        x0, y0, x1, y1 = box
+        fill = pop.fill_alpha(box, curve)
+        # Le bord intérieur du halo n'est pas cerné de noir : lui reste lissé.
+        core = pop.fill_alpha(box, inner, ss=2) if inner is not None else fill * 0
+        mode, alpha = pop.blend_for(photo[y0:y1, x0:x1], (fill > 0.5) & (core < 0.5))
         if mode == "normal":                 # fond sombre : halo couvrant,
             fill = fill * (1 - core)         # le sujet reste visible
-        pop.paint(canvas, fill, color, mode, alpha)
+        pop.paint(canvas, fill, color, mode, alpha, box=box)
         curves.append(curve)
 
     for curve in curves:
-        pop.paint(canvas, pop.stroke_alpha((h, w), curve, stroke), pop.CONTOUR, "normal")
+        box = pop.box_of([curve], stroke, photo.shape)
+        pop.paint(canvas, pop.stroke_alpha(box, curve, stroke), pop.CONTOUR, "normal", box=box)
 
     if curves and not args.no_rays:
-        ray = pop.vibrations((h, w), curves[0], rng, gap=0.018 * d, length=0.035 * d,
-                             width=stroke * 0.85, spacing=0.07 * d, arc=0.06 * d,
-                             corners=args.corners)
-        pop.paint(canvas, ray, pop.CONTOUR, "normal")
+        gap, length, width = 0.018 * d, 0.035 * d, stroke * 0.85
+        box = pop.box_of([curves[0]], gap + 1.3 * length + 3 * width, photo.shape)
+        ray = pop.vibrations(box, curves[0], rng, gap=gap, length=length, width=width,
+                             spacing=0.07 * d, arc=0.06 * d, corners=args.corners)
+        pop.paint(canvas, ray, pop.CONTOUR, "normal", box=box)
     return canvas
 
 

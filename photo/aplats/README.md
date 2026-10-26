@@ -54,7 +54,11 @@ pleine résolution par une courbe de Catmull-Rom centripète (`pop.spline`) :
 pas de bord haché, un trait noir de largeur constante. Les vibrations
 (`pop.vibrations`) mêlent deux gestes : aux angles les plus saillants de la
 forme (là où la courbe tourne le plus vite), un petit arc parallèle à la courbe,
-doublé à l'extérieur d'un second deux fois plus court, souligne l'angle ; ailleurs, quelques traits droits perpendiculaires.
+doublé à l'extérieur d'un second deux fois plus court, souligne l'angle ;
+ailleurs, quelques traits droits perpendiculaires. Le rendu ne touche que le
+rectangle de chaque forme (`pop.box_of`), et dans ce rectangle seulement les
+pixels qu'un trait recouvre : environ 0,3 s par photo de 900 px, 0,6 s à
+1800 px.
 
 **La forme au pinceau** (`pop.bold_shape`) : une fermeture morphologique
 (dilater puis éroder) comble les creux, les trous sont bouchés, le bord est

@@ -269,12 +269,27 @@ def soft(m: np.ndarray) -> np.ndarray:
 
 
 def paint(canvas: np.ndarray, mask: np.ndarray, color: str,
-          mode: str = "multiply", opacity: float = 1.0) -> None:
-    """Pose un aplat. multiply : la photo transparaît ; normal : il la couvre."""
-    alpha = (mask if mask.dtype != bool else soft(mask))[..., None] * opacity
+          mode: str = "multiply", opacity: float = 1.0, box: tuple | None = None) -> None:
+    """Pose un aplat. multiply : la photo transparaît ; normal : il la couvre.
+
+    Avec `box` (x0, y0, x1, y1), `mask` ne couvre que ce rectangle et seul lui
+    est recalculé : le reste de l'image n'est pas touché.
+    """
+    if box is not None:
+        x0, y0, x1, y1 = box
+        canvas = canvas[y0:y1, x0:x1]          # vue : on écrit dans l'original
+    alpha = (mask if mask.dtype != bool else soft(mask)) * opacity
     c = rgb(color)
-    top = canvas * c if mode == "multiply" else np.broadcast_to(c, canvas.shape)
-    canvas[:] = canvas * (1 - alpha) + top * alpha
+    # Un trait ou une couronne ne couvre qu'une petite partie de son
+    # rectangle : on ne recalcule alors que les pixels touchés.
+    sel = alpha > 0
+    if sel.mean() < 0.4:
+        px, a = canvas[sel], alpha[sel][:, None]
+        canvas[sel] = px * (1 - a * (1 - c)) if mode == "multiply" else px + (c - px) * a
+    elif mode == "multiply":
+        canvas *= 1 - alpha[..., None] * (1 - c)
+    else:
+        canvas += (c - canvas) * alpha[..., None]
 
 
 def blend_for(canvas: np.ndarray, mask: np.ndarray, threshold: float = 0.5) -> tuple[str, float]:
@@ -457,22 +472,43 @@ def curve_of(m: np.ndarray, scale: float, tol: float) -> np.ndarray | None:
     return (spline(keys) + 0.5) * scale
 
 
-def _canvas_alpha(shape, draw_fn, ss: int = 2) -> np.ndarray:
-    h, w = shape
+def box_of(curves: list[np.ndarray], margin: float, shape) -> tuple[int, int, int, int]:
+    """Le rectangle (x0, y0, x1, y1) qui contient les courbes plus une marge,
+    rogné au cadre de l'image. On ne dessine et ne peint que là-dedans."""
+    pts = np.vstack(curves)
+    h, w = shape[:2]
+    x0 = int(max(0, math.floor(pts[:, 0].min() - margin)))
+    y0 = int(max(0, math.floor(pts[:, 1].min() - margin)))
+    x1 = int(min(w, math.ceil(pts[:, 0].max() + margin) + 1))
+    y1 = int(min(h, math.ceil(pts[:, 1].max() + margin) + 1))
+    return x0, y0, max(x0 + 1, x1), max(y0 + 1, y1)
+
+
+def _canvas_alpha(box, draw_fn, ss: int = 2) -> np.ndarray:
+    """Alpha antialiasé de la taille de `box`, dessiné en sur-échantillonnage x`ss`."""
+    x0, y0, x1, y1 = box
+    w, h = x1 - x0, y1 - y0
     im = Image.new("L", (w * ss, h * ss), 0)
     draw_fn(ImageDraw.Draw(im), ss)
-    return np.asarray(im.resize((w, h), Image.BOX), dtype=np.float32) / 255.0
+    if ss > 1:
+        im = im.resize((w, h), Image.BOX)
+    return np.asarray(im, dtype=np.float32) / 255.0
 
 
-def fill_alpha(shape, curve: np.ndarray) -> np.ndarray:
-    return _canvas_alpha(shape, lambda d, ss: d.polygon([tuple(p) for p in curve * ss], fill=255))
+def fill_alpha(box, curve: np.ndarray, ss: int = 1) -> np.ndarray:
+    """Intérieur de la courbe. Sans sur-échantillonnage par défaut : le bord
+    est recouvert par le trait noir, son crénelage ne se voit pas."""
+    local = curve - box[:2]
+    return _canvas_alpha(box, lambda d, s: d.polygon([tuple(p) for p in local * s], fill=255), ss)
 
 
-def stroke_alpha(shape, curve: np.ndarray, width: float) -> np.ndarray:
+def stroke_alpha(box, curve: np.ndarray, width: float) -> np.ndarray:
+    local = curve - box[:2]
+
     def draw(d, ss):
-        pts = [tuple(p) for p in curve * ss]
+        pts = [tuple(p) for p in local * ss]
         d.line(pts + pts[:2], fill=255, width=max(1, round(width * ss)), joint="curve")
-    return _canvas_alpha(shape, draw)
+    return _canvas_alpha(box, draw)
 
 
 def resample(curve: np.ndarray, step: float) -> np.ndarray:
@@ -483,7 +519,7 @@ def resample(curve: np.ndarray, step: float) -> np.ndarray:
     return np.stack([np.interp(at, dist, closed[:, 0]), np.interp(at, dist, closed[:, 1])], axis=1)
 
 
-def vibrations(shape, curve: np.ndarray, rng: random.Random, *, gap: float, length: float,
+def vibrations(box, curve: np.ndarray, rng: random.Random, *, gap: float, length: float,
                width: float, spacing: float, arc: float, corners: int = 3) -> np.ndarray:
     """Les vibrations de Keith Haring autour d'une courbe fermée.
 
@@ -493,13 +529,15 @@ def vibrations(shape, curve: np.ndarray, rng: random.Random, *, gap: float, leng
       ils soulignent l'angle comme un écho.
     * Ailleurs, des traits droits perpendiculaires, plus espacés qu'avant et
       absents autour des arcs.
-    Tous les traits ont la même épaisseur et des bouts ronds.
+    Tous les traits ont la même épaisseur et des bouts ronds. L'alpha rendu
+    couvre `box` (voir `box_of`).
     """
+    curve = curve - box[:2]
     step = max(1.0, width / 2)
     pts = resample(curve, step)
     n = len(pts)
     if n < 12:
-        return np.zeros(shape, dtype=np.float32)
+        return np.zeros((box[3] - box[1], box[2] - box[0]), dtype=np.float32)
     x, y = pts[:, 0], pts[:, 1]
     area = 0.5 * float(np.sum(x * np.roll(y, -1) - np.roll(x, -1) * y))
     sign = 1.0 if area > 0 else -1.0
@@ -552,7 +590,7 @@ def vibrations(shape, curve: np.ndarray, rng: random.Random, *, gap: float, leng
             p1 = (pts[i] + normal[i] * (gap + L)) * ss
             d.line([tuple(p0), tuple(p1)], fill=255, width=lw)
             caps(tuple(p0), tuple(p1))
-    return _canvas_alpha(shape, draw)
+    return _canvas_alpha(box, draw)
 
 
 def pick_colors(rng: random.Random, n: int) -> list[str]:
