@@ -521,7 +521,9 @@ def vibrations(shape, curve: np.ndarray, rng: random.Random, *, gap: float, leng
 
     covered = np.zeros(n, dtype=bool)
     for i in picked:
-        covered[np.arange(i - half - 2, i + half + 3) % n] = True
+        # Une marge vide de part et d'autre de l'arc, avant le premier trait droit.
+        margin = int(0.6 * spacing / step)
+        covered[np.arange(i - half - margin, i + half + margin + 1) % n] = True
 
     def draw(d, ss):
         lw = max(1, round(width * ss))
