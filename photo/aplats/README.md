@@ -41,9 +41,13 @@ Options propres : `figures.py --subjects 3 --no-rays` ·
 **Le sujet** (`pop.subjects`) vient d'une carte de saillance faite de trois
 indices : l'écart à la couleur dominante de l'image (presque toujours le fond),
 le contraste local (luminance moins luminance très floutée) et la saturation,
-avec un léger biais vers le centre. Seuil d'Otsu, composantes connexes, et on
-classe les zones par saillance cumulée en pénalisant celles qui touchent le
-bord du cadre.
+avec un léger biais vers le centre. Cette carte est seuillée à plusieurs
+hauteurs — plus le seuil monte, plus le sujet se décolle du décor voisin — et
+toutes les zones obtenues sont notées par `pop.shape_score` : contraste avec
+un anneau autour d'elles, forme ramassée qui remplit son cadre, pénalité pour
+les bandes qui traversent l'image (ciel, plage, ligne d'arbres) et pour les
+zones trop grandes. Les sujets secondaires doivent valoir au moins le tiers du
+principal, sinon rien n'est peint.
 
 **La forme au pinceau** (`pop.bold_shape`) : une fermeture morphologique
 (dilater puis éroder) comble les creux, les trous sont bouchés, le bord est
@@ -65,9 +69,11 @@ zone sombre le multiply ne donnerait rien : l'aplat devient couvrant.
 
 ## Limites
 
-La saillance n'est qu'une heuristique : sur un fond sombre et chargé, la zone
-la plus « détachée » peut être un pan de décor clair plutôt que la personne
-(voir l'accordéoniste). Sur les photos très sombres, `plages.py` peint peu.
+La saillance n'est qu'une heuristique. Sur [`test/`](test/), 26 photos
+Unsplash de tous genres, `figures.py` vise juste sur une vingtaine ; il se
+trompe encore quand le sujet est petit et fondu dans un décor coloré
+(kickflip, aire de jeux, fresque, surfeur au loin), où un pan de décor se
+détache mieux que la personne. Sur les photos très sombres, `plages.py` peint peu.
 `--seed` permet de tirer jusqu'à obtenir le bon rendu, et les options de
 chaque script de pousser le traitement.
 

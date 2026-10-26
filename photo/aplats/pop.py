@@ -125,10 +125,15 @@ def outline(m: np.ndarray, width: float) -> np.ndarray:
     return dilate(m, width / 2) & ~erode(m, width / 2)
 
 
-def fill_holes(m: np.ndarray) -> np.ndarray:
-    """Bouche les trous : tout ce qui n'est pas relié au bord du cadre."""
+def fill_holes(m: np.ndarray, bottom_is_open: bool = True) -> np.ndarray:
+    """Bouche les trous : tout ce qui n'est pas relié au bord du cadre.
+
+    Avec `bottom_is_open=False`, le bas du cadre compte comme un mur : un
+    sujet coupé par le bas (un buste, un chat assis) ne reste pas creux.
+    """
     lab = label(~m)
-    edge = np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))
+    sides = [lab[0], lab[:, 0], lab[:, -1]] + ([lab[-1]] if bottom_is_open else [])
+    edge = np.unique(np.concatenate(sides))
     return m | ((lab >= 0) & ~np.isin(lab, edge))
 
 
@@ -139,7 +144,7 @@ def bold_shape(m: np.ndarray, d: float, noise: np.ndarray | None = None) -> np.n
     """
     r = 0.035 * d
     closed = erode(dilate(m, r), r * 0.8)
-    return fill_holes(smooth(closed | m, 0.008 * d, noise))
+    return fill_holes(smooth(closed | m, 0.008 * d, noise), bottom_is_open=False)
 
 
 def shift(m: np.ndarray, dx: int, dy: int) -> np.ndarray:
@@ -241,22 +246,79 @@ def saliency(a: np.ndarray) -> np.ndarray:
     return normalize(blur(s, 0.006 * diag(a.shape)), 1, 99.5)
 
 
+def shape_score(p: np.ndarray, s: np.ndarray, d: float) -> float:
+    """Ce qui fait un sujet : une forme ramassée qui tranche sur son entourage.
+
+    Un ciel, une ligne d'arbres, une plage se détachent souvent autant que la
+    personne, mais ils s'étirent d'un bord à l'autre et remplissent mal leur
+    rectangle. On part du contraste de saillance entre la zone et un anneau
+    autour d'elle (un vrai sujet est cerné d'une chute nette), multiplié par
+    la racine de la surface (une grande zone compte plus, mais pas
+    proportionnellement), puis :
+      * remplissage : surface / rectangle englobant — une silhouette pleine
+        tient son cadre, une frange déchiquetée non ;
+      * étendue : au-delà de 75 % de la largeur ou de la hauteur du cadre, la
+        zone ressemble à un fond et perd vite des points ;
+      * taille : au-delà d'un quart de l'image, idem ;
+      * bords : chaque bord touché divise par deux, sauf le bas, que les
+        personnes cadrées en buste ou en pied touchent naturellement ; deux
+        bords opposés (une bande qui traverse l'image) divisent par dix.
+    """
+    ys, xs = np.nonzero(p)
+    h, w = p.shape
+    area = len(xs)
+    bw, bh = xs.max() - xs.min() + 1, ys.max() - ys.min() + 1
+    fill = area / (bw * bh)
+    span = max(bw / w, bh / h)
+    size = area / (h * w)
+    left, right = xs.min() == 0, xs.max() == w - 1
+    top, bottom = ys.min() == 0, ys.max() == h - 1
+
+    ring = dilate(p, 0.025 * d) & ~p
+    contrast = float(s[p].mean()) - (float(s[ring].mean()) if ring.any() else 0.0)
+    value = max(contrast, 0.0) * math.sqrt(area)
+    value *= 0.4 + fill
+    value *= max(0.1, 1 - 2.5 * max(0.0, span - 0.75))
+    value *= max(0.1, 1 - 2.5 * max(0.0, size - 0.25))
+    value *= 0.5 ** sum([left, right, top])
+    value *= 0.85 if bottom else 1.0      # une silhouette coupée par le bas reste un sujet
+    if (left and right) or (top and bottom):
+        value *= 0.1
+    return value
+
+
 def subjects(a: np.ndarray, max_count: int = 3) -> list[np.ndarray]:
-    """Les zones saillantes, de la plus importante à la moins importante."""
+    """Les zones saillantes, de la plus « sujet » à la moins (voir `shape_score`).
+
+    Un seuil unique colle souvent le sujet au décor voisin (le randonneur à
+    l'horizon, le basketteur au ciel). On seuille donc la carte de saillance à
+    plusieurs hauteurs : plus le seuil monte, plus les zones se séparent. On
+    garde toutes les composantes de tous les niveaux, on les note, puis on
+    choisit les meilleures en écartant celles qui recouvrent une zone déjà
+    retenue ou qui valent moins du tiers de la première.
+    """
     s = saliency(a)
-    m = s > max(otsu(s), 0.4)
     d = diag(a.shape)
-    m = smooth(m, 0.006 * d)
-    parts = components(m, int(0.002 * m.size))
+    levels = sorted({round(float(t), 3) for t in
+                     [max(otsu(s), 0.4), *np.quantile(s, [0.72, 0.82, 0.9, 0.95])]})
+    candidates = []
+    for t in levels:
+        m = smooth(s > t, 0.006 * d)
+        for p in components(m, int(0.002 * m.size)):
+            candidates.append((shape_score(p, s, d), p))
+    candidates.sort(key=lambda c: c[0], reverse=True)
 
-    def score(p: np.ndarray) -> float:
-        ys, xs = np.nonzero(p)
-        h, w = p.shape
-        touches = sum([ys.min() == 0, xs.min() == 0, ys.max() == h - 1, xs.max() == w - 1])
-        return float(s[p].sum()) * (0.5 ** touches)
-
-    parts.sort(key=score, reverse=True)
-    return parts[:max_count]
+    # Les sujets secondaires doivent valoir au moins le tiers du principal :
+    # sinon ce sont des restes de décor, mieux vaut ne rien peindre.
+    chosen: list[np.ndarray] = []
+    best = candidates[0][0] if candidates else 0.0
+    for score, p in candidates:
+        if score <= 0 or score < best / 3 or len(chosen) == max_count:
+            break
+        if any((p & q).sum() > 0.3 * min(p.sum(), q.sum()) for q in chosen):
+            continue
+        chosen.append(p)
+    return chosen
 
 
 # --------------------------------------------------------------------------
