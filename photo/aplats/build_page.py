@@ -126,7 +126,8 @@ PAGE = """<!DOCTYPE html>
     <p class="lede">Trois scripts qui posent sur n'importe quelle photo des aplats de couleur,
     de gros contours noirs et des traits de vibration, à la manière de Keith Haring.
     Aucune IA : la photo n'est jamais retouchée, elle est seulement analysée
-    (contraste, couleur dominante, quantification) pour savoir où peindre.</p>
+    (contraste, couleur dominante, quantification) pour savoir où peindre.
+    <a href="web/">La version vivante, dans le navigateur →</a></p>
     <div class="palette">{chips}</div>
   </div>
 </header>

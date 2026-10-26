@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aplats vivants</title>
+<meta name="description" content="Les aplats de figures.py calculés par le navigateur, et animés : ils évitent le curseur, un clic les envoie vers une autre zone de la photo.">
+<style>
+  :root {
+    --paper: #F8F8F8;
+    --ink: #1D1B1A;
+    --muted: #6b6762;
+    --rule: #e2dfdb;
+    --card: #ffffff;
+    --shadow: 0 1px 2px rgba(29, 27, 26, .06), 0 10px 28px rgba(29, 27, 26, .07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #141312;
+      --ink: #F8F8F8;
+      --muted: #a29d97;
+      --rule: #2d2a28;
+      --card: #1d1b1a;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 10px 28px rgba(0, 0, 0, .45);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0 16px 96px;
+    background: var(--paper);
+    color: var(--ink);
+    font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  a { color: inherit; text-underline-offset: 2px; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+
+  header { padding: 64px 0 36px; display: grid; gap: 28px; grid-template-columns: 1.1fr 1fr; align-items: end; }
+  .back { grid-column: 1 / -1; font-size: 14px; color: var(--muted); }
+  h1 {
+    margin: 0; font-size: clamp(54px, 11vw, 132px); line-height: .84;
+    letter-spacing: -.05em; font-weight: 900; text-transform: uppercase;
+  }
+  h1 span { display: inline-block; padding: 0 .08em; border: .07em solid var(--ink); border-radius: .18em; }
+  .lede { margin: 0; color: var(--muted); max-width: 52ch; }
+  .how { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .how span {
+    font-size: 13px; padding: 4px 12px; border: 2px solid var(--ink); border-radius: 99px;
+  }
+
+  .plate { position: relative; line-height: 0; }
+  .plate img { width: 100%; height: auto; display: block; }
+  .aplats-canvas {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    cursor: pointer; touch-action: manipulation; opacity: 0; transition: opacity .4s;
+  }
+  .aplats-canvas.is-ready { opacity: 1; }
+  .aplats-canvas:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+
+  .hero { padding: 28px 0 8px; border-top: 3px solid var(--ink); }
+  .hero figure { box-shadow: var(--shadow); }
+
+  .tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 22px 0 0; }
+  button, .file {
+    font: inherit; font-size: 14px; font-weight: 600; color: var(--ink); background: var(--card);
+    border: 2px solid var(--ink); border-radius: 99px; padding: 6px 16px; cursor: pointer;
+  }
+  button:hover, .file:hover { background: var(--ink); color: var(--paper); }
+  .file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .tools p { margin: 0; color: var(--muted); font-size: 14px; }
+
+  section { margin-top: 56px; padding-top: 24px; border-top: 3px solid var(--ink); }
+  h2 { margin: 0; font-size: clamp(34px, 5vw, 54px); letter-spacing: -.035em; line-height: 1; font-weight: 900; }
+  section > p { margin: 10px 0 0; color: var(--muted); max-width: 66ch; }
+
+  .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 22px; }
+  figure { margin: 0; background: var(--card); border-radius: 3px; overflow: hidden; box-shadow: var(--shadow); }
+  figcaption {
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    padding: 7px 10px 9px; font-size: 12px; color: var(--muted); line-height: 1.4;
+  }
+  figcaption button { font-size: 11px; padding: 2px 9px; border-width: 1.5px; font-weight: 500; }
+  .seed { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+
+  footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 14px; }
+
+  @media (max-width: 900px) {
+    header { grid-template-columns: 1fr; padding-top: 40px; }
+    .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  @media (max-width: 620px) {
+    .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <a class="back" href="../">← aplats pop</a>
+  <h1>Aplats<br><span>vivants</span></h1>
+  <div>
+    <p class="lede">Le traitement de <code>figures.py</code>, refait par le navigateur :
+    la page trouve elle-même le sujet de chaque photo, sans IA, puis y pose ses aplats,
+    ses gros contours noirs et ses vibrations. Et les formes ne tiennent pas en place.</p>
+    <div class="how"><span>survol : elles s'écartent</span><span>clic sur une forme : elle part ailleurs</span><span>clic à côté : la plus proche accourt</span></div>
+  </div>
+</header>
+
+<div class="hero">
+  <figure>
+    <div class="plate"><img id="hero" src="../sources/00-galerie.jpg" alt="Un couple de dos devant une spirale noire et blanche, dans une galerie blanche" width="798" height="400" data-aplats></div>
+    <figcaption><span>La galerie</span><button type="button" class="reseed">tirer à nouveau</button></figcaption>
+  </figure>
+  <div class="tools">
+    <label class="file">Essayer avec votre photo<input type="file" id="file" accept="image/*"></label>
+    <button type="button" id="all">Tout retirer</button>
+    <p>Votre photo reste dans votre navigateur : rien n'est envoyé.</p>
+  </div>
+</div>
+
+<section>
+  <h2>Douze photos</h2>
+  <p>Chaque photo est analysée sur une copie de 256 px, comme dans le script Python :
+  saillance, seuil d'Otsu, silhouette au pinceau, contour réduit à quelques points
+  de passage et relié par une courbe lisse. Les zones saillantes qui n'ont pas reçu
+  d'aplat restent en réserve : c'est vers elles que partent les formes au clic,
+  en prenant leur silhouette.</p>
+  <div class="grid">
+    <figure>
+      <div class="plate"><img src="../../mask/sources/01-skateboard.jpg" alt="Un performeur de rue sur un skateboard devant la foule" width="400" height="600" data-aplats></div>
+      <figcaption><a href="https://unsplash.com/photos/SVNdzuAJPXk">Flaviu Costin</a><button type="button" class="reseed" title="Nouveau tirage">tirer à nouveau</button></figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="../../mask/sources/02-scarf.jpg" alt="Une personne assise sur un banc, grande écharpe rouge et blanche" width="400" height="533" data-aplats></div>
+      <figcaption><a href="https://unsplash.com/photos/mpP3lF6flFw">XAVIER PHOTOGRAPHY</a><button type="button" class="reseed" title="Nouveau tirage">tirer à nouveau</button></figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="../../mask/sources/03-accordion.jpg" alt="Un homme tenant un accordéon devant la ville" width="400" height="600" data-aplats></div>
+      <figcaption><a href="https://unsplash.com/photos/65_MCjL2Y0E">Sameer Srivastava</a><button type="button" class="reseed" title="Nouveau tirage">tirer à nouveau</button></figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="../../mask/sources/04-guitar.jpg" alt="Un homme à la guitare assis devant un drapeau suspendu" width="400" height="600" data-aplats></div>
+      <figcaption><a href="https://unsplash.com/photos/A-eBZyL8cZI">Christian Crocker</a><button type="button" class="reseed" title="Nouveau tirage">tirer à nouveau</button></figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="../../mask/sources/05-drums.jpg" alt="Un jeune batteur entouré de passants" width="400" height="600" data-aplats></div>
+      <figcaption><a href="https://unsplash.com/photos/dBkNxzQaLjo">Rogerio Lau</a><button type="button" class="reseed" title="Nouveau tirage">tirer à nouveau</button></figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="../../mask/sources/06-central-park.jpg" alt="Photographe de rue à Central Park, New York" width="400" height="600" data-aplats></div>
+      <figcaption><a href="https://unsplash.com/photos/Wb6kwlVeKb0">Dustin Bowdige</a><button type="button" class="reseed" title="Nouveau tirage">tirer à nouveau</button></figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="../../mask/sources/07-mime.jpg" alt="Un mime souriant, béret et marinière" width="400" height="600" data-aplats></div>
+      <figcaption><a href="https://unsplash.com/photos/Qakrj20TCvk">atelierbyvineeth</a><button type="button" class="reseed" title="Nouveau tirage">tirer à nouveau</button></figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="../../mask/sources/08-ghat.jpg" alt="Un homme debout sur une marche de pierre, Yamuna ghat" width="400" height="600" data-aplats></div>
+      <figcaption><a href="https://unsplash.com/photos/3agNcuUo-no">Ankit Sharma</a><button type="button" class="reseed" title="Nouveau tirage">tirer à nouveau</button></figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="../../mask/sources/09-laugh-blue.jpg" alt="Une personne qui rit, chemise bleue texturée" width="400" height="533" data-aplats></div>
+      <figcaption><a href="https://unsplash.com/photos/y3kC_7Qhmjk">nrd</a><button type="button" class="reseed" title="Nouveau tirage">tirer à nouveau</button></figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="../../mask/sources/10-smile.jpg" alt="Portrait souriant sur fond sombre" width="400" height="600" data-aplats></div>
+      <figcaption><a href="https://unsplash.com/photos/yuOAcypoF1I">Christian Bowen</a><button type="button" class="reseed" title="Nouveau tirage">tirer à nouveau</button></figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="../../mask/sources/11-lisbon.jpg" alt="Visage complice sur un marché de Lisbonne" width="400" height="600" data-aplats></div>
+      <figcaption><a href="https://unsplash.com/photos/C5XyLljkMrY">ben o&#x27;bro</a><button type="button" class="reseed" title="Nouveau tirage">tirer à nouveau</button></figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="../../mask/sources/12-sweater.jpg" alt="Un homme en pull gris, éclat de rire" width="400" height="600" data-aplats></div>
+      <figcaption><a href="https://unsplash.com/photos/4YzILMQDQFg">HLS 44</a><button type="button" class="reseed" title="Nouveau tirage">tirer à nouveau</button></figcaption>
+    </figure>
+  </div>
+</section>
+
+<footer>
+  <p>Script : <code>aplats.js</code>, sans dépendance — la même chaîne que
+  <code>pop.py</code> et <code>figures.py</code>, puis des ressorts sur chaque point
+  des courbes. Sources sur <a href="https://github.com/vjuju/design/tree/main/photo/aplats/web">github.com/vjuju/design</a>.
+  Photos sous <a href="https://unsplash.com/license">licence Unsplash</a>.</p>
+</footer>
+
+</div>
+<script src="aplats.js"></script>
+<script>
+  // Chaque planche a son bouton « tirer à nouveau » : autres couleurs, autre décalage.
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('.reseed');
+    if (!b) return;
+    const img = b.closest('figure').querySelector('img');
+    if (img.__aplats) img.__aplats.reseed();
+  });
+  document.getElementById('all').addEventListener('click', () => {
+    document.querySelectorAll('img').forEach((img) => img.__aplats && img.__aplats.reseed());
+  });
+
+  // Votre photo remplace celle de la galerie, sans quitter le navigateur.
+  document.getElementById('file').addEventListener('change', (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const hero = document.getElementById('hero');
+    const plate = hero.parentElement;
+    const img = new Image();
+    img.alt = 'Votre photo';
+    img.onload = () => {
+      plate.replaceChildren(img);
+      img.id = 'hero';
+      Aplats.attach(img, { eager: true });
+      plate.closest('figure').querySelector('figcaption span').textContent = f.name;
+    };
+    img.src = URL.createObjectURL(f);
+  });
+</script>
+</body>
+</html>

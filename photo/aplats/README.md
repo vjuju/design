@@ -22,6 +22,7 @@ peindre, puis on superpose.
 | `plages.py` | la photo est réduite à ses grandes masses ; chacune devient une plage peinte (deux voisines n'ont jamais la même couleur), frontières au gros trait ; le sujet reste la photo |
 | `pop.py` | les outils communs : palette, détection du sujet, morphologie, composition, CLI |
 | `build_page.py` | génère `index.html` |
+| `web/aplats.js` | `figures.py` rejoué par le navigateur, formes animées (voir plus bas) |
 
 ```sh
 pip install Pillow numpy
@@ -77,6 +78,45 @@ bouts ronds, dessiné en sur-échantillonnage pour l'antialiasing.
 **La fusion** (`pop.blend_for`) : sur une zone claire, l'aplat est en
 *multiply* — la couleur éclate et la photo reste visible au travers. Sur une
 zone sombre le multiply ne donnerait rien : l'aplat devient couvrant.
+
+## Dans le navigateur : `web/`
+
+`web/aplats.js` refait la chaîne de `figures.py` en JavaScript, sans
+dépendance : même analyse sur 256 px (saillance, Otsu, composantes, forme au
+pinceau, morphologie au flou gaussien, suivi de Moore, Douglas-Peucker,
+Catmull-Rom centripète), même palette, mêmes proportions de traits, même
+choix multiply / halo couvrant, mêmes vibrations. Le rendu est à peu de chose
+près celui du script : le hasard n'est pas le même (une graine Python ne
+redonne pas le même tirage) et le mode de fusion est décidé sur la copie
+réduite.
+
+Puis les formes s'animent. Chaque courbe est rééchantillonnée en 160 points
+montés sur ressorts (retour au repos, cohésion entre voisins, amortissement) :
+
+* **au survol**, le curseur repousse les points proches — la forme se creuse
+  autour de lui — et fait glisser toute la forme pour l'éviter ;
+* **au clic sur une forme**, elle part vers une autre zone saillante de la
+  photo restée libre (l'analyse en garde huit, trois seulement sont peintes)
+  et prend sa silhouette : les deux courbes sont alignées point à point puis
+  interpolées, avec une pseudo-force d'inertie qui la fait traîner et
+  rebondir à l'arrivée. Le halo devient multiply en chemin si le nouveau fond
+  est clair, et inversement ;
+* **au clic à côté**, la forme la plus proche vient sur la zone cliquée, ou
+  glisse simplement jusqu'au clic s'il n'y a pas de zone libre là ;
+* au clavier, Entrée envoie le sujet principal ailleurs. Avec
+  `prefers-reduced-motion`, plus de survol et les déplacements sont
+  instantanés.
+
+```html
+<img src="photo.jpg" data-aplats>            <!-- tout img[data-aplats] -->
+<script src="aplats.js"></script>
+<script>Aplats.attach(img, { seed: 7, subjects: 3, corners: 3, detail: 0.03 })</script>
+```
+
+Les images doivent être servies par la même origine que la page (le
+navigateur refuse sinon d'en lire les pixels) : `python3 -m http.server` à la
+racine du repo, puis `http://localhost:8000/photo/aplats/web/`. La page
+propose aussi d'essayer sur sa propre photo, qui ne quitte pas le navigateur.
 
 ## Limites
 

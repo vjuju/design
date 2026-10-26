@@ -12,6 +12,7 @@ piste, avec le script qui fabrique et la planche qui montre le résultat.
 | [`photo/mask/`](photo/mask/) | bichromie noir + une couleur, avec un aplat de forme aléatoire en fusion multiply |
 | [`photo/mask/css/`](photo/mask/css/) | le même traitement rejoué par le navigateur : filtre SVG + `clip-path`, sans JavaScript |
 | [`photo/aplats/`](photo/aplats/) | aplats francs, contours noirs et traits de vibration à la Keith Haring, posés sans IA sur n'importe quelle photo |
+| [`photo/aplats/web/`](photo/aplats/web/) | les aplats de `figures.py` calculés par le navigateur, et animés : ils évitent le curseur, un clic les déplace |
 
 ## Publication
 
