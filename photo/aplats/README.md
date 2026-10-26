@@ -82,6 +82,9 @@ zone sombre le multiply ne donnerait rien : l'aplat devient couvrant dans
 `ondes.py` et `plages.py` ; dans `figures.py` il passe en *screen*, qui
 éclaircit la photo vers la couleur (`--dark halo` pour l'ancien halo couvrant).
 
+La version retenue pour gigot.app (`figures.py`, `pop.py`, `web/aplats.js`,
+contours en noir gigot) est copiée dans [`gigot/aplats/`](../../gigot/aplats/).
+
 ## Dans le navigateur : `web/`
 
 `web/aplats.js` refait la chaîne de `figures.py` en JavaScript, sans

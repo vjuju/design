@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gigot — aplats</title>
+<meta name="description" content="Aplats gigot sur photo : couleurs flash cernées de noir, posées sans IA par un script Python ou en direct dans le navigateur.">
+<link rel="icon" href="../picto/gigot-picto-rose.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Titan+One&family=Work+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../tokens.css">
+<style>
+  /* Même planche que gigot/index.html : fond blanc, titres en Titan One, couleurs flash cernées de noir. */
+  :root {
+    --page: #FFFFFF;
+    --encre: var(--gigot-noir);
+    --doux: #4A4A52;
+    --filet: #E4E4E8;
+    --corps: 'Work Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--encre);
+    font: 16px/1.55 var(--corps);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 max(16px, env(safe-area-inset-right, 0px)) 96px max(16px, env(safe-area-inset-left, 0px));
+  }
+  a { color: inherit; }
+  .retour { display: inline-block; padding-top: 24px; font-size: 14px; color: var(--doux); }
+
+  header { padding: 40px 0 40px; border-bottom: 3px solid var(--encre); display: grid; gap: 18px; }
+  h1 { margin: 0; font: 400 clamp(48px, 9vw, 96px)/.95 var(--gigot-police); }
+  header p { margin: 0; max-width: 62ch; color: var(--doux); font-size: 18px; }
+
+  section { padding: 56px 0 8px; display: flex; flex-direction: column; gap: 20px; }
+  h2 { margin: 0; font: 400 clamp(30px, 5vw, 44px)/1 var(--gigot-police); text-wrap: balance; }
+  .chapo { margin: 0; max-width: 64ch; color: var(--doux); }
+  code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
+  pre { margin: 0; padding: 14px 16px; border: 3px solid var(--encre); border-radius: 14px; overflow-x: auto; }
+
+  .planche { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; align-items: start; }
+  figure { margin: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  figure > img, .plate { border-radius: 14px; overflow: hidden; border: 3px solid var(--encre); }
+  figure > img { width: 100%; height: auto; display: block; }
+  figcaption { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; color: var(--doux); }
+  figcaption a { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .plate { position: relative; line-height: 0; }
+  .plate img { width: 100%; height: auto; display: block; }
+  .aplats-canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: pointer; touch-action: manipulation; opacity: 0; transition: opacity .4s; }
+  .aplats-canvas.is-ready { opacity: 1; }
+  .aplats-canvas:focus-visible { outline: 3px solid var(--gigot-violet); outline-offset: 3px; }
+
+  button {
+    font: 600 12px/1 var(--corps); color: var(--encre); background: var(--page);
+    border: 2px solid var(--encre); border-radius: 99px; padding: 5px 10px; cursor: pointer;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  button:hover { background: var(--gigot-jaune); }
+  button:focus-visible { outline: 3px solid var(--gigot-violet); outline-offset: 2px; }
+
+  .fichiers { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 8px 24px; }
+  .fichiers dt { font-weight: 600; }
+  .fichiers dd { margin: 0; color: var(--doux); }
+  @media (max-width: 640px) {
+    .planche { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .fichiers { grid-template-columns: 1fr; gap: 2px; }
+    .fichiers dd { margin-bottom: 8px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .aplats-canvas { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="retour" href="../">← gigot</a>
+
+  <header>
+    <h1>Aplats</h1>
+    <p>Les couleurs flash de gigot posées sur n'importe quelle photo, cernées de noir, avec les traits
+    de vibration de Keith Haring. Sans IA : la photo est seulement analysée pour savoir où peindre.
+    Sur fond clair l'aplat est en multiply, sur fond sombre en screen : la photo reste toujours visible dessous.</p>
+  </header>
+
+  <section aria-labelledby="t-vivant">
+    <h2 id="t-vivant">Dans le navigateur</h2>
+    <p class="chapo">Calculé en direct par <code>aplats.js</code>. Survole une photo : les formes s'écartent du curseur.
+    Clique sur une forme : elle part vers une autre zone de la photo et en prend la silhouette.</p>
+    <div class="planche">
+      <figure>
+        <div class="plate"><img src="../../photo/mask/sources/07-mime.jpg" alt="Un mime souriant, béret et marinière" width="400" height="600" data-aplats></div>
+        <figcaption><a href="https://unsplash.com/photos/Qakrj20TCvk">atelierbyvineeth</a><button type="button" class="tirer">tirer à nouveau</button></figcaption>
+      </figure>
+      <figure>
+        <div class="plate"><img src="../../photo/mask/sources/10-smile.jpg" alt="Portrait souriant sur fond sombre" width="400" height="600" data-aplats></div>
+        <figcaption><a href="https://unsplash.com/photos/yuOAcypoF1I">Christian Bowen</a><button type="button" class="tirer">tirer à nouveau</button></figcaption>
+      </figure>
+      <figure>
+        <div class="plate"><img src="../../photo/mask/sources/04-guitar.jpg" alt="Un homme à la guitare assis devant un drapeau suspendu" width="400" height="600" data-aplats></div>
+        <figcaption><a href="https://unsplash.com/photos/A-eBZyL8cZI">Christian Crocker</a><button type="button" class="tirer">tirer à nouveau</button></figcaption>
+      </figure>
+      <figure>
+        <div class="plate"><img src="../../photo/mask/sources/12-sweater.jpg" alt="Un homme en pull gris, éclat de rire" width="400" height="600" data-aplats></div>
+        <figcaption><a href="https://unsplash.com/photos/4YzILMQDQFg">HLS 44</a><button type="button" class="tirer">tirer à nouveau</button></figcaption>
+      </figure>
+      <figure>
+        <div class="plate"><img src="../../photo/mask/sources/01-skateboard.jpg" alt="Un performeur de rue sur un skateboard devant la foule" width="400" height="600" data-aplats></div>
+        <figcaption><a href="https://unsplash.com/photos/SVNdzuAJPXk">Flaviu Costin</a><button type="button" class="tirer">tirer à nouveau</button></figcaption>
+      </figure>
+      <figure>
+        <div class="plate"><img src="../../photo/mask/sources/09-laugh-blue.jpg" alt="Une personne qui rit, chemise bleue texturée" width="400" height="533" data-aplats></div>
+        <figcaption><a href="https://unsplash.com/photos/y3kC_7Qhmjk">nrd</a><button type="button" class="tirer">tirer à nouveau</button></figcaption>
+      </figure>
+      <figure>
+        <div class="plate"><img src="../../photo/mask/sources/03-accordion.jpg" alt="Un homme tenant un accordéon devant la ville" width="400" height="600" data-aplats></div>
+        <figcaption><a href="https://unsplash.com/photos/65_MCjL2Y0E">Sameer Srivastava</a><button type="button" class="tirer">tirer à nouveau</button></figcaption>
+      </figure>
+      <figure>
+        <div class="plate"><img src="../../photo/mask/sources/11-lisbon.jpg" alt="Visage complice sur un marché de Lisbonne" width="400" height="600" data-aplats></div>
+        <figcaption><a href="https://unsplash.com/photos/C5XyLljkMrY">ben o&#x27;bro</a><button type="button" class="tirer">tirer à nouveau</button></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-python">
+    <h2 id="t-python">En Python</h2>
+    <p class="chapo">Le même traitement en fichier, par <code>figures.py</code> : pour une affiche, un visuel de réseau
+    social, un lot de photos d'événements. Chaque image se rejoue à l'identique avec sa graine.</p>
+    <div class="planche">
+      <figure><img src="exemples/00-galerie.jpg" alt="La galerie, couple devant une spirale, aplats gigot" width="798" height="400" loading="lazy"><figcaption><code>--seed 11</code></figcaption></figure>
+      <figure><img src="exemples/01-skateboard.jpg" alt="Un performeur de rue sur un skateboard devant la foule, aplats gigot" width="400" height="600" loading="lazy"><figcaption><code>--seed 5</code></figcaption></figure>
+      <figure><img src="exemples/04-guitar.jpg" alt="Un homme à la guitare assis devant un drapeau suspendu, aplats gigot" width="400" height="600" loading="lazy"><figcaption><code>--seed 3005</code></figcaption></figure>
+      <figure><img src="exemples/07-mime.jpg" alt="Un mime souriant, béret et marinière, aplats gigot" width="400" height="600" loading="lazy"><figcaption><code>--seed 6005</code></figcaption></figure>
+      <figure><img src="exemples/09-laugh-blue.jpg" alt="Une personne qui rit, chemise bleue texturée, aplats gigot" width="400" height="533" loading="lazy"><figcaption><code>--seed 8005</code></figcaption></figure>
+      <figure><img src="exemples/10-smile.jpg" alt="Portrait souriant sur fond sombre, aplats gigot" width="400" height="600" loading="lazy"><figcaption><code>--seed 9005</code></figcaption></figure>
+      <figure><img src="exemples/12-sweater.jpg" alt="Un homme en pull gris, éclat de rire, aplats gigot" width="400" height="600" loading="lazy"><figcaption><code>--seed 11005</code></figcaption></figure>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-usage">
+    <h2 id="t-usage">Utiliser</h2>
+    <p class="chapo">Python, avec Pillow et numpy :</p>
+<pre><code>pip install Pillow numpy
+python3 figures.py photo.jpg                  # -> output/figures/photo.jpg
+python3 figures.py dossier/ --variants 3      # trois tirages par photo
+python3 figures.py photo.jpg --seed 6005      # rejoue un tirage précis</code></pre>
+    <p class="chapo">Navigateur, sans dépendance. Les photos doivent venir du même site que la page :</p>
+<pre><code>&lt;img src="photo.jpg" data-aplats&gt;
+&lt;script src="aplats.js"&gt;&lt;/script&gt;
+
+Aplats.attach(img, { seed: 7, fill: 'screen', palette: 'vive' })</code></pre>
+  </section>
+
+  <section aria-labelledby="t-fichiers">
+    <h2 id="t-fichiers">Fichiers</h2>
+    <dl class="fichiers">
+      <dt><a href="figures.py">figures.py</a> · <a href="pop.py">pop.py</a></dt><dd>le script Python et sa boîte à outils (analyse, formes, rendu)</dd>
+      <dt><a href="aplats.js">aplats.js</a></dt><dd>le même traitement dans le navigateur, avec les formes animées</dd>
+      <dt>exemples/</dt><dd>les images ci-dessus et leurs graines (<code>seeds.json</code>)</dd>
+    </dl>
+  </section>
+</div>
+
+<script src="aplats.js"></script>
+<script>
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('.tirer');
+    if (!b) return;
+    var img = b.closest('figure').querySelector('img');
+    if (img.__aplats) img.__aplats.reseed();
+  });
+</script>
+</body>
+</html>

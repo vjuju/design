@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+"""
+figures.py — chaque sujet reçoit son aplat, cerné de noir, et le principal
+vibre.
+
+Version gigot de photo/aplats/figures.py, avec pop.py à côté : contours en noir
+gigot (#111111), palette gigot par défaut.
+
+1. On cherche les zones saillantes (voir `pop.subjects`) sur une copie de
+   256 px de la photo.
+2. Autour de chacune on pose une silhouette élargie, dans une couleur de la
+   palette gigot (`--palette pop` pour l'ancienne, celle de photo/aplats),
+   légèrement décalée comme un repérage raté de sérigraphie. Sur un fond
+   clair, fusion multiply : la couleur éclate et le sujet reste lisible au travers.
+   Sur un fond sombre, où le multiply ne donnerait rien, fusion screen : la
+   couleur éclaircit la photo, le noir prend la couleur pure et le sujet
+   reste lisible au travers (`--dark halo` : un halo couvrant autour du sujet
+   à la place, comme avant).
+   La silhouette n'est pas un masque de pixels : son contour est réduit à
+   quelques points de passage, et une courbe lisse les relie.
+3. La silhouette est cernée d'un gros trait noir chaud, de largeur constante.
+4. Autour du sujet principal, les vibrations de Keith Haring : un petit
+   arc, doublé d'un plus petit à l'extérieur, souligne ses angles les plus
+   marqués, et quelques traits droits rayonnants ailleurs.
+
+    python3 figures.py photo.jpg
+    python3 figures.py sources/ --variants 3 --seed 7
+"""
+
+from __future__ import annotations
+
+import pop
+
+
+def add_args(ap) -> None:
+    ap.add_argument("--subjects", type=int, default=3, help="nombre de sujets colorés")
+    ap.add_argument("--no-rays", action="store_true", help="sans traits de vibration")
+    ap.add_argument("--corners", type=int, default=3,
+                    help="nombre d'angles soulignés par des arcs")
+    ap.add_argument("--palette", choices=sorted(pop.PALETTES), default="vive",
+                    help="couleurs des aplats : vive (défaut) ou pop, celle des autres scripts")
+    ap.add_argument("--dark", choices=("screen", "halo"), default="screen",
+                    help="sur fond sombre : aplat en screen (défaut) ou halo "
+                         "couvrant autour du sujet")
+    ap.add_argument("--detail", type=float, default=0.03,
+                    help="tolérance de simplification du contour, en part de la "
+                         "diagonale : plus grand = moins de points de passage")
+
+
+def render(photo, rng, args):
+    d = pop.diag(photo.shape)
+    canvas = photo.copy()
+
+    # Toute l'analyse se fait sur une copie de 256 px : c'est elle qui coûte.
+    small, k = pop.shrink(photo)
+    ds = pop.diag(small.shape)
+    subs = pop.subjects(small, args.subjects)
+    colors = pop.pick_colors(rng, len(subs), pop.PALETTES[args.palette])
+    stroke = 0.009 * d
+    tol = args.detail * ds
+
+    curves = []
+    for i, (m, color) in enumerate(zip(subs, colors)):
+        shape = pop.bold_shape(m, ds)
+        pad = ds * (0.025 if i == 0 else 0.015)
+        curve = pop.curve_of(pop.dilate(shape, pad), k, tol)
+        if curve is None:
+            continue
+        off = 0.012 * d
+        curve = curve + [rng.uniform(-off, off), rng.uniform(-off, off)]
+        inner = pop.curve_of(shape, k, tol)
+
+        # On ne dessine et ne peint que dans le rectangle de la forme.
+        box = pop.box_of([curve] + ([inner] if inner is not None else []), 2, photo.shape)
+        x0, y0, x1, y1 = box
+        fill = pop.fill_alpha(box, curve)
+        # Le bord intérieur du halo n'est pas cerné de noir : lui reste lissé.
+        core = pop.fill_alpha(box, inner, ss=2) if inner is not None else fill * 0
+        mode, alpha = pop.blend_for(photo[y0:y1, x0:x1], (fill > 0.5) & (core < 0.5))
+        if mode == "normal" and args.dark == "screen":
+            mode, alpha = "screen", 0.95     # fond sombre : la couleur éclaircit
+        elif mode == "normal":               # ou halo couvrant,
+            fill = fill * (1 - core)         # le sujet reste visible
+        pop.paint(canvas, fill, color, mode, alpha, box=box)
+        curves.append(curve)
+
+    for curve in curves:
+        box = pop.box_of([curve], stroke, photo.shape)
+        pop.paint(canvas, pop.stroke_alpha(box, curve, stroke), pop.CONTOUR, "normal", box=box)
+
+    if curves and not args.no_rays:
+        gap, length, width = 0.018 * d, 0.035 * d, stroke * 0.85
+        box = pop.box_of([curves[0]], gap + 1.3 * length + 3 * width, photo.shape)
+        ray = pop.vibrations(box, curves[0], rng, gap=gap, length=length, width=width,
+                             spacing=0.07 * d, arc=0.06 * d, corners=args.corners)
+        pop.paint(canvas, ray, pop.CONTOUR, "normal", box=box)
+    return canvas
+
+
+if __name__ == "__main__":
+    pop.run_cli("figures", __doc__.strip().splitlines()[0], render, add_args)
