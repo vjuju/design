@@ -88,11 +88,18 @@ Catmull-Rom centripète), même palette, mêmes proportions de traits, mêmes
 vibrations. Le hasard n'est pas le même (une graine Python ne redonne pas le
 même tirage) et le mode de fusion est décidé sur la copie réduite.
 
-Un écart voulu : la couleur remplit toujours toute la forme cernée de noir.
-Sur fond clair, l'aplat est en *multiply*, comme dans `figures.py`. Sur fond
-sombre, là où le script Python ne peint qu'un halo autour du sujet, il passe
-en *screen*, le symétrique du multiply : le noir prend la couleur pure et les
-parties claires du sujet restent lisibles au travers.
+La photo reste toujours visible sous l'aplat. L'option `fill` choisit comment
+la couleur est posée ; « fond sombre » se mesure autour du sujet, comme dans
+`pop.blend_for` :
+
+| `fill` | Rendu |
+| --- | --- |
+| `figures` (défaut) | multiply sur fond clair, halo sur fond sombre : le choix de `figures.py` |
+| `multiply` | multiply partout : la couleur fonce la photo, qui transparaît |
+| `halo` | halo partout : couleur couvrante autour du sujet, le sujet reste la photo |
+| `transparence` | couleur posée à mi-opacité, sans mode de fusion |
+| `trame` | hachures de couleur pleine : la photo intacte entre les traits |
+| `screen` | multiply sur fond clair, screen sur fond sombre |
 
 Puis les formes s'animent. Chaque courbe est rééchantillonnée en 160 points
 montés sur ressorts (retour au repos, cohésion entre voisins, amortissement) :
@@ -103,8 +110,8 @@ montés sur ressorts (retour au repos, cohésion entre voisins, amortissement) :
   photo restée libre (l'analyse en garde huit, trois seulement sont peintes)
   et prend sa silhouette : les deux courbes sont alignées point à point puis
   interpolées, avec une pseudo-force d'inertie qui la fait traîner et
-  rebondir à l'arrivée. L'aplat passe de screen à multiply en chemin si le
-  nouveau fond est clair, et inversement ;
+  rebondir à l'arrivée. Si le nouveau fond n'a pas la même clarté, les
+  deux rendus se fondent l'un dans l'autre en chemin ;
 * **au clic à côté**, la forme la plus proche vient sur la zone cliquée, ou
   glisse simplement jusqu'au clic s'il n'y a pas de zone libre là ;
 * au clavier, Entrée envoie le sujet principal ailleurs. Avec
@@ -114,7 +121,7 @@ montés sur ressorts (retour au repos, cohésion entre voisins, amortissement) :
 ```html
 <img src="photo.jpg" data-aplats>            <!-- tout img[data-aplats] -->
 <script src="aplats.js"></script>
-<script>Aplats.attach(img, { seed: 7, subjects: 3, corners: 3, detail: 0.03 })</script>
+<script>Aplats.attach(img, { seed: 7, fill: 'trame', subjects: 3, corners: 3, detail: 0.03 })</script>
 ```
 
 Les images doivent être servies par la même origine que la page (le

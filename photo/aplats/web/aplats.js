@@ -8,13 +8,11 @@
  *   2. silhouette « au pinceau » (fermeture au flou gaussien, trous bouchés),
  *      élargie, contour suivi pixel par pixel, réduit par Douglas-Peucker,
  *      relié par une Catmull-Rom centripète ;
- *   3. aplat sur toute la forme, en multiply sur fond clair et en screen sur
- *      fond sombre, gros trait noir, vibrations (arcs aux angles, traits
- *      droits ailleurs) autour du sujet principal.
- *
- * Écart voulu avec figures.py : sur fond sombre, le script Python laisse le
- * sujet hors de l'aplat (un halo) ; ici la couleur remplit toute la forme
- * cernée de noir, et c'est le mode screen qui garde le sujet lisible.
+ *   3. aplat de couleur, gros trait noir, vibrations (arcs aux angles,
+ *      traits droits ailleurs) autour du sujet principal. La photo reste
+ *      visible sous l'aplat ; l'option `fill` choisit comment (voir FILLS) :
+ *      par défaut, multiply sur fond clair et halo sur fond sombre, comme
+ *      figures.py.
  *
  * Ce que le script Python ne fait pas : les formes sont vivantes. Chaque
  * courbe est une chaîne de points montés sur ressorts. Le curseur les
@@ -24,7 +22,7 @@
  *
  *     <img src="photo.jpg" data-aplats>
  *     <script src="aplats.js"></script>      // tout img[data-aplats]
- *     Aplats.attach(img, { seed: 7 })         // ou à la main
+ *     Aplats.attach(img, { seed: 7, fill: 'trame' })  // ou à la main
  *
  * Les images doivent venir de la même origine que la page (le navigateur
  * refuse sinon de lire leurs pixels) : servir le dossier en http, pas en
@@ -489,6 +487,14 @@
     return out;
   }
 
+  // Une courbe réduite à son centre : un trou de surface nulle.
+  function collapsed(c) {
+    const [x, y] = centroid(c);
+    const out = new Float32Array(2 * N);
+    for (let i = 0; i < N; i++) { out[2 * i] = x; out[2 * i + 1] = y; }
+    return out;
+  }
+
   function translated(c, dx, dy) {
     const out = Float32Array.from(c);
     for (let i = 0; i < N; i++) { out[2 * i] += dx; out[2 * i + 1] += dy; }
@@ -625,6 +631,26 @@
   const INERTIA = 1.4;     // traîne pendant un déplacement
   const TRAVEL = 1.15;     // durée d'un déplacement, en secondes
 
+  // Les façons de poser la couleur. Dans toutes, la photo reste visible sous
+  // l'aplat. « Fond sombre » se mesure autour du sujet, comme pop.blend_for.
+  const FILLS = {
+    figures: 'multiply sur fond clair, halo sur fond sombre : le choix de figures.py',
+    multiply: 'multiply partout : la couleur fonce la photo, qui transparaît',
+    halo: 'halo partout : couleur couvrante autour du sujet, le sujet reste la photo',
+    transparence: 'couleur posée à mi-opacité, sans mode de fusion',
+    trame: 'hachures de couleur pleine : la photo intacte entre les traits',
+    screen: 'multiply sur fond clair, screen sur fond sombre : la couleur éclaircit le noir',
+  };
+
+  // Une courbe animée : son repos, sa position affichée, l'écart de chaque
+  // point à son repos et sa vitesse, la vitesse du repos pendant un trajet.
+  function curveState(c) {
+    return {
+      rest: c, pos: Float32Array.from(c),
+      D: new Float32Array(2 * N), V: new Float32Array(2 * N), RV: new Float32Array(2 * N),
+    };
+  }
+
   class Plate {
     constructor(img, opts = {}) {
       this.img = img;
@@ -633,6 +659,7 @@
       this.corners = opts.corners ?? 3;
       this.detail = opts.detail ?? 0.03;
       this.rays = opts.rays ?? true;
+      this.fill = opts.fill in FILLS ? opts.fill : 'figures';
       this.onseed = opts.onseed;
       this.onready = opts.onready;
 
@@ -679,6 +706,12 @@
       }
     }
 
+    setFill(fill) {
+      if (!(fill in FILLS)) return;
+      this.fill = fill;
+      if (this.small) this.draw();
+    }
+
     analyse() {
       const t0 = performance.now();
       const img = this.img;
@@ -703,7 +736,7 @@
       this.small = { w, h, r, g, b, lum };
       this.k = this.W / w;
       this.ds = Math.hypot(w, h);
-      // Gardées pour qui veut regarder l'analyse (voir web/labo).
+      // Gardées pour qui veut regarder l'analyse (voir le labo).
       this.saliency = saliency(this.small);
       this.zones = subjects(this.small, ZONES, this.saliency).map((p) => ({ mask: p.mask, score: p.score }));
       this.build();
@@ -721,7 +754,7 @@
     }
 
     // Une silhouette posée sur une zone : courbe élargie (décalée comme un
-    // repérage raté) et mode de fusion.
+    // repérage raté), courbe du sujet (le trou du halo), clarté du fond.
     shapeOn(zi, main, rnd) {
       const z = this.zones[zi];
       const { w, h, lum } = this.small;
@@ -733,13 +766,13 @@
       if (!outer) return null;
       const off = 0.012 * this.d;
       outer = translated(outer, rnd.uniform(-off, off), rnd.uniform(-off, off));
+      const core = curveOf(bold, w, h, this.k, tol) || collapsed(outer);
 
-      // Sur du clair, multiply : la couleur fonce la photo. Sur du sombre le
-      // multiply ne donnerait rien : screen, qui l'éclaircit vers la couleur.
+      // Fond sombre : la couronne autour du sujet, comme pop.blend_for.
       let sum = 0, cnt = 0;
-      for (let i = 0; i < grown.length; i++) if (grown[i]) { sum += lum[i]; cnt++; }
-      const screen = cnt && sum / cnt <= 0.5 ? 1 : 0;
-      return { outer, screen, zone: zi };
+      for (let i = 0; i < grown.length; i++) if (grown[i] && !bold[i]) { sum += lum[i]; cnt++; }
+      const dark = cnt && sum / cnt <= 0.5 ? 1 : 0;
+      return { outer, core, dark, zone: zi };
     }
 
     build() {
@@ -762,16 +795,13 @@
           color: COULEURS[names[this.shapes.length % names.length]],
           main: this.shapes.length === 0,
           zone: zi,
-          screen: s.screen,
-          rest: s.outer,                      // forme au repos
-          pos: Float32Array.from(s.outer),    // forme affichée
-          D: new Float32Array(2 * N),         // écart au repos de chaque point
-          V: new Float32Array(2 * N),         // et sa vitesse
-          RV: new Float32Array(2 * N),        // vitesse du repos pendant un déplacement
+          dark: s.dark,
+          outer: curveState(s.outer),
+          core: curveState(align(s.outer, s.core)),
           T: [0, 0], TV: [0, 0],
           morph: null,
         };
-        shape.corners = pickCorners(shape.rest, this.vib);
+        shape.corners = pickCorners(shape.outer.rest, this.vib);
         this.shapes.push(shape);
       }
     }
@@ -790,12 +820,12 @@
       if (!this.shapes.length) return;
       let mover = null;
       for (let i = this.shapes.length - 1; i >= 0; i--) {
-        if (inside(this.shapes[i].pos, P[0], P[1])) { mover = this.shapes[i]; break; }
+        if (inside(this.shapes[i].outer.pos, P[0], P[1])) { mover = this.shapes[i]; break; }
       }
       if (mover) return this.send(mover, null);
       let best = Infinity;
       for (const s of this.shapes) {
-        const [x, y] = centroid(s.pos);
+        const [x, y] = centroid(s.outer.pos);
         const dd = Math.hypot(x - P[0], y - P[1]);
         if (dd < best) { best = dd; mover = s; }
       }
@@ -816,14 +846,19 @@
       let target = zi >= 0 ? this.shapeOn(zi, shape.main, this.rnd) : null;
       if (!target) {
         // Pas de zone libre : la forme glisse telle quelle, vers le clic ou au hasard.
-        const [cx, cy] = centroid(shape.rest);
+        const [cx, cy] = centroid(shape.outer.rest);
         const to = P || [this.W * this.rnd.uniform(0.25, 0.75), this.H * this.rnd.uniform(0.25, 0.75)];
-        target = { outer: translated(shape.rest, to[0] - cx, to[1] - cy), screen: shape.screen, zone: -1 };
+        target = {
+          outer: translated(shape.outer.rest, to[0] - cx, to[1] - cy),
+          core: translated(shape.core.rest, to[0] - cx, to[1] - cy),
+          dark: shape.dark, zone: -1,
+        };
       }
       shape.morph = {
         t: 0,
-        from: Float32Array.from(shape.rest), to: align(shape.rest, target.outer),
-        fromScreen: shape.screen, toScreen: target.screen,
+        outer: { from: Float32Array.from(shape.outer.rest), to: align(shape.outer.rest, target.outer) },
+        core: { from: Float32Array.from(shape.core.rest), to: align(shape.core.rest, target.core) },
+        fromDark: shape.dark, toDark: target.dark,
       };
       shape.zone = target.zone;
       if (reduceMotion) shape.morph.t = 1;
@@ -842,28 +877,32 @@
           const m = s.morph;
           m.t = Math.min(1, m.t + dt / TRAVEL);
           const e = m.t < 0.5 ? 4 * m.t ** 3 : 1 - (-2 * m.t + 2) ** 3 / 2;
-          for (let i = 0; i < 2 * N; i++) {
-            const next = m.from[i] + (m.to[i] - m.from[i]) * e;
-            const vel = dt > 0 ? (next - s.rest[i]) / dt : 0;
-            // Pseudo-force d'inertie : la forme traîne puis rebondit à l'arrivée.
-            if (!reduceMotion && dt > 0) s.V[i] -= INERTIA * (vel - s.RV[i]);
-            s.RV[i] = vel;
-            s.rest[i] = next;
+          for (const key of ['outer', 'core']) {
+            const c = s[key], { from, to } = m[key];
+            for (let i = 0; i < 2 * N; i++) {
+              const next = from[i] + (to[i] - from[i]) * e;
+              const vel = dt > 0 ? (next - c.rest[i]) / dt : 0;
+              // Pseudo-force d'inertie : la forme traîne puis rebondit à l'arrivée.
+              if (!reduceMotion && dt > 0) c.V[i] -= INERTIA * (vel - c.RV[i]);
+              c.RV[i] = vel;
+              c.rest[i] = next;
+            }
           }
-          s.screen = m.fromScreen + (m.toScreen - m.fromScreen) * e;
+          s.dark = m.fromDark + (m.toDark - m.fromDark) * e;
           if (m.t >= 1) {
             s.morph = null;
-            s.RV.fill(0);
-            s.corners = pickCorners(s.rest, this.vib);
+            s.outer.RV.fill(0); s.core.RV.fill(0);
+            s.corners = pickCorners(s.outer.rest, this.vib);
           }
         }
 
         // Toute la forme glisse un peu pour s'écarter du curseur.
-        const [cx, cy] = centroid(s.rest);
+        const rest = s.outer.rest;
+        const [cx, cy] = centroid(rest);
         let fx = 0, fy = 0;
         if (this.cursor && !reduceMotion) {
           let radius = 0;
-          for (let i = 0; i < N; i++) radius = Math.max(radius, Math.hypot(s.rest[2 * i] - cx, s.rest[2 * i + 1] - cy));
+          for (let i = 0; i < N; i++) radius = Math.max(radius, Math.hypot(rest[2 * i] - cx, rest[2 * i + 1] - cy));
           const ux = cx + s.T[0] - this.cursor[0], uy = cy + s.T[1] - this.cursor[1];
           const dist = Math.hypot(ux, uy), reach = radius + REACH * d;
           if (dist < reach) {
@@ -876,12 +915,15 @@
             s.TV[a] += h * ((a ? fy : fx) - K * 0.6 * s.T[a] - DAMP * s.TV[a]);
             s.T[a] += h * s.TV[a];
           }
-          this.relax(s, h);
+          this.relax(s.outer, s.T, h);
+          this.relax(s.core, s.T, h);
         }
         let motion = Math.hypot(s.T[0], s.T[1]) + Math.hypot(s.TV[0], s.TV[1]) * 0.05;
-        for (let i = 0; i < 2 * N; i++) {
-          s.pos[i] = s.rest[i] + s.T[i & 1] + s.D[i];
-          motion = Math.max(motion, Math.abs(s.D[i]) + Math.abs(s.V[i]) * 0.05);
+        for (const c of [s.outer, s.core]) {
+          for (let i = 0; i < 2 * N; i++) {
+            c.pos[i] = c.rest[i] + s.T[i & 1] + c.D[i];
+            motion = Math.max(motion, Math.abs(c.D[i]) + Math.abs(c.V[i]) * 0.05);
+          }
         }
         if (motion > 0.002 * d) busy = true;
       }
@@ -891,8 +933,8 @@
 
     // Chaque point est tiré vers son repos, lié à ses voisins, repoussé par
     // le curseur.
-    relax(s, h) {
-      const { D, V, rest } = s;
+    relax(c, T, h) {
+      const { D, V, rest } = c;
       const q = this.cursor && !reduceMotion ? this.cursor : null;
       const reach = REACH * this.d, push = K * PUSH * this.d;
       for (let i = 0; i < N; i++) {
@@ -901,8 +943,8 @@
           const j = 2 * i + a;
           let f = -K * D[j] - DAMP * V[j] + NEIGHBOUR * (D[2 * p + a] + D[2 * n + a] - 2 * D[j]);
           if (q) {
-            const ux = rest[2 * i] + s.T[0] + D[2 * i] - q[0];
-            const uy = rest[2 * i + 1] + s.T[1] + D[2 * i + 1] - q[1];
+            const ux = rest[2 * i] + T[0] + D[2 * i] - q[0];
+            const uy = rest[2 * i + 1] + T[1] + D[2 * i + 1] - q[1];
             const dist = Math.hypot(ux, uy);
             if (dist < reach) f += push * (1 - dist / reach) ** 2 * (a ? uy : ux) / Math.max(dist, 1);
           }
@@ -922,6 +964,46 @@
       ctx.closePath();
     }
 
+    // Pose la couleur d'une forme d'une des façons de FILLS, avec un poids
+    // pour fondre deux façons quand la forme passe d'un fond à l'autre.
+    paint(s, how, weight) {
+      if (weight < 0.001) return;
+      const ctx = this.ctx, outer = s.outer.pos;
+      ctx.save();
+      ctx.fillStyle = s.color;
+      ctx.strokeStyle = s.color;
+      if (how === 'multiply' || how === 'screen') {
+        ctx.globalCompositeOperation = how;
+        ctx.globalAlpha = 0.95 * weight;
+        ctx.beginPath(); this.path(outer, ctx); ctx.fill();
+      } else if (how === 'halo') {
+        // Le sujet reste la photo : on peint la forme moins sa silhouette.
+        ctx.globalAlpha = 0.88 * weight;
+        ctx.beginPath(); this.path(outer, ctx); ctx.clip();
+        ctx.beginPath(); this.path(outer, ctx); this.path(s.core.pos, ctx); ctx.fill('evenodd');
+      } else if (how === 'transparence') {
+        ctx.globalAlpha = 0.5 * weight;
+        ctx.beginPath(); this.path(outer, ctx); ctx.fill();
+      } else if (how === 'trame') {
+        // Hachures à 45° : couleur pleine, photo intacte entre les traits.
+        ctx.globalAlpha = weight;
+        ctx.beginPath(); this.path(outer, ctx); ctx.clip();
+        let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+        for (let i = 0; i < N; i++) {
+          x0 = Math.min(x0, outer[2 * i]); x1 = Math.max(x1, outer[2 * i]);
+          y0 = Math.min(y0, outer[2 * i + 1]); y1 = Math.max(y1, outer[2 * i + 1]);
+        }
+        ctx.lineWidth = this.stroke * 0.8;
+        ctx.beginPath();
+        for (let t = x0 + y0; t < x1 + y1; t += this.stroke * 1.9) {
+          ctx.moveTo(t - y0, y0);
+          ctx.lineTo(t - y1, y1);
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
     draw() {
       const ctx = this.ctx, cw = this.canvas.width, ch = this.canvas.height;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -933,30 +1015,28 @@
       ctx.setTransform(sc, 0, 0, ch / this.H, 0, 0);
 
       for (const s of this.shapes) {
-        ctx.fillStyle = s.color;
-        // Toute la forme est peinte. En chemin d'un fond clair à un fond
-        // sombre, les deux modes se fondent l'un dans l'autre.
-        for (const [mode, weight] of [['multiply', 1 - s.screen], ['screen', s.screen]]) {
-          if (weight < 0.001) continue;
-          ctx.globalCompositeOperation = mode;
-          ctx.globalAlpha = 0.95 * weight;
-          ctx.beginPath(); this.path(s.pos, ctx); ctx.fill();
+        if (this.fill === 'figures') {
+          this.paint(s, 'multiply', 1 - s.dark);
+          this.paint(s, 'halo', s.dark);
+        } else if (this.fill === 'screen') {
+          this.paint(s, 'multiply', 1 - s.dark);
+          this.paint(s, 'screen', s.dark);
+        } else {
+          this.paint(s, this.fill, 1);
         }
       }
 
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.globalAlpha = 1;
       ctx.strokeStyle = CONTOUR;
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
       ctx.lineWidth = this.stroke;
-      for (const s of this.shapes) { ctx.beginPath(); this.path(s.pos, ctx); ctx.stroke(); }
+      for (const s of this.shapes) { ctx.beginPath(); this.path(s.outer.pos, ctx); ctx.stroke(); }
 
       const main = this.shapes.find((s) => s.main);
       if (main && this.rays) {
         ctx.lineWidth = this.vib.width;
         ctx.beginPath();
-        for (const line of vibrationLines(main.pos, this.vib, main.corners)) {
+        for (const line of vibrationLines(main.outer.pos, this.vib, main.corners)) {
           ctx.moveTo(line[0][0], line[0][1]);
           for (let i = 1; i < line.length; i++) ctx.lineTo(line[i][0], line[i][1]);
         }
@@ -1015,11 +1095,11 @@
   function auto() {
     document.querySelectorAll('img[data-aplats]').forEach((img) => {
       const seed = img.dataset.seed ? Number(img.dataset.seed) : undefined;
-      attach(img, { seed });
+      attach(img, { seed, fill: img.dataset.fill });
     });
   }
 
-  window.Aplats = { attach, palette: { FOND, CONTOUR, COULEURS } };
+  window.Aplats = { attach, fills: FILLS, palette: { FOND, CONTOUR, COULEURS } };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', auto);
   else auto();
 })();
