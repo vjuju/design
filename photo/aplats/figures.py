@@ -3,13 +3,15 @@
 figures.py — chaque sujet reçoit son aplat, cerné de noir, et le principal
 vibre.
 
-1. On cherche les zones saillantes (voir `pop.subjects`).
-2. Autour de chacune on pose une silhouette élargie, aux bords tremblés, dans
-   une couleur de la palette, légèrement décalée comme un repérage raté de
-   sérigraphie. Sur un fond clair, fusion multiply : la couleur éclate et le
+1. On cherche les zones saillantes (voir `pop.subjects`) sur une copie de
+   256 px de la photo.
+2. Autour de chacune on pose une silhouette élargie, dans une couleur de la
+   palette, légèrement décalée comme un repérage raté de sérigraphie. Sur un fond clair, fusion multiply : la couleur éclate et le
    sujet reste lisible au travers. Sur un fond sombre, où le multiply ne
-   donnerait rien, l'aplat devient couvrant et s'arrête au bord du sujet.
-3. La silhouette est cernée d'un gros trait noir chaud.
+   donnerait rien, l'aplat devient un halo couvrant autour du sujet.
+   La silhouette n'est pas un masque de pixels : son contour est réduit à
+   quelques points de passage, et une courbe lisse les relie.
+3. La silhouette est cernée d'un gros trait noir chaud, de largeur constante.
 4. Autour du sujet principal, les traits rayonnants de Keith Haring.
 
     python3 figures.py photo.jpg
@@ -24,35 +26,49 @@ import pop
 def add_args(ap) -> None:
     ap.add_argument("--subjects", type=int, default=3, help="nombre de sujets colorés")
     ap.add_argument("--no-rays", action="store_true", help="sans traits de vibration")
+    ap.add_argument("--detail", type=float, default=0.03,
+                    help="tolérance de simplification du contour, en part de la "
+                         "diagonale : plus grand = moins de points de passage")
 
 
 def render(photo, rng, args):
     h, w = photo.shape[:2]
     d = pop.diag(photo.shape)
     canvas = photo.copy()
-    subs = pop.subjects(photo, args.subjects)
+
+    # Toute l'analyse se fait sur une copie de 256 px : c'est elle qui coûte.
+    small, k = pop.shrink(photo)
+    ds = pop.diag(small.shape)
+    subs = pop.subjects(small, args.subjects)
     colors = pop.pick_colors(rng, len(subs))
     stroke = 0.009 * d
+    tol = args.detail * ds
 
-    blobs = []
+    curves = []
     for i, (m, color) in enumerate(zip(subs, colors)):
-        pad = d * (0.025 if i == 0 else 0.015)
-        noise = pop.wobble(m.shape, rng, cells=9, amp=0.18)
-        blob = pop.smooth(pop.dilate(pop.bold_shape(m, d), pad), 0.012 * d, noise)
+        shape = pop.bold_shape(m, ds)
+        pad = ds * (0.025 if i == 0 else 0.015)
+        curve = pop.curve_of(pop.dilate(shape, pad), k, tol)
+        if curve is None:
+            continue
         off = 0.012 * d
-        blob = pop.shift(blob, int(rng.uniform(-off, off)), int(rng.uniform(-off, off)))
-        mode, alpha = pop.blend_for(photo, blob & ~m)
+        curve = curve + [rng.uniform(-off, off), rng.uniform(-off, off)]
+        fill = pop.fill_alpha((h, w), curve)
+
+        inner = pop.curve_of(shape, k, tol)
+        core = pop.fill_alpha((h, w), inner) if inner is not None else fill * 0
+        mode, alpha = pop.blend_for(photo, (fill > 0.5) & (core < 0.5))
         if mode == "normal":                 # fond sombre : halo couvrant,
-            blob = blob & ~pop.smooth(m, 0.004 * d)   # le sujet reste visible
-        pop.paint(canvas, blob, color, mode, alpha)
-        blobs.append(blob)
+            fill = fill * (1 - core)         # le sujet reste visible
+        pop.paint(canvas, fill, color, mode, alpha)
+        curves.append(curve)
 
-    for blob in blobs:
-        pop.paint(canvas, pop.outline(blob, stroke), pop.CONTOUR, "normal")
+    for curve in curves:
+        pop.paint(canvas, pop.stroke_alpha((h, w), curve, stroke), pop.CONTOUR, "normal")
 
-    if subs and not args.no_rays:
-        ray = pop.rays((h, w), blobs[0], rng, gap=0.018 * d, length=0.035 * d,
-                       width=stroke * 0.85, spacing=0.045 * d)
+    if curves and not args.no_rays:
+        ray = pop.curve_rays((h, w), curves[0], rng, gap=0.018 * d, length=0.035 * d,
+                             width=stroke * 0.85, spacing=0.05 * d)
         pop.paint(canvas, ray, pop.CONTOUR, "normal")
     return canvas
 

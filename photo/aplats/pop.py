@@ -335,6 +335,177 @@ def rays(shape, m: np.ndarray, rng: random.Random, *, gap: float, length: float,
     return np.asarray(im, dtype=np.float32) / 255.0
 
 
+# --------------------------------------------------------------------------
+# Formes vectorielles
+#
+# Plutôt que de peindre des masques pixel par pixel (bords hachés, et lent en
+# pleine résolution), on analyse une petite copie de la photo, on suit le
+# contour du sujet, on n'en garde que quelques points de passage, puis on
+# trace en pleine résolution une courbe lisse passant par ces points, avec un
+# trait de largeur constante.
+# --------------------------------------------------------------------------
+
+ANALYSIS_SIZE = 256
+
+_DIRS = [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]
+_DIR_INDEX = {d: i for i, d in enumerate(_DIRS)}
+
+
+def shrink(a: np.ndarray, size: int = ANALYSIS_SIZE) -> tuple[np.ndarray, float]:
+    """Copie réduite pour l'analyse, et le facteur pour revenir à la taille réelle."""
+    h, w = a.shape[:2]
+    k = max(h, w) / size
+    if k <= 1:
+        return a, 1.0
+    im = Image.fromarray(np.clip(a * 255 + 0.5, 0, 255).astype(np.uint8))
+    im = im.resize((round(w / k), round(h / k)), Image.BILINEAR)
+    small = np.asarray(im, dtype=np.float32) / 255.0
+    return small, w / small.shape[1]
+
+
+def trace_contour(m: np.ndarray) -> np.ndarray:
+    """Contour extérieur d'un masque d'un seul tenant (suivi de Moore)."""
+    p = np.pad(m, 1)
+    ys, xs = np.nonzero(p)
+    i = np.lexsort((xs, ys))[0]
+    start = cur = (int(xs[i]), int(ys[i]))
+    back = 4                                   # on arrive par la gauche
+    pts = [start]
+    for _ in range(4 * p.size):
+        for k in range(1, 9):
+            nd = (back + k) % 8
+            nx, ny = cur[0] + _DIRS[nd][0], cur[1] + _DIRS[nd][1]
+            if p[ny, nx]:
+                bd = _DIRS[(back + k - 1) % 8]
+                bx, by = cur[0] + bd[0], cur[1] + bd[1]
+                back = _DIR_INDEX[(bx - nx, by - ny)]
+                cur = (nx, ny)
+                break
+        else:
+            break                              # pixel isolé
+        if cur == start:
+            break
+        pts.append(cur)
+    return np.array(pts, dtype=np.float64) - 1
+
+
+def _rdp(pts: np.ndarray, tol: float) -> np.ndarray:
+    keep = np.zeros(len(pts), dtype=bool)
+    keep[0] = keep[-1] = True
+    stack = [(0, len(pts) - 1)]
+    while stack:
+        i, j = stack.pop()
+        if j <= i + 1:
+            continue
+        a, b = pts[i], pts[j]
+        ab = b - a
+        n = math.hypot(*ab) or 1.0
+        seg = pts[i + 1:j]
+        dist = np.abs(ab[0] * (seg[:, 1] - a[1]) - ab[1] * (seg[:, 0] - a[0])) / n
+        k = int(np.argmax(dist))
+        if dist[k] > tol:
+            keep[i + 1 + k] = True
+            stack += [(i, i + 1 + k), (i + 1 + k, j)]
+    return pts[keep]
+
+
+def key_points(pts: np.ndarray, tol: float, min_points: int = 5) -> np.ndarray:
+    """Les quelques points de passage d'un contour fermé (Douglas-Peucker)."""
+    far = int(np.argmax(np.hypot(*(pts - pts[0]).T)))
+    while True:
+        a = _rdp(pts[:far + 1], tol)
+        b = _rdp(np.vstack([pts[far:], pts[:1]]), tol)
+        keys = np.vstack([a[:-1], b[:-1]])
+        if len(keys) >= min_points or tol < 0.5:
+            return keys
+        tol /= 1.6
+
+
+def spline(keys: np.ndarray, samples: int = 24) -> np.ndarray:
+    """Courbe fermée lisse passant par les points clés (Catmull-Rom centripète :
+    pas de boucle ni de pointe même quand les points sont inégalement espacés)."""
+    out = []
+    n = len(keys)
+    for i in range(n):
+        p0, p1, p2, p3 = keys[i - 1], keys[i], keys[(i + 1) % n], keys[(i + 2) % n]
+        t0 = 0.0
+        t1 = t0 + max(math.hypot(*(p1 - p0)), 1e-6) ** 0.5
+        t2 = t1 + max(math.hypot(*(p2 - p1)), 1e-6) ** 0.5
+        t3 = t2 + max(math.hypot(*(p3 - p2)), 1e-6) ** 0.5
+        t = np.linspace(t1, t2, samples, endpoint=False)[:, None]
+        a1 = (t1 - t) / (t1 - t0) * p0 + (t - t0) / (t1 - t0) * p1
+        a2 = (t2 - t) / (t2 - t1) * p1 + (t - t1) / (t2 - t1) * p2
+        a3 = (t3 - t) / (t3 - t2) * p2 + (t - t2) / (t3 - t2) * p3
+        b1 = (t2 - t) / (t2 - t0) * a1 + (t - t0) / (t2 - t0) * a2
+        b2 = (t3 - t) / (t3 - t1) * a2 + (t - t1) / (t3 - t1) * a3
+        out.append((t2 - t) / (t2 - t1) * b1 + (t - t1) / (t2 - t1) * b2)
+    return np.vstack(out)
+
+
+def curve_of(m: np.ndarray, scale: float, tol: float) -> np.ndarray | None:
+    """Masque (copie réduite) -> courbe lisse en coordonnées pleine taille.
+
+    Seule la plus grande partie du masque est gardée : une forme, un trait.
+    """
+    parts = components(m, 4)
+    if not parts:
+        return None
+    pts = trace_contour(parts[0])
+    if len(pts) < 8:
+        return None
+    keys = key_points(pts, tol)
+    return (spline(keys) + 0.5) * scale
+
+
+def _canvas_alpha(shape, draw_fn, ss: int = 2) -> np.ndarray:
+    h, w = shape
+    im = Image.new("L", (w * ss, h * ss), 0)
+    draw_fn(ImageDraw.Draw(im), ss)
+    return np.asarray(im.resize((w, h), Image.BOX), dtype=np.float32) / 255.0
+
+
+def fill_alpha(shape, curve: np.ndarray) -> np.ndarray:
+    return _canvas_alpha(shape, lambda d, ss: d.polygon([tuple(p) for p in curve * ss], fill=255))
+
+
+def stroke_alpha(shape, curve: np.ndarray, width: float) -> np.ndarray:
+    def draw(d, ss):
+        pts = [tuple(p) for p in curve * ss]
+        d.line(pts + pts[:2], fill=255, width=max(1, round(width * ss)), joint="curve")
+    return _canvas_alpha(shape, draw)
+
+
+def curve_rays(shape, curve: np.ndarray, rng: random.Random, *, gap: float,
+               length: float, width: float, spacing: float) -> np.ndarray:
+    """Traits de vibration posés à intervalles réguliers le long de la courbe,
+    perpendiculaires à elle, tous de la même épaisseur."""
+    seg = np.diff(np.vstack([curve, curve[:1]]), axis=0)
+    dist = np.concatenate([[0], np.cumsum(np.hypot(*seg.T))])
+    total = dist[-1]
+    count = max(6, int(total / spacing))
+    x, y = curve[:, 0], curve[:, 1]
+    area = 0.5 * float(np.sum(x * np.roll(y, -1) - np.roll(x, -1) * y))
+    sign = 1.0 if area > 0 else -1.0
+    offset = rng.random() * total / count
+
+    def draw(d, ss):
+        lw = max(1, round(width * ss))
+        r = lw / 2
+        for i in range(count):
+            at = (offset + i * total / count) % total
+            j = min(int(np.searchsorted(dist, at, side="right")) - 1, len(curve) - 1)
+            tx, ty = seg[j] / (math.hypot(*seg[j]) or 1.0)
+            nx, ny = ty * sign, -tx * sign       # normale sortante
+            px, py = curve[j]
+            L = length * (0.7 + 0.5 * rng.random())
+            p0 = ((px + nx * gap) * ss, (py + ny * gap) * ss)
+            p1 = ((px + nx * (gap + L)) * ss, (py + ny * (gap + L)) * ss)
+            d.line([p0, p1], fill=255, width=lw)
+            for qx, qy in (p0, p1):
+                d.ellipse([qx - r, qy - r, qx + r, qy + r], fill=255)
+    return _canvas_alpha(shape, draw)
+
+
 def pick_colors(rng: random.Random, n: int) -> list[str]:
     names = list(COULEURS)
     rng.shuffle(names)
