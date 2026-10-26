@@ -11,8 +11,8 @@
  *   3. aplat de couleur, gros trait noir, vibrations (arcs aux angles,
  *      traits droits ailleurs) autour du sujet principal. La photo reste
  *      visible sous l'aplat ; l'option `fill` choisit comment (voir FILLS) :
- *      par défaut, multiply sur fond clair et halo sur fond sombre, comme
- *      figures.py.
+ *      par défaut, multiply sur fond clair et screen sur fond sombre.
+ *      L'option `palette` choisit les couleurs (voir PALETTES).
  *
  * Ce que le script Python ne fait pas : les formes sont vivantes. Chaque
  * courbe est une chaîne de points montés sur ressorts. Le curseur les
@@ -22,7 +22,7 @@
  *
  *     <img src="photo.jpg" data-aplats>
  *     <script src="aplats.js"></script>      // tout img[data-aplats]
- *     Aplats.attach(img, { seed: 7, fill: 'trame' })  // ou à la main
+ *     Aplats.attach(img, { seed: 7, fill: 'trame', palette: 'pop' })  // ou à la main
  *
  * Les images doivent venir de la même origine que la page (le navigateur
  * refuse sinon de lire leurs pixels) : servir le dossier en http, pas en
@@ -32,17 +32,29 @@
   'use strict';
 
   // ------------------------------------------------------------------------
-  // Palette (la même que pop.py)
+  // Palettes
   // ------------------------------------------------------------------------
 
   const FOND = '#F8F8F8';
   const CONTOUR = '#1D1B1A';
-  const COULEURS = {
-    jaune: '#F4C946',
-    vert: '#6AB357',
-    rose: '#DB6DA2',
-    orange: '#E26E3B',
-    bleu: '#53B5E3',
+  const PALETTES = {
+    // Six couleurs vives, la palette par défaut.
+    vive: {
+      rose: '#FF3EA5',
+      jaune: '#FFD60A',
+      violet: '#7B2FF7',
+      cyan: '#2EC4F1',
+      vert: '#39D353',
+      orange: '#FF6A13',
+    },
+    // Celle de pop.py, plus douce.
+    pop: {
+      jaune: '#F4C946',
+      vert: '#6AB357',
+      rose: '#DB6DA2',
+      orange: '#E26E3B',
+      bleu: '#53B5E3',
+    },
   };
 
   const ANALYSIS_SIZE = 256;
@@ -659,7 +671,8 @@
       this.corners = opts.corners ?? 3;
       this.detail = opts.detail ?? 0.03;
       this.rays = opts.rays ?? true;
-      this.fill = opts.fill in FILLS ? opts.fill : 'figures';
+      this.fill = opts.fill in FILLS ? opts.fill : 'screen';
+      this.palette = opts.palette in PALETTES ? opts.palette : 'vive';
       this.onseed = opts.onseed;
       this.onready = opts.onready;
 
@@ -710,6 +723,20 @@
       if (!(fill in FILLS)) return;
       this.fill = fill;
       if (this.small) this.draw();
+    }
+
+    // Change de palette sans bouger les formes : chacune garde son rang dans
+    // un ordre tiré de la graine, donc deux formes voisines restent distinctes.
+    setPalette(name) {
+      if (!(name in PALETTES)) return;
+      this.palette = name;
+      this.shapes.forEach((s, i) => { s.color = this.colorFor(i); });
+      if (this.small) this.draw();
+    }
+
+    colorFor(i) {
+      const colors = random(this.seed + 1).shuffle(Object.values(PALETTES[this.palette]));
+      return colors[i % colors.length];
     }
 
     analyse() {
@@ -778,7 +805,6 @@
     build() {
       const rnd = random(this.seed);
       this.rnd = rnd;
-      const names = rnd.shuffle(Object.keys(COULEURS));
       const stroke = 0.009 * this.d;
       this.stroke = stroke;
       this.vib = {
@@ -792,7 +818,7 @@
         const s = this.shapeOn(zi, this.shapes.length === 0, rnd);
         if (!s) continue;
         const shape = {
-          color: COULEURS[names[this.shapes.length % names.length]],
+          color: this.colorFor(this.shapes.length),
           main: this.shapes.length === 0,
           zone: zi,
           dark: s.dark,
@@ -1095,11 +1121,11 @@
   function auto() {
     document.querySelectorAll('img[data-aplats]').forEach((img) => {
       const seed = img.dataset.seed ? Number(img.dataset.seed) : undefined;
-      attach(img, { seed, fill: img.dataset.fill });
+      attach(img, { seed, fill: img.dataset.fill, palette: img.dataset.palette });
     });
   }
 
-  window.Aplats = { attach, fills: FILLS, palette: { FOND, CONTOUR, COULEURS } };
+  window.Aplats = { attach, fills: FILLS, palettes: PALETTES, FOND, CONTOUR };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', auto);
   else auto();
 })();

@@ -84,7 +84,7 @@ zone sombre le multiply ne donnerait rien : l'aplat devient couvrant.
 `web/aplats.js` refait la chaîne de `figures.py` en JavaScript, sans
 dépendance : même analyse sur 256 px (saillance, Otsu, composantes, forme au
 pinceau, morphologie au flou gaussien, suivi de Moore, Douglas-Peucker,
-Catmull-Rom centripète), même palette, mêmes proportions de traits, mêmes
+Catmull-Rom centripète), mêmes proportions de traits, mêmes
 vibrations. Le hasard n'est pas le même (une graine Python ne redonne pas le
 même tirage) et le mode de fusion est décidé sur la copie réduite.
 
@@ -94,12 +94,16 @@ la couleur est posée ; « fond sombre » se mesure autour du sujet, comme dans
 
 | `fill` | Rendu |
 | --- | --- |
-| `figures` (défaut) | multiply sur fond clair, halo sur fond sombre : le choix de `figures.py` |
+| `screen` (défaut) | multiply sur fond clair, screen sur fond sombre : la couleur fonce le clair et éclaircit le noir |
+| `figures` | multiply sur fond clair, halo sur fond sombre : le choix de `figures.py` |
 | `multiply` | multiply partout : la couleur fonce la photo, qui transparaît |
 | `halo` | halo partout : couleur couvrante autour du sujet, le sujet reste la photo |
 | `transparence` | couleur posée à mi-opacité, sans mode de fusion |
 | `trame` | hachures de couleur pleine : la photo intacte entre les traits |
-| `screen` | multiply sur fond clair, screen sur fond sombre |
+
+L'option `palette` choisit les couleurs : `vive` par défaut (rose `#FF3EA5`,
+jaune `#FFD60A`, violet `#7B2FF7`, cyan `#2EC4F1`, vert `#39D353`, orange
+`#FF6A13`), ou `pop`, celle de `pop.py`.
 
 Puis les formes s'animent. Chaque courbe est rééchantillonnée en 160 points
 montés sur ressorts (retour au repos, cohésion entre voisins, amortissement) :
@@ -121,7 +125,7 @@ montés sur ressorts (retour au repos, cohésion entre voisins, amortissement) :
 ```html
 <img src="photo.jpg" data-aplats>            <!-- tout img[data-aplats] -->
 <script src="aplats.js"></script>
-<script>Aplats.attach(img, { seed: 7, fill: 'trame', subjects: 3, corners: 3, detail: 0.03 })</script>
+<script>Aplats.attach(img, { seed: 7, fill: 'trame', palette: 'pop', subjects: 3, corners: 3, detail: 0.03 })</script>
 ```
 
 Les images doivent être servies par la même origine que la page (le
