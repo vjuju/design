@@ -8,8 +8,7 @@ vibre.
    une couleur de la palette, légèrement décalée comme un repérage raté de
    sérigraphie. Sur un fond clair, fusion multiply : la couleur éclate et le
    sujet reste lisible au travers. Sur un fond sombre, où le multiply ne
-   donnerait rien, l'aplat devient un halo couvrant autour de la forme du
-   sujet.
+   donnerait rien, l'aplat devient couvrant et s'arrête au bord du sujet.
 3. La silhouette est cernée d'un gros trait noir chaud.
 4. Autour du sujet principal, les traits rayonnants de Keith Haring.
 
@@ -39,13 +38,12 @@ def render(photo, rng, args):
     for i, (m, color) in enumerate(zip(subs, colors)):
         pad = d * (0.025 if i == 0 else 0.015)
         noise = pop.wobble(m.shape, rng, cells=9, amp=0.18)
-        shape = pop.bold_shape(m, d)
-        blob = pop.smooth(pop.dilate(shape, pad), 0.012 * d, noise)
+        blob = pop.smooth(pop.dilate(pop.bold_shape(m, d), pad), 0.012 * d, noise)
         off = 0.012 * d
         blob = pop.shift(blob, int(rng.uniform(-off, off)), int(rng.uniform(-off, off)))
         mode, alpha = pop.blend_for(photo, blob & ~m)
         if mode == "normal":                 # fond sombre : halo couvrant,
-            blob = blob & ~shape               # le sujet reste visible
+            blob = blob & ~pop.smooth(m, 0.004 * d)   # le sujet reste visible
         pop.paint(canvas, blob, color, mode, alpha)
         blobs.append(blob)
 
