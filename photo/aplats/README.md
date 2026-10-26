@@ -84,11 +84,15 @@ zone sombre le multiply ne donnerait rien : l'aplat devient couvrant.
 `web/aplats.js` refait la chaîne de `figures.py` en JavaScript, sans
 dépendance : même analyse sur 256 px (saillance, Otsu, composantes, forme au
 pinceau, morphologie au flou gaussien, suivi de Moore, Douglas-Peucker,
-Catmull-Rom centripète), même palette, mêmes proportions de traits, même
-choix multiply / halo couvrant, mêmes vibrations. Le rendu est à peu de chose
-près celui du script : le hasard n'est pas le même (une graine Python ne
-redonne pas le même tirage) et le mode de fusion est décidé sur la copie
-réduite.
+Catmull-Rom centripète), même palette, mêmes proportions de traits, mêmes
+vibrations. Le hasard n'est pas le même (une graine Python ne redonne pas le
+même tirage) et le mode de fusion est décidé sur la copie réduite.
+
+Un écart voulu : la couleur remplit toujours toute la forme cernée de noir.
+Sur fond clair, l'aplat est en *multiply*, comme dans `figures.py`. Sur fond
+sombre, là où le script Python ne peint qu'un halo autour du sujet, il passe
+en *screen*, le symétrique du multiply : le noir prend la couleur pure et les
+parties claires du sujet restent lisibles au travers.
 
 Puis les formes s'animent. Chaque courbe est rééchantillonnée en 160 points
 montés sur ressorts (retour au repos, cohésion entre voisins, amortissement) :
@@ -99,8 +103,8 @@ montés sur ressorts (retour au repos, cohésion entre voisins, amortissement) :
   photo restée libre (l'analyse en garde huit, trois seulement sont peintes)
   et prend sa silhouette : les deux courbes sont alignées point à point puis
   interpolées, avec une pseudo-force d'inertie qui la fait traîner et
-  rebondir à l'arrivée. Le halo devient multiply en chemin si le nouveau fond
-  est clair, et inversement ;
+  rebondir à l'arrivée. L'aplat passe de screen à multiply en chemin si le
+  nouveau fond est clair, et inversement ;
 * **au clic à côté**, la forme la plus proche vient sur la zone cliquée, ou
   glisse simplement jusqu'au clic s'il n'y a pas de zone libre là ;
 * au clavier, Entrée envoie le sujet principal ailleurs. Avec

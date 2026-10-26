@@ -8,9 +8,13 @@
  *   2. silhouette « au pinceau » (fermeture au flou gaussien, trous bouchés),
  *      élargie, contour suivi pixel par pixel, réduit par Douglas-Peucker,
  *      relié par une Catmull-Rom centripète ;
- *   3. aplat en multiply sur fond clair, halo couvrant sur fond sombre, gros
- *      trait noir, vibrations (arcs aux angles, traits droits ailleurs) autour
- *      du sujet principal.
+ *   3. aplat sur toute la forme, en multiply sur fond clair et en screen sur
+ *      fond sombre, gros trait noir, vibrations (arcs aux angles, traits
+ *      droits ailleurs) autour du sujet principal.
+ *
+ * Écart voulu avec figures.py : sur fond sombre, le script Python laisse le
+ * sujet hors de l'aplat (un halo) ; ici la couleur remplit toute la forme
+ * cernée de noir, et c'est le mode screen qui garde le sujet lisible.
  *
  * Ce que le script Python ne fait pas : les formes sont vivantes. Chaque
  * courbe est une chaîne de points montés sur ressorts. Le curseur les
@@ -485,14 +489,6 @@
     return out;
   }
 
-  // Une courbe réduite à son centre : un trou de surface nulle.
-  function collapsed(c) {
-    const [x, y] = centroid(c);
-    const out = new Float32Array(2 * N);
-    for (let i = 0; i < N; i++) { out[2 * i] = x; out[2 * i + 1] = y; }
-    return out;
-  }
-
   function translated(c, dx, dy) {
     const out = Float32Array.from(c);
     for (let i = 0; i < N; i++) { out[2 * i] += dx; out[2 * i + 1] += dy; }
@@ -725,7 +721,7 @@
     }
 
     // Une silhouette posée sur une zone : courbe élargie (décalée comme un
-    // repérage raté), courbe du sujet (le trou du halo), mode de fusion.
+    // repérage raté) et mode de fusion.
     shapeOn(zi, main, rnd) {
       const z = this.zones[zi];
       const { w, h, lum } = this.small;
@@ -737,14 +733,13 @@
       if (!outer) return null;
       const off = 0.012 * this.d;
       outer = translated(outer, rnd.uniform(-off, off), rnd.uniform(-off, off));
-      const inner = curveOf(bold, w, h, this.k, tol) || collapsed(outer);
 
-      // Sur du clair, multiply ; sur du sombre la couleur y disparaîtrait :
-      // halo couvrant autour du sujet.
+      // Sur du clair, multiply : la couleur fonce la photo. Sur du sombre le
+      // multiply ne donnerait rien : screen, qui l'éclaircit vers la couleur.
       let sum = 0, cnt = 0;
-      for (let i = 0; i < grown.length; i++) if (grown[i] && !bold[i]) { sum += lum[i]; cnt++; }
-      const normal = cnt && sum / cnt <= 0.5 ? 1 : 0;
-      return { outer, inner, normal, zone: zi };
+      for (let i = 0; i < grown.length; i++) if (grown[i]) { sum += lum[i]; cnt++; }
+      const screen = cnt && sum / cnt <= 0.5 ? 1 : 0;
+      return { outer, screen, zone: zi };
     }
 
     build() {
@@ -767,18 +762,16 @@
           color: COULEURS[names[this.shapes.length % names.length]],
           main: this.shapes.length === 0,
           zone: zi,
-          normal: s.normal,
-          restO: s.outer, restI: align(s.outer, s.inner),
+          screen: s.screen,
+          rest: s.outer,                      // forme au repos
+          pos: Float32Array.from(s.outer),    // forme affichée
+          D: new Float32Array(2 * N),         // écart au repos de chaque point
+          V: new Float32Array(2 * N),         // et sa vitesse
+          RV: new Float32Array(2 * N),        // vitesse du repos pendant un déplacement
           T: [0, 0], TV: [0, 0],
           morph: null,
         };
-        for (const key of ['O', 'I']) {
-          shape['D' + key] = new Float32Array(2 * N);
-          shape['V' + key] = new Float32Array(2 * N);
-          shape['P' + key] = Float32Array.from(shape['rest' + key]);
-          shape['RV' + key] = new Float32Array(2 * N);
-        }
-        shape.corners = pickCorners(shape.restO, this.vib);
+        shape.corners = pickCorners(shape.rest, this.vib);
         this.shapes.push(shape);
       }
     }
@@ -797,12 +790,12 @@
       if (!this.shapes.length) return;
       let mover = null;
       for (let i = this.shapes.length - 1; i >= 0; i--) {
-        if (inside(this.shapes[i].PO, P[0], P[1])) { mover = this.shapes[i]; break; }
+        if (inside(this.shapes[i].pos, P[0], P[1])) { mover = this.shapes[i]; break; }
       }
       if (mover) return this.send(mover, null);
       let best = Infinity;
       for (const s of this.shapes) {
-        const [x, y] = centroid(s.PO);
+        const [x, y] = centroid(s.pos);
         const dd = Math.hypot(x - P[0], y - P[1]);
         if (dd < best) { best = dd; mover = s; }
       }
@@ -823,20 +816,14 @@
       let target = zi >= 0 ? this.shapeOn(zi, shape.main, this.rnd) : null;
       if (!target) {
         // Pas de zone libre : la forme glisse telle quelle, vers le clic ou au hasard.
-        const [cx, cy] = centroid(shape.restO);
+        const [cx, cy] = centroid(shape.rest);
         const to = P || [this.W * this.rnd.uniform(0.25, 0.75), this.H * this.rnd.uniform(0.25, 0.75)];
-        target = {
-          outer: translated(shape.restO, to[0] - cx, to[1] - cy),
-          inner: translated(shape.restI, to[0] - cx, to[1] - cy),
-          normal: shape.normal, zone: -1,
-        };
+        target = { outer: translated(shape.rest, to[0] - cx, to[1] - cy), screen: shape.screen, zone: -1 };
       }
-      const toO = align(shape.restO, target.outer);
       shape.morph = {
         t: 0,
-        fromO: Float32Array.from(shape.restO), toO,
-        fromI: Float32Array.from(shape.restI), toI: align(shape.restI, target.inner),
-        fromN: shape.normal, toN: target.normal,
+        from: Float32Array.from(shape.rest), to: align(shape.rest, target.outer),
+        fromScreen: shape.screen, toScreen: target.screen,
       };
       shape.zone = target.zone;
       if (reduceMotion) shape.morph.t = 1;
@@ -855,31 +842,28 @@
           const m = s.morph;
           m.t = Math.min(1, m.t + dt / TRAVEL);
           const e = m.t < 0.5 ? 4 * m.t ** 3 : 1 - (-2 * m.t + 2) ** 3 / 2;
-          for (const key of ['O', 'I']) {
-            const rest = s['rest' + key], from = m['from' + key], to = m['to' + key], rv = s['RV' + key], V = s['V' + key];
-            for (let i = 0; i < 2 * N; i++) {
-              const next = from[i] + (to[i] - from[i]) * e;
-              const vel = dt > 0 ? (next - rest[i]) / dt : 0;
-              // Pseudo-force d'inertie : la forme traîne puis rebondit à l'arrivée.
-              if (!reduceMotion && dt > 0) V[i] -= INERTIA * (vel - rv[i]);
-              rv[i] = vel;
-              rest[i] = next;
-            }
+          for (let i = 0; i < 2 * N; i++) {
+            const next = m.from[i] + (m.to[i] - m.from[i]) * e;
+            const vel = dt > 0 ? (next - s.rest[i]) / dt : 0;
+            // Pseudo-force d'inertie : la forme traîne puis rebondit à l'arrivée.
+            if (!reduceMotion && dt > 0) s.V[i] -= INERTIA * (vel - s.RV[i]);
+            s.RV[i] = vel;
+            s.rest[i] = next;
           }
-          s.normal = m.fromN + (m.toN - m.fromN) * e;
+          s.screen = m.fromScreen + (m.toScreen - m.fromScreen) * e;
           if (m.t >= 1) {
             s.morph = null;
-            s.RVO.fill(0); s.RVI.fill(0);
-            s.corners = pickCorners(s.restO, this.vib);
+            s.RV.fill(0);
+            s.corners = pickCorners(s.rest, this.vib);
           }
         }
 
         // Toute la forme glisse un peu pour s'écarter du curseur.
-        const [cx, cy] = centroid(s.restO);
+        const [cx, cy] = centroid(s.rest);
         let fx = 0, fy = 0;
         if (this.cursor && !reduceMotion) {
           let radius = 0;
-          for (let i = 0; i < N; i++) radius = Math.max(radius, Math.hypot(s.restO[2 * i] - cx, s.restO[2 * i + 1] - cy));
+          for (let i = 0; i < N; i++) radius = Math.max(radius, Math.hypot(s.rest[2 * i] - cx, s.rest[2 * i + 1] - cy));
           const ux = cx + s.T[0] - this.cursor[0], uy = cy + s.T[1] - this.cursor[1];
           const dist = Math.hypot(ux, uy), reach = radius + REACH * d;
           if (dist < reach) {
@@ -892,15 +876,12 @@
             s.TV[a] += h * ((a ? fy : fx) - K * 0.6 * s.T[a] - DAMP * s.TV[a]);
             s.T[a] += h * s.TV[a];
           }
-          for (const key of ['O', 'I']) this.relax(s, key, h);
+          this.relax(s, h);
         }
         let motion = Math.hypot(s.T[0], s.T[1]) + Math.hypot(s.TV[0], s.TV[1]) * 0.05;
-        for (const key of ['O', 'I']) {
-          const D = s['D' + key], V = s['V' + key], P = s['P' + key], rest = s['rest' + key];
-          for (let i = 0; i < 2 * N; i++) {
-            P[i] = rest[i] + s.T[i & 1] + D[i];
-            motion = Math.max(motion, Math.abs(D[i]) + Math.abs(V[i]) * 0.05);
-          }
+        for (let i = 0; i < 2 * N; i++) {
+          s.pos[i] = s.rest[i] + s.T[i & 1] + s.D[i];
+          motion = Math.max(motion, Math.abs(s.D[i]) + Math.abs(s.V[i]) * 0.05);
         }
         if (motion > 0.002 * d) busy = true;
       }
@@ -910,8 +891,8 @@
 
     // Chaque point est tiré vers son repos, lié à ses voisins, repoussé par
     // le curseur.
-    relax(s, key, h) {
-      const D = s['D' + key], V = s['V' + key], rest = s['rest' + key];
+    relax(s, h) {
+      const { D, V, rest } = s;
       const q = this.cursor && !reduceMotion ? this.cursor : null;
       const reach = REACH * this.d, push = K * PUSH * this.d;
       for (let i = 0; i < N; i++) {
@@ -953,19 +934,13 @@
 
       for (const s of this.shapes) {
         ctx.fillStyle = s.color;
-        if (s.normal < 0.999) {
-          ctx.globalCompositeOperation = 'multiply';
-          ctx.globalAlpha = 0.95 * (1 - s.normal);
-          ctx.beginPath(); this.path(s.PO, ctx); ctx.fill();
-        }
-        if (s.normal > 0.001) {
-          // Fond sombre : halo couvrant, le sujet reste visible au milieu.
-          ctx.globalCompositeOperation = 'source-over';
-          ctx.globalAlpha = 0.88 * s.normal;
-          ctx.save();
-          ctx.beginPath(); this.path(s.PO, ctx); ctx.clip();
-          ctx.beginPath(); this.path(s.PO, ctx); this.path(s.PI, ctx); ctx.fill('evenodd');
-          ctx.restore();
+        // Toute la forme est peinte. En chemin d'un fond clair à un fond
+        // sombre, les deux modes se fondent l'un dans l'autre.
+        for (const [mode, weight] of [['multiply', 1 - s.screen], ['screen', s.screen]]) {
+          if (weight < 0.001) continue;
+          ctx.globalCompositeOperation = mode;
+          ctx.globalAlpha = 0.95 * weight;
+          ctx.beginPath(); this.path(s.pos, ctx); ctx.fill();
         }
       }
 
@@ -975,13 +950,13 @@
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
       ctx.lineWidth = this.stroke;
-      for (const s of this.shapes) { ctx.beginPath(); this.path(s.PO, ctx); ctx.stroke(); }
+      for (const s of this.shapes) { ctx.beginPath(); this.path(s.pos, ctx); ctx.stroke(); }
 
       const main = this.shapes.find((s) => s.main);
       if (main && this.rays) {
         ctx.lineWidth = this.vib.width;
         ctx.beginPath();
-        for (const line of vibrationLines(main.PO, this.vib, main.corners)) {
+        for (const line of vibrationLines(main.pos, this.vib, main.corners)) {
           ctx.moveTo(line[0][0], line[0][1]);
           for (let i = 1; i < line.length; i++) ctx.lineTo(line[i][0], line[i][1]);
         }
