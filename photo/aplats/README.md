@@ -34,7 +34,7 @@ python3 plages.py photo.jpg --seed 2005          # rejoue un tirage précis
 
 Options communes : `-o` (dossier de sortie), `--seed`, `--variants`,
 `--max-size`, `--quality`. Chaque passage complète `output/<script>/seeds.json`.
-Options propres : `figures.py --subjects 3 --no-rays --corners 3 --detail 0.03 --palette vive|pop` ·
+Options propres : `figures.py --subjects 3 --no-rays --corners 3 --detail 0.03 --palette vive|pop --dark screen|halo` ·
 `ondes.py --rings 3 --mode auto|multiply|normal` ·
 `plages.py --levels 6 --blank 0.2 --dark 0.22 --no-protect`.
 
@@ -78,7 +78,9 @@ bouts ronds, dessiné en sur-échantillonnage pour l'antialiasing.
 
 **La fusion** (`pop.blend_for`) : sur une zone claire, l'aplat est en
 *multiply* — la couleur éclate et la photo reste visible au travers. Sur une
-zone sombre le multiply ne donnerait rien : l'aplat devient couvrant.
+zone sombre le multiply ne donnerait rien : l'aplat devient couvrant dans
+`ondes.py` et `plages.py` ; dans `figures.py` il passe en *screen*, qui
+éclaircit la photo vers la couleur (`--dark halo` pour l'ancien halo couvrant).
 
 ## Dans le navigateur : `web/`
 
@@ -95,8 +97,8 @@ la couleur est posée ; « fond sombre » se mesure autour du sujet, comme dans
 
 | `fill` | Rendu |
 | --- | --- |
-| `screen` (défaut) | multiply sur fond clair, screen sur fond sombre : la couleur fonce le clair et éclaircit le noir |
-| `figures` | multiply sur fond clair, halo sur fond sombre : le choix de `figures.py` |
+| `screen` (défaut) | multiply sur fond clair, screen sur fond sombre : le choix de `figures.py` |
+| `figures` | multiply sur fond clair, halo sur fond sombre : `figures.py --dark halo` |
 | `multiply` | multiply partout : la couleur fonce la photo, qui transparaît |
 | `halo` | halo partout : couleur couvrante autour du sujet, le sujet reste la photo |
 | `transparence` | couleur posée à mi-opacité, sans mode de fusion |

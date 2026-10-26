@@ -282,7 +282,9 @@ def soft(m: np.ndarray) -> np.ndarray:
 
 def paint(canvas: np.ndarray, mask: np.ndarray, color: str,
           mode: str = "multiply", opacity: float = 1.0, box: tuple | None = None) -> None:
-    """Pose un aplat. multiply : la photo transparaît ; normal : il la couvre.
+    """Pose un aplat. multiply : la couleur fonce la photo, qui transparaît ;
+    screen : elle l'éclaircit (sur du noir, la couleur pure) ; normal : il la
+    couvre.
 
     Avec `box` (x0, y0, x1, y1), `mask` ne couvre que ce rectangle et seul lui
     est recalculé : le reste de l'image n'est pas touché.
@@ -297,9 +299,16 @@ def paint(canvas: np.ndarray, mask: np.ndarray, color: str,
     sel = alpha > 0
     if sel.mean() < 0.4:
         px, a = canvas[sel], alpha[sel][:, None]
-        canvas[sel] = px * (1 - a * (1 - c)) if mode == "multiply" else px + (c - px) * a
+        if mode == "multiply":
+            canvas[sel] = px * (1 - a * (1 - c))
+        elif mode == "screen":
+            canvas[sel] = 1 - (1 - px) * (1 - a * c)
+        else:
+            canvas[sel] = px + (c - px) * a
     elif mode == "multiply":
         canvas *= 1 - alpha[..., None] * (1 - c)
+    elif mode == "screen":
+        canvas[:] = 1 - (1 - canvas) * (1 - alpha[..., None] * c)
     else:
         canvas += (c - canvas) * alpha[..., None]
 

@@ -9,8 +9,10 @@ vibre.
    palette vive (`--palette pop` pour celle des autres scripts), légèrement
    décalée comme un repérage raté de sérigraphie. Sur un fond clair,
    fusion multiply : la couleur éclate et le sujet reste lisible au travers.
-   Sur un fond sombre, où le multiply ne donnerait rien, l'aplat devient un
-   halo couvrant autour du sujet.
+   Sur un fond sombre, où le multiply ne donnerait rien, fusion screen : la
+   couleur éclaircit la photo, le noir prend la couleur pure et le sujet
+   reste lisible au travers (`--dark halo` : un halo couvrant autour du sujet
+   à la place, comme avant).
    La silhouette n'est pas un masque de pixels : son contour est réduit à
    quelques points de passage, et une courbe lisse les relie.
 3. La silhouette est cernée d'un gros trait noir chaud, de largeur constante.
@@ -34,6 +36,9 @@ def add_args(ap) -> None:
                     help="nombre d'angles soulignés par des arcs")
     ap.add_argument("--palette", choices=sorted(pop.PALETTES), default="vive",
                     help="couleurs des aplats : vive (défaut) ou pop, celle des autres scripts")
+    ap.add_argument("--dark", choices=("screen", "halo"), default="screen",
+                    help="sur fond sombre : aplat en screen (défaut) ou halo "
+                         "couvrant autour du sujet")
     ap.add_argument("--detail", type=float, default=0.03,
                     help="tolérance de simplification du contour, en part de la "
                          "diagonale : plus grand = moins de points de passage")
@@ -69,7 +74,9 @@ def render(photo, rng, args):
         # Le bord intérieur du halo n'est pas cerné de noir : lui reste lissé.
         core = pop.fill_alpha(box, inner, ss=2) if inner is not None else fill * 0
         mode, alpha = pop.blend_for(photo[y0:y1, x0:x1], (fill > 0.5) & (core < 0.5))
-        if mode == "normal":                 # fond sombre : halo couvrant,
+        if mode == "normal" and args.dark == "screen":
+            mode, alpha = "screen", 0.95     # fond sombre : la couleur éclaircit
+        elif mode == "normal":               # ou halo couvrant,
             fill = fill * (1 - core)         # le sujet reste visible
         pop.paint(canvas, fill, color, mode, alpha, box=box)
         curves.append(curve)
