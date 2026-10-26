@@ -288,9 +288,8 @@
   }
 
   // Les zones saillantes, de la plus importante à la moins importante.
-  function subjects(img, maxCount) {
+  function subjects(img, maxCount, s = saliency(img)) {
     const { w, h } = img;
-    const s = saliency(img);
     const d = Math.hypot(w, h);
     const m = smooth(above(s, Math.max(otsu(s), 0.4)), w, h, 0.006 * d);
     const parts = components(m, w, h, Math.floor(0.002 * m.length));
@@ -639,6 +638,7 @@
       this.detail = opts.detail ?? 0.03;
       this.rays = opts.rays ?? true;
       this.onseed = opts.onseed;
+      this.onready = opts.onready;
 
       const canvas = document.createElement('canvas');
       canvas.className = 'aplats-canvas';
@@ -684,6 +684,7 @@
     }
 
     analyse() {
+      const t0 = performance.now();
       const img = this.img;
       this.W = img.naturalWidth;
       this.H = img.naturalHeight;
@@ -706,11 +707,15 @@
       this.small = { w, h, r, g, b, lum };
       this.k = this.W / w;
       this.ds = Math.hypot(w, h);
-      this.zones = subjects(this.small, ZONES).map((p) => ({ mask: p.mask }));
+      // Gardées pour qui veut regarder l'analyse (voir web/labo).
+      this.saliency = saliency(this.small);
+      this.zones = subjects(this.small, ZONES, this.saliency).map((p) => ({ mask: p.mask, score: p.score }));
       this.build();
       this.resize();
       this.draw();
       wake(this);
+      this.ms = performance.now() - t0;
+      if (this.onready) this.onready(this);
     }
 
     zoneBold(z) {
