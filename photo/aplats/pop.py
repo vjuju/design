@@ -489,7 +489,8 @@ def vibrations(shape, curve: np.ndarray, rng: random.Random, *, gap: float, leng
 
     * Aux angles les plus marqués de la forme (là où la courbe tourne le plus
       vite, côté bombé), un arc de longueur `arc` parallèle à la courbe,
-      décollé d'elle : il souligne l'angle comme un écho.
+      décollé d'elle, et un second deux fois plus court juste au-delà :
+      ils soulignent l'angle comme un écho.
     * Ailleurs, des traits droits perpendiculaires, plus espacés qu'avant et
       absents autour des arcs.
     Tous les traits ont la même épaisseur et des bouts ronds.
@@ -531,10 +532,12 @@ def vibrations(shape, curve: np.ndarray, rng: random.Random, *, gap: float, leng
                 d.ellipse([qx - r, qy - r, qx + r, qy + r], fill=255)
 
         for i in picked:
-            idx = np.arange(i - half, i + half + 1) % n
-            line = [tuple(p) for p in (pts[idx] + normal[idx] * gap) * ss]
-            d.line(line, fill=255, width=lw, joint="curve")
-            caps(line[0], line[-1])
+            # Un arc contre l'angle, un second plus court et plus loin.
+            for g, span in ((gap, half), (gap + 2.2 * width, max(2, half // 2))):
+                idx = np.arange(i - span, i + span + 1) % n
+                line = [tuple(p) for p in (pts[idx] + normal[idx] * g) * ss]
+                d.line(line, fill=255, width=lw, joint="curve")
+                caps(line[0], line[-1])
 
         count = max(4, int(n * step / spacing))
         offset = rng.randrange(n)

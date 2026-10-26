@@ -13,8 +13,9 @@ vibre.
    La silhouette n'est pas un masque de pixels : son contour est réduit à
    quelques points de passage, et une courbe lisse les relie.
 3. La silhouette est cernée d'un gros trait noir chaud, de largeur constante.
-4. Autour du sujet principal, les vibrations de Keith Haring : de petits
-   arcs qui soulignent ses angles les plus marqués, et quelques traits
+4. Autour du sujet principal, les vibrations de Keith Haring : un petit
+   arc, doublé d'un plus petit à l'extérieur, souligne ses angles les plus
+   marqués, et quelques traits
    droits rayonnants ailleurs.
 
     python3 figures.py photo.jpg
