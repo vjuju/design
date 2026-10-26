@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Agenda gigot</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Proposition de liste d'événements pour gigot.app, avec les boutons du design system.">
+<link rel="icon" href="../picto/gigot-picto-rose.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Titan+One&family=Work+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../bouton/gigot-button.css">
+<link rel="stylesheet" href="../boutons/gigot-boutons.css">
+<style>
+  /* Une colonne d'agenda : bandeau rose, filtres, puis les jours empilés ; cartes blanches cernées de noir,
+     flanc noir décalé, la couleur vient de la catégorie. Un seul look, clair, comme la planche. */
+  :root {
+    --page: #FFFFFF;
+    --encre: var(--gigot-noir);
+    --doux: #4A4A52;
+    --filet: #E4E4E8;
+    --bandeau: var(--gigot-rose);
+    --corps: 'Work Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--page); }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--encre);
+    font: 16px/1.5 var(--corps);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .retour { display: inline-block; padding-block: 16px 0; font-size: 14px; color: var(--doux); }
+
+  /* bandeau */
+  .bandeau { background: var(--bandeau); border-bottom: 3px solid var(--encre); }
+  .barre { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 14px; flex-wrap: wrap; }
+  .marque { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--encre); }
+  .marque img { width: 48px; height: 48px; border-radius: 12px; border: 3px solid var(--encre); display: block; }
+  .marque span { font: 400 30px/1 var(--gigot-police); }
+  .titre { padding-block: 20px 36px; display: grid; gap: 10px; }
+  h1 { margin: 0; font: 400 clamp(40px, 8vw, 76px)/.95 var(--gigot-police); text-wrap: balance; }
+  .titre p { margin: 0; max-width: 56ch; font-size: 17px; }
+  .compte { font-variant-numeric: tabular-nums; }
+
+  /* filtres */
+  .filtres { display: grid; gap: 14px; padding-block: 24px 8px; }
+  .rang { display: flex; gap: 10px 8px; overflow-x: auto; padding: 8px 4px 10px 8px; margin: 0 -4px 0 -8px; scrollbar-width: thin; }
+  .rang > * { flex: none; }
+  .rang.vague { flex-wrap: wrap; overflow: visible; }
+  .etiquette { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--doux); }
+
+  /* jours et cartes */
+  .agenda { display: flex; flex-direction: column; gap: 40px; padding-block: 24px 56px; max-width: 860px; }
+  .jour { display: flex; flex-direction: column; gap: 18px; }
+  .jour h2 { margin: 0; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; font: 400 clamp(28px, 4.5vw, 38px)/1 var(--gigot-police); }
+  .jour h2 small { font: 500 15px/1 var(--corps); color: var(--doux); }
+  .cartes { display: grid; gap: 22px; }
+
+  .carte {
+    --cat: var(--gigot-jaune);
+    container-type: inline-size;
+    background: var(--page);
+    border: 3px solid var(--encre);
+    border-radius: 22px;
+    box-shadow: 6px 6px 0 var(--encre);
+    margin: 0 6px 6px 0;
+    overflow: hidden;
+  }
+  .carte-in { display: grid; grid-template-columns: 34% 1fr; height: 100%; }
+  .visuel { position: relative; border-right: 3px solid var(--encre); background: var(--cat); min-height: 230px; }
+  .visuel img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+  .visuel .sans { position: absolute; inset: 0; display: grid; place-items: center; }
+  .visuel .sans img { position: static; width: 46%; height: auto; border-radius: 14%; border: 3px solid var(--encre); }
+  .cat {
+    position: absolute; left: 10px; top: 10px;
+    padding: 5px 10px 4px; border: 3px solid var(--encre); border-radius: 999px;
+    background: var(--cat); color: var(--cat-texte, var(--encre));
+    font: 400 13px/1 var(--gigot-police); letter-spacing: .02em;
+  }
+  .oeil { position: absolute; right: 10px; bottom: 10px; border: 3px solid var(--encre); border-radius: 13px; line-height: 0; }
+  .oeil .gigot-btn { --taille: 52px; border-radius: 10px; }
+
+  .corps { display: flex; flex-direction: column; gap: 8px; padding: 16px 16px 16px 18px; min-width: 0; }
+  .quand { font-weight: 600; font-size: 14px; font-variant-numeric: tabular-nums; display: flex; gap: 6px; flex-wrap: wrap; }
+  .quand .heure { background: var(--encre); color: var(--page); border-radius: 6px; padding: 1px 7px; }
+  .carte h3 { margin: 0; font: 400 23px/1.08 var(--gigot-police); text-wrap: balance; }
+  .lieu { margin: 0; font-size: 14px; color: var(--doux); }
+  .resume { margin: 0; font-size: 15px; }
+  .pied { margin-top: auto; padding-top: 10px; border-top: 2px dashed var(--filet); display: flex; flex-wrap: wrap; align-items: center; gap: 12px 8px; }
+  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 8px; }
+  .prix { font: 400 19px/1 var(--gigot-police); margin-right: auto; font-variant-numeric: tabular-nums; }
+  .venir { display: inline-flex; align-items: center; gap: 20px; font-size: 13px; color: var(--doux); margin-right: auto; }
+  .venir .n { font-variant-numeric: tabular-nums; }
+
+  @container (max-width: 440px) {
+    .carte-in { grid-template-columns: 1fr; }
+    .visuel { border-right: 0; border-bottom: 3px solid var(--encre); min-height: 0; aspect-ratio: 3 / 2; }
+    .visuel img { object-position: 50% 40%; }
+    .visuel .sans img { width: auto; height: 62%; }
+  }
+
+  .vide { border: 3px dashed var(--encre); border-radius: 22px; padding: 28px 20px; display: grid; gap: 14px; justify-items: start; }
+  .vide h2 { margin: 0; font: 400 28px/1.1 var(--gigot-police); }
+  .vide p { margin: 0; max-width: 52ch; color: var(--doux); }
+  .note { font-size: 13px; color: var(--doux); }
+
+  /* catalogue des boutons */
+  .catalogue { border-top: 3px solid var(--encre); padding-block: 48px 96px; display: flex; flex-direction: column; gap: 28px; }
+  .catalogue > h2 { margin: 0; font: 400 clamp(30px, 5vw, 44px)/1 var(--gigot-police); }
+  .chapo { margin: 0; max-width: 64ch; color: var(--doux); }
+  .modeles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 20px; }
+  .modele { border: 1px solid var(--filet); border-radius: 18px; padding: 18px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+  .modele h3 { margin: 0; font: 400 20px/1.2 var(--gigot-police); }
+  .modele p { margin: 0; font-size: 14px; color: var(--doux); }
+  .demo { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 10px; padding: 6px 0 4px 8px; }
+  code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-word; }
+  .regle { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin: 0; }
+  .regle dt { font: 400 17px/1.3 var(--gigot-police); }
+  .regle dd { margin: 0; color: var(--doux); }
+
+  .bulle {
+    position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    transform: translate(-50%, calc(100% + 60px)); visibility: hidden;
+    transition: transform .3s cubic-bezier(.3, 1.4, .5, 1), visibility 0s .3s;
+    background: var(--gigot-jaune); color: var(--encre);
+    border: 3px solid var(--encre); border-radius: 999px; box-shadow: 4px 4px 0 var(--encre);
+    padding: 10px 18px; font: 400 16px/1 var(--gigot-police); z-index: 20;
+  }
+  .bulle.vue { transform: translate(-50%, 0); visibility: visible; transition-delay: 0s; }
+  @media (prefers-reduced-motion: reduce) { .bulle { transition: none; } }
+</style>
+</head>
+<body>
+
+<div class="bandeau">
+  <div class="wrap">
+    <a class="retour" href="../">← design system gigot</a>
+    <div class="barre">
+      <a class="marque" href="../"><img src="../picto/gigot-picto-jaune.svg" alt="" width="48" height="48"><span>gigot</span></a>
+      <button class="g-btn g-btn--petit" id="mes-sorties" data-face="noir" data-flanc="jaune" data-on="jaune" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12c3-5 6.5-7 10-7s7 2 10 7c-3 5-6.5 7-10 7S5 17 2 12Z"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
+        Mes sorties <span class="compte" id="nb-sorties">0</span>
+      </button>
+    </div>
+    <div class="titre">
+      <h1>On gigote où cette semaine&nbsp;?</h1>
+      <p>Concerts, scènes, ateliers et balades près de chez toi, du lundi 26 octobre au dimanche 1<sup>er</sup> novembre.</p>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+  <section class="filtres" aria-label="Filtres">
+    <div class="rang g-groupe" data-unique role="group" aria-label="Jour" id="jours"></div>
+    <div class="rang vague" role="group" aria-label="Catégorie" id="categories"></div>
+  </section>
+
+  <p class="note" id="resultat" aria-live="polite"></p>
+  <div class="agenda" id="agenda"></div>
+
+  <section class="catalogue" aria-labelledby="t-boutons">
+    <h2 id="t-boutons">Les boutons</h2>
+    <p class="chapo">Tous reprennent le pictogramme : une face colorée cernée de noir et son flanc décalé derrière.
+    Au survol la face se soulève et suit le curseur. Quand on appuie, elle rejoint le flanc. Un bouton activé y reste posé,
+    avec des traits de vibration. Essaie-les.</p>
+
+    <dl class="regle">
+      <dt>Repos</dt><dd>face et flanc visibles, décalés de 4 à 5 px</dd>
+      <dt>Survol</dt><dd>la face monte de 2 px et suit le curseur, le flanc ne bouge pas</dd>
+      <dt>Activé</dt><dd>la face est posée sur le flanc, six traits rayonnent depuis deux coins</dd>
+    </dl>
+
+    <div class="modeles">
+      <div class="modele">
+        <h3>Enregistrer</h3>
+        <p>Le bouton-œil existant, posé en bas à droite de chaque visuel. « Je garde un œil dessus » : l'événement rejoint Mes sorties.</p>
+        <div class="demo" id="demo-oeil"></div>
+        <code>GigotButton.create({ fond, face, flanc, taille: 52 })</code>
+      </div>
+      <div class="modele">
+        <h3>Action</h3>
+        <p>Une seule par carte : réserver, prendre sa place, voir le programme. Face jaune, flanc de la couleur de la catégorie.</p>
+        <div class="demo">
+          <button class="g-btn" data-face="jaune" data-flanc="rose">Réserver</button>
+          <button class="g-btn" data-face="violet" data-flanc="cyan">Voir le programme</button>
+          <button class="g-btn g-btn--petit" data-face="cyan" data-flanc="violet">Billets</button>
+        </div>
+        <code>&lt;button class="g-btn" data-face="jaune" data-flanc="rose"&gt;</code>
+      </div>
+      <div class="modele">
+        <h3>J'y vais</h3>
+        <p>Un interrupteur pour dire qu'on vient. Le compteur montre qui d'autre sera là : une sortie se vit à plusieurs.</p>
+        <div class="demo">
+          <span class="venir"><button class="g-btn g-btn--petit" data-face="blanc" data-flanc="vert" data-on="vert" aria-pressed="false">J'y vais</button><span>23 y vont</span></span>
+          <span class="venir"><button class="g-btn g-btn--petit" data-face="blanc" data-flanc="vert" data-on="vert" aria-pressed="true">J'y vais</button><span>24 y vont, dont toi</span></span>
+        </div>
+        <code>&lt;button class="g-btn g-btn--petit" data-face="blanc" data-flanc="vert" data-on="vert" aria-pressed="false"&gt;</code>
+      </div>
+      <div class="modele">
+        <h3>Ronds</h3>
+        <p>Les actions secondaires, en icône seule avec un libellé pour les lecteurs d'écran : partager à quelqu'un, l'itinéraire.</p>
+        <div class="demo">
+          <button class="g-btn g-btn--rond" data-face="blanc" data-flanc="cyan" aria-label="Partager"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 0L7.5 7.5M12 3l4.5 4.5"/><path d="M7 11H5.5A1.5 1.5 0 0 0 4 12.5v7A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5v-7a1.5 1.5 0 0 0-1.5-1.5H17"/></svg></button>
+          <button class="g-btn g-btn--rond" data-face="blanc" data-flanc="orange" aria-label="Itinéraire"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg></button>
+          <button class="g-btn g-btn--rond" data-face="jaune" data-flanc="violet" aria-label="Ajouter au calendrier"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M8 3v4M16 3v4M3.5 10h17M12 13v5M9.5 15.5h5"/></svg></button>
+        </div>
+        <code>&lt;button class="g-btn g-btn--rond" aria-label="Partager"&gt;</code>
+      </div>
+      <div class="modele">
+        <h3>Puces de filtre</h3>
+        <p>Blanches au repos, avec le flanc à la couleur de la catégorie. Activées, elles prennent cette couleur et une coche.</p>
+        <div class="demo">
+          <button class="g-btn g-puce" data-flanc="vert" data-on="vert" aria-pressed="false"><svg class="g-coche" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg>Plein air</button>
+          <button class="g-btn g-puce" data-flanc="violet" data-on="violet" aria-pressed="true"><svg class="g-coche" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg>Scène</button>
+        </div>
+        <code>&lt;button class="g-btn g-puce" data-flanc="vert" data-on="vert" aria-pressed="false"&gt;</code>
+      </div>
+      <div class="modele">
+        <h3>Jours</h3>
+        <p>Une case par date, un seul jour choisi à la fois. Le jour choisi passe en noir.</p>
+        <div class="demo g-groupe" data-unique>
+          <button class="g-btn g-jour" data-flanc="rose" data-on="noir" aria-pressed="true"><small>sam</small><b>31</b></button>
+          <button class="g-btn g-jour" data-flanc="rose" data-on="noir" aria-pressed="false"><small>dim</small><b>1</b></button>
+        </div>
+        <code>&lt;div class="g-groupe" data-unique&gt; &lt;button class="g-btn g-jour" …&gt;</code>
+      </div>
+      <div class="modele">
+        <h3>Lien</h3>
+        <p>Pour les renvois dans le texte. Le soulignement gigote au survol.</p>
+        <div class="demo"><button class="g-lien" type="button">Voir tout le week-end</button> <button class="g-lien" type="button" style="--lien: var(--gigot-cyan)">Proposer un événement</button></div>
+        <code>&lt;a class="g-lien"&gt;</code>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="bulle" id="bulle" role="status"></div>
+
+<script src="../bouton/gigot-button.js"></script>
+<script src="../boutons/gigot-boutons.js"></script>
+<script>
+(function () {
+  var IMG = '../aplats/exemples/';
+  var PICTO = '../picto/';
+
+  // catégorie → couleur ; l'œil prend le trio du pictogramme sur ce fond
+  var CATS = {
+    concert: { nom: 'Concert',   c: 'rose',   oeil: ['rose', 'cyan', 'violet'] },
+    scene:   { nom: 'Scène',     c: 'violet', oeil: ['violet', 'rose', 'cyan'] },
+    danse:   { nom: 'Danse',     c: 'cyan',   oeil: ['cyan', 'jaune', 'rose'] },
+    expo:    { nom: 'Expo',      c: 'jaune',  oeil: ['jaune', 'cyan', 'violet'] },
+    atelier: { nom: 'Atelier',   c: 'orange', oeil: ['orange', 'jaune', 'violet'] },
+    nature:  { nom: 'Plein air', c: 'vert',   oeil: ['vert', 'rose', 'violet'] }
+  };
+  var C = GigotButton.couleurs;
+
+  var JOURS = [
+    { id: '26', court: 'lun', titre: 'Ce soir', date: 'lundi 26 octobre' },
+    { id: '27', court: 'mar', titre: 'Demain', date: 'mardi 27 octobre' },
+    { id: '28', court: 'mer', titre: 'Mercredi', date: '28 octobre' },
+    { id: '29', court: 'jeu', titre: 'Jeudi', date: '29 octobre' },
+    { id: '30', court: 'ven', titre: 'Vendredi', date: '30 octobre' },
+    { id: '31', court: 'sam', titre: 'Samedi', date: '31 octobre' },
+    { id: '1',  court: 'dim', titre: 'Dimanche', date: '1er novembre' }
+  ];
+
+  // événements d'exemple
+  var EVTS = [
+    { id: 'jam-folk', jour: '26', h: '20:00', fin: '23:00', cat: 'concert', titre: 'Jam folk au comptoir',
+      lieu: 'Le Comptoir des Lilas · 12 rue des Lilas', resume: 'Viens avec ta guitare ou juste tes oreilles. Les morceaux tournent de table en table.',
+      prix: 'Prix libre', libre: true, vont: 23, img: '04-guitar.jpg' },
+    { id: 'mimes', jour: '26', h: '19:30', fin: '21:00', cat: 'scene', titre: 'Mimes en liberté',
+      lieu: 'Théâtre de la Ruche', resume: 'Une heure sans un mot, et une salle qui rit du début à la fin.',
+      prix: '12 €', action: 'Réserver', vont: 41, img: '07-mime.jpg' },
+    { id: 'fresque', jour: '27', h: '18:00', fin: '20:30', cat: 'atelier', titre: 'Fresque collective : peins ton quartier',
+      lieu: 'Atelier Pivoine · cour intérieure', resume: 'Pinceaux, rouleaux et un grand mur. Les enfants sont les bienvenus.',
+      prix: 'Gratuit', libre: true, vont: 17, img: '00-galerie.jpg' },
+    { id: 'skate', jour: '28', h: '14:00', fin: '17:00', cat: 'nature', titre: 'Initiation au skate en plein air',
+      lieu: 'Skatepark des Berges', resume: 'Planches et protections prêtées. On tombe, on se relève, on recommence.',
+      prix: 'Gratuit', libre: true, vont: 12, img: '01-skateboard.jpg' },
+    { id: 'rire', jour: '29', h: '20:30', fin: '22:30', cat: 'scene', titre: 'Scène ouverte du rire',
+      lieu: 'La Cave à Mots', resume: 'Dix humoristes, cinq minutes chacun. Inscription sur place pour monter sur scène.',
+      prix: '8 €', action: 'Prendre ma place', vont: 56, img: '09-laugh-blue.jpg' },
+    { id: 'bal', jour: '30', h: '21:00', fin: '01:00', cat: 'danse', titre: 'Bal pop sous la halle',
+      lieu: 'Halle aux Grains', resume: 'Rock, swing et chansons à reprendre en chœur. Aucun pas à connaître.',
+      prix: '5 €', action: 'Billets', vont: 88, img: '10-smile.jpg' },
+    { id: 'foret', jour: '31', h: '10:00', fin: '12:30', cat: 'nature', titre: 'Balade d’automne à l’écoute des arbres',
+      lieu: 'Bois de la Garenne · parking nord', resume: '5 km au pas lent avec une guide naturaliste. Bonnes chaussures conseillées.',
+      prix: 'Gratuit', libre: true, vont: 29, img: '12-sweater.jpg' },
+    { id: 'vernissage', jour: '31', h: '18:00', fin: '21:00', cat: 'expo', titre: 'Vernissage « Couleurs flash »',
+      lieu: 'Galerie Nadir', resume: 'Vingt affiches sérigraphiées du quartier, et les artistes pour en parler.',
+      prix: 'Gratuit', libre: true, vont: 34 },
+    { id: 'tricot', jour: '1', h: '11:00', fin: '14:00', cat: 'atelier', titre: 'Brunch & tricot partagé',
+      lieu: 'Café Pelote', resume: 'On apprend une maille, on finit l’écharpe d’un ou d’une autre. Laine fournie.',
+      prix: '6 €', action: 'Réserver', vont: 14 }
+  ];
+
+  var etat = { jour: 'tous', cats: {}, gratuit: false, sorties: false };
+  var sauves = {}, viens = {};
+  try { sauves = JSON.parse(localStorage.getItem('gigot-sorties') || '{}') || {}; } catch (e) {}
+  function garde() { try { localStorage.setItem('gigot-sorties', JSON.stringify(sauves)); } catch (e) {} }
+
+  function el(tag, attrs, html) {
+    var n = document.createElement(tag);
+    for (var k in attrs) n.setAttribute(k, attrs[k]);
+    if (html != null) n.innerHTML = html;
+    return n;
+  }
+  var COCHE = '<svg class="g-coche" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg>';
+  var SVG_PARTAGE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 0L7.5 7.5M12 3l4.5 4.5"/><path d="M7 11H5.5A1.5 1.5 0 0 0 4 12.5v7A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5v-7a1.5 1.5 0 0 0-1.5-1.5H17"/></svg>';
+  var SVG_LIEU = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
+
+  /* filtres */
+  var jours = document.getElementById('jours');
+  var tous = el('button', { 'class': 'g-btn g-jour g-jour--large', 'data-flanc': 'jaune', 'data-on': 'noir', 'aria-pressed': 'true', 'data-jour': 'tous' },
+    '<small>toute la</small><b>semaine</b>');
+  jours.appendChild(tous);
+  JOURS.forEach(function (j) {
+    jours.appendChild(el('button', { 'class': 'g-btn g-jour', 'data-flanc': 'jaune', 'data-on': 'noir', 'aria-pressed': 'false', 'data-jour': j.id,
+      'aria-label': j.titre === 'Ce soir' || j.titre === 'Demain' ? j.titre + ', ' + j.date : j.court + ' ' + j.date },
+      '<small>' + j.court + '</small><b>' + j.id + '</b>'));
+  });
+  jours.addEventListener('change', function (e) {
+    if (e.detail.checked) { etat.jour = e.target.dataset.jour; rendu(); }
+  });
+
+  var cats = document.getElementById('categories');
+  Object.keys(CATS).forEach(function (k) {
+    cats.appendChild(el('button', { 'class': 'g-btn g-puce', 'data-flanc': CATS[k].c, 'data-on': CATS[k].c, 'aria-pressed': 'false', 'data-cat': k },
+      COCHE + CATS[k].nom));
+  });
+  cats.appendChild(el('button', { 'class': 'g-btn g-puce', 'data-flanc': 'noir', 'data-on': 'noir', 'aria-pressed': 'false', 'data-gratuit': '1' },
+    COCHE + 'Gratuit ou prix libre'));
+  cats.addEventListener('change', function (e) {
+    var b = e.target;
+    if (b.dataset.gratuit) etat.gratuit = e.detail.checked;
+    else etat.cats[b.dataset.cat] = e.detail.checked;
+    rendu();
+  });
+
+  var mes = document.getElementById('mes-sorties');
+  mes.addEventListener('change', function (e) { etat.sorties = e.detail.checked; rendu(); });
+  function compteSorties() {
+    document.getElementById('nb-sorties').textContent = Object.keys(sauves).filter(function (k) { return sauves[k]; }).length;
+  }
+
+  /* cartes */
+  function carte(ev) {
+    var cat = CATS[ev.cat];
+    var a = el('article', { 'class': 'carte', id: 'evt-' + ev.id, style: '--cat:' + C[cat.c] + (cat.c === 'violet' ? ';--cat-texte:#FFFFFF' : '') });
+    var visuel = ev.img
+      ? '<img src="' + IMG + ev.img + '" alt="" loading="lazy">'
+      : '<div class="sans"><img src="' + PICTO + 'gigot-picto-' + cat.oeil[0] + '.svg" alt=""></div>';
+    var j = JOURS.filter(function (x) { return x.id === ev.jour; })[0];
+    var action = ev.action
+      ? '<button class="g-btn g-btn--petit" data-face="jaune" data-flanc="' + (cat.c === 'jaune' ? 'rose' : cat.c) + '" data-action>' + ev.action + '</button>'
+      : '';
+    a.innerHTML =
+      '<div class="carte-in">' +
+        '<div class="visuel">' + visuel + '<span class="cat">' + cat.nom + '</span><span class="oeil"></span></div>' +
+        '<div class="corps">' +
+          '<div class="quand"><span class="heure">' + ev.h.replace(':', ' h ') + '</span><span>jusqu’à ' + ev.fin.replace(':', ' h ') + '</span></div>' +
+          '<h3>' + ev.titre + '</h3>' +
+          '<p class="lieu">' + ev.lieu + '</p>' +
+          '<p class="resume">' + ev.resume + '</p>' +
+          '<div class="actions">' +
+            '<span class="venir"><button class="g-btn g-btn--petit" data-face="blanc" data-flanc="vert" data-on="vert" aria-pressed="' + (viens[ev.id] ? 'true' : 'false') + '" data-venir>J’y vais</button>' +
+              '<span class="n"></span></span>' +
+            '<button class="g-btn g-btn--rond g-btn--petit" data-face="blanc" data-flanc="cyan" aria-label="Partager « ' + ev.titre + ' »" data-partage>' + SVG_PARTAGE + '</button>' +
+            '<a class="g-btn g-btn--rond g-btn--petit" data-face="blanc" data-flanc="orange" aria-label="Itinéraire vers ' + ev.lieu.split(' · ')[0] + '" href="https://www.openstreetmap.org/search?query=' + encodeURIComponent(ev.lieu.split(' · ')[0]) + '" target="_blank" rel="noopener">' + SVG_LIEU + '</a>' +
+          '</div>' +
+          '<div class="pied"><span class="prix">' + ev.prix + '</span>' + action + '</div>' +
+        '</div>' +
+      '</div>';
+
+    var oeil = GigotButton.create({ fond: cat.oeil[0], face: cat.oeil[1], flanc: cat.oeil[2], taille: 52,
+      label: 'Enregistrer « ' + ev.titre + ' », ' + (j ? j.date : ''), checked: !!sauves[ev.id] });
+    oeil.addEventListener('change', function (e) {
+      sauves[ev.id] = e.detail.checked;
+      garde(); compteSorties();
+      bulle(e.detail.checked ? 'Ajouté à tes sorties' : 'Retiré de tes sorties');
+    });
+    a.querySelector('.oeil').appendChild(oeil);
+
+    var n = a.querySelector('.venir .n');
+    function compte() {
+      var v = ev.vont + (viens[ev.id] ? 1 : 0);
+      n.textContent = viens[ev.id] ? v + ' y vont, dont toi' : v + ' y vont';
+    }
+    compte();
+    a.querySelector('[data-venir]').addEventListener('change', function (e) { viens[ev.id] = e.detail.checked; compte(); });
+    a.querySelector('[data-partage]').addEventListener('click', function () {
+      var lien = location.href.split('#')[0] + '#evt-' + ev.id;
+      var p = navigator.clipboard && navigator.clipboard.writeText(lien);
+      if (p) p.then(function () { bulle('Lien copié, envoie-le à quelqu’un'); }, function () { bulle(lien); });
+      else bulle(lien);
+    });
+    var bAction = a.querySelector('[data-action]');
+    if (bAction) bAction.addEventListener('click', function () { bulle('Ici, la billetterie de ' + ev.lieu.split(' · ')[0]); });
+    return a;
+  }
+
+  var agenda = document.getElementById('agenda');
+  var resultat = document.getElementById('resultat');
+  function garder(ev) {
+    var choix = Object.keys(etat.cats).filter(function (k) { return etat.cats[k]; });
+    if (etat.jour !== 'tous' && ev.jour !== etat.jour) return false;
+    if (choix.length && choix.indexOf(ev.cat) < 0) return false;
+    if (etat.gratuit && !ev.libre) return false;
+    if (etat.sorties && !sauves[ev.id]) return false;
+    return true;
+  }
+  function rendu() {
+    agenda.innerHTML = '';
+    var total = 0;
+    JOURS.forEach(function (j) {
+      var liste = EVTS.filter(function (ev) { return ev.jour === j.id && garder(ev); });
+      if (!liste.length) return;
+      total += liste.length;
+      var s = el('section', { 'class': 'jour', 'aria-label': j.titre + ' ' + j.date });
+      s.innerHTML = '<h2>' + j.titre + ' <small>' + j.date + '</small></h2>';
+      var g = el('div', { 'class': 'cartes' });
+      liste.forEach(function (ev) { g.appendChild(carte(ev)); });
+      s.appendChild(g);
+      agenda.appendChild(s);
+    });
+    resultat.textContent = total + (total > 1 ? ' sorties' : ' sortie') + ' · événements d’exemple';
+    if (!total) {
+      var v = el('div', { 'class': 'vide' });
+      v.innerHTML = etat.sorties
+        ? '<h2>Rien d’enregistré pour l’instant</h2><p>Touche l’œil sur un visuel pour garder un événement ici. L’œil s’ouvre, il le surveille pour toi.</p>'
+        : '<h2>Rien ce jour-là</h2><p>Aucun événement ne correspond à ces filtres. Et si tu sortais simplement marcher, ou appeler quelqu’un que tu n’as pas vu depuis longtemps ?</p>';
+      var r = el('button', { 'class': 'g-btn', 'data-face': 'jaune', 'data-flanc': 'rose', type: 'button' }, 'Tout afficher');
+      r.addEventListener('click', toutAfficher);
+      v.appendChild(r);
+      agenda.appendChild(v);
+    }
+    GigotBoutons.init(agenda);
+  }
+  function toutAfficher() {
+    etat = { jour: 'tous', cats: {}, gratuit: false, sorties: false };
+    document.querySelectorAll('.filtres .g-btn, #mes-sorties').forEach(function (b) {
+      GigotBoutons.regle(b, b.dataset.jour === 'tous');
+    });
+    rendu();
+  }
+
+  var tBulle = 0, elBulle = document.getElementById('bulle');
+  function bulle(texte) {
+    elBulle.textContent = texte;
+    elBulle.classList.add('vue');
+    clearTimeout(tBulle);
+    tBulle = setTimeout(function () { elBulle.classList.remove('vue'); }, 2200);
+  }
+
+  document.getElementById('demo-oeil').appendChild(GigotButton.create({ fond: 'rose', face: 'cyan', flanc: 'violet', taille: 72, label: 'Enregistrer, exemple' }));
+  document.getElementById('demo-oeil').appendChild(GigotButton.create({ fond: 'vert', face: 'rose', flanc: 'violet', taille: 72, label: 'Enregistré, exemple', checked: true }));
+
+  compteSorties();
+  rendu();
+  GigotBoutons.init(document);
+})();
+</script>
+</body>
+</html>

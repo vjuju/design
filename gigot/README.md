@@ -14,6 +14,8 @@ pop art, couleurs flash cernées de noir épais, dans l'esprit de Keith Haring.
 | `picto/gigot-picto-<fond>.svg` | pictogramme seul (le O, son flanc, ses deux arcs), 160×160 |
 | `bouton/gigot-button.js` + `.css` | bouton-case à cocher animé, sans framework |
 | `bouton/react/GigotButton.tsx` + `.module.css` | le même bouton en composant React / Next.js |
+| `boutons/gigot-boutons.css` + `.js` | les autres boutons : action, rond, puce de filtre, jour, lien |
+| `agenda/index.html` | proposition de liste d'événements, avec tous les boutons |
 | `scripts/gen-logo.py`, `gen-picto.py` | génèrent les SVG |
 | `aplats/figures.py` + `pop.py` | aplats gigot sur photo, en Python |
 | `aplats/aplats.js` | le même traitement dans le navigateur, formes animées |
@@ -85,6 +87,41 @@ import GigotButton from '@/components/gigot/GigotButton';
 Survol : la face du O suit le curseur, les arcs pivotent à 90° de l'axe centre → curseur et gardent leur position en sortie.
 Clic : la face rejoint le flanc, un seul rond recentré rebondit, les arcs deviennent des paupières depuis leur angle courant, des traits rayonnent dans le O ; la pupille suit ensuite le curseur.
 Re-clic : retour. `aria-pressed` reflète l'état ; `prefers-reduced-motion` coupe les mouvements.
+
+## Autres boutons
+
+Même principe que le pictogramme : une face colorée cernée de noir, et son flanc décalé derrière.
+Survol : la face se soulève et suit le curseur. Appui : la face rejoint le flanc. Activé
+(`aria-pressed="true"`) : elle y reste posée et six traits de vibration rayonnent depuis deux coins.
+
+```html
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="boutons/gigot-boutons.css">
+
+<button class="g-btn" data-face="jaune" data-flanc="rose">Réserver</button>
+<button class="g-btn g-btn--petit" data-face="blanc" data-flanc="vert" data-on="vert" aria-pressed="false">J'y vais</button>
+<button class="g-btn g-btn--rond" data-face="blanc" data-flanc="cyan" aria-label="Partager"><svg>…</svg></button>
+<button class="g-btn g-puce" data-flanc="vert" data-on="vert" aria-pressed="false">Plein air</button>
+<div class="g-groupe" data-unique>
+  <button class="g-btn g-jour" data-flanc="jaune" data-on="noir" aria-pressed="true"><small>sam</small><b>31</b></button>
+</div>
+<a class="g-lien" href="…">Voir tout le week-end</a>
+
+<script src="boutons/gigot-boutons.js"></script>
+<script>GigotBoutons.init(document)</script>
+```
+
+`data-face`, `data-flanc` et `data-on` (face une fois activé) prennent les noms de la palette ; le texte
+passe en blanc sur violet et noir. Un bouton avec `aria-pressed` émet `change` (`detail.checked`).
+Dans un `.g-groupe[data-unique]`, un seul bouton reste activé.
+
+## Agenda
+
+[`agenda/`](agenda/) propose la liste d'événements : un bandeau rose, les jours et les puces de filtre, puis
+les événements par jour. Chaque carte porte la couleur de sa catégorie (concert rose, scène violet, danse cyan,
+expo jaune, atelier orange, plein air vert), une photo en aplats ou le pictogramme à défaut, le bouton-œil
+pour enregistrer, « J'y vais » avec le nombre de personnes qui viennent, partager, itinéraire, et une seule
+action payante. Les événements sont des exemples.
 
 ## Aplats sur photo
 
