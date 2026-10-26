@@ -38,6 +38,18 @@ COULEURS: dict[str, str] = {
     "bleu":   "#53B5E3",
 }
 
+# Six couleurs plus vives : celles de figures.py (et de web/aplats.js).
+VIVE: dict[str, str] = {
+    "rose":   "#FF3EA5",
+    "jaune":  "#FFD60A",
+    "violet": "#7B2FF7",
+    "cyan":   "#2EC4F1",
+    "vert":   "#39D353",
+    "orange": "#FF6A13",
+}
+
+PALETTES = {"vive": VIVE, "pop": COULEURS}
+
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff", ".bmp"}
 
 
@@ -593,10 +605,10 @@ def vibrations(box, curve: np.ndarray, rng: random.Random, *, gap: float, length
     return _canvas_alpha(box, draw)
 
 
-def pick_colors(rng: random.Random, n: int) -> list[str]:
-    names = list(COULEURS)
+def pick_colors(rng: random.Random, n: int, palette: dict[str, str] = COULEURS) -> list[str]:
+    names = list(palette)
     rng.shuffle(names)
-    return [COULEURS[names[i % len(names)]] for i in range(n)]
+    return [palette[names[i % len(names)]] for i in range(n)]
 
 
 # --------------------------------------------------------------------------

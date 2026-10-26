@@ -46,7 +46,9 @@
   }
   h1 span { display: inline-block; padding: 0 .08em; border: .07em solid var(--ink); border-radius: .18em; }
   .lede { margin: 0; color: var(--muted); max-width: 52ch; }
-  .palette { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .palette { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; align-items: center; }
+  .palette + .palette { margin-top: 8px; }
+  .palette .label { font-size: 12.5px; color: var(--muted); margin-right: 2px; }
   .chip {
     display: flex; align-items: center; gap: 7px; font-size: 12.5px;
     padding: 4px 10px 4px 4px; border: 2px solid var(--ink); border-radius: 99px;
@@ -101,6 +103,7 @@
     (contraste, couleur dominante, quantification) pour savoir où peindre.
     <a href="web/">La version vivante, dans le navigateur →</a></p>
     <div class="palette"><span class="chip"><i style="background:#F8F8F8"></i>fond <code>#F8F8F8</code></span><span class="chip"><i style="background:#1D1B1A"></i>contour <code>#1D1B1A</code></span><span class="chip"><i style="background:#F4C946"></i>jaune <code>#F4C946</code></span><span class="chip"><i style="background:#6AB357"></i>vert <code>#6AB357</code></span><span class="chip"><i style="background:#DB6DA2"></i>rose <code>#DB6DA2</code></span><span class="chip"><i style="background:#E26E3B"></i>orange <code>#E26E3B</code></span><span class="chip"><i style="background:#53B5E3"></i>bleu <code>#53B5E3</code></span></div>
+    <div class="palette"><span class="label">figures.py</span><span class="chip"><i style="background:#FF3EA5"></i>rose <code>#FF3EA5</code></span><span class="chip"><i style="background:#FFD60A"></i>jaune <code>#FFD60A</code></span><span class="chip"><i style="background:#7B2FF7"></i>violet <code>#7B2FF7</code></span><span class="chip"><i style="background:#2EC4F1"></i>cyan <code>#2EC4F1</code></span><span class="chip"><i style="background:#39D353"></i>vert <code>#39D353</code></span><span class="chip"><i style="background:#FF6A13"></i>orange <code>#FF6A13</code></span></div>
   </div>
 </header>
 

@@ -74,7 +74,9 @@ PAGE = """<!DOCTYPE html>
   }}
   h1 span {{ display: inline-block; padding: 0 .08em; border: .07em solid var(--ink); border-radius: .18em; }}
   .lede {{ margin: 0; color: var(--muted); max-width: 52ch; }}
-  .palette {{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }}
+  .palette {{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; align-items: center; }}
+  .palette + .palette {{ margin-top: 8px; }}
+  .palette .label {{ font-size: 12.5px; color: var(--muted); margin-right: 2px; }}
   .chip {{
     display: flex; align-items: center; gap: 7px; font-size: 12.5px;
     padding: 4px 10px 4px 4px; border: 2px solid var(--ink); border-radius: 99px;
@@ -129,6 +131,7 @@ PAGE = """<!DOCTYPE html>
     (contraste, couleur dominante, quantification) pour savoir où peindre.
     <a href="web/">La version vivante, dans le navigateur →</a></p>
     <div class="palette">{chips}</div>
+    <div class="palette"><span class="label">figures.py</span>{vive}</div>
   </div>
 </header>
 
@@ -173,8 +176,9 @@ def main() -> None:
     from PIL import Image
 
     credits = {s["file"]: s for s in json.loads((HERE / "../mask/sources.json").read_text())}
-    chips = "".join(f'<span class="chip"><i style="background:{v}"></i>{k} <code>{v}</code></span>'
-                    for k, v in [("fond", pop.FOND), ("contour", pop.CONTOUR), *pop.COULEURS.items()])
+    chip = lambda k, v: f'<span class="chip"><i style="background:{v}"></i>{k} <code>{v}</code></span>'
+    chips = "".join(chip(k, v) for k, v in [("fond", pop.FOND), ("contour", pop.CONTOUR), *pop.COULEURS.items()])
+    vive = "".join(chip(k, v) for k, v in pop.VIVE.items())
     colors = list(pop.COULEURS.values())
 
     sections = []
@@ -195,7 +199,7 @@ def main() -> None:
                                        color=colors[n * 2 % len(colors)],
                                        trio="".join(trio), grid="".join(grid)))
 
-    page = PAGE.format(fond=pop.FOND, contour=pop.CONTOUR, chips=chips, sections="\n\n".join(sections))
+    page = PAGE.format(fond=pop.FOND, contour=pop.CONTOUR, chips=chips, vive=vive, sections="\n\n".join(sections))
     (HERE / "index.html").write_text(page)
     print("index.html")
 

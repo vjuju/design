@@ -11,7 +11,8 @@ peindre, puis on superpose.
 | --- | --- |
 | fond | `#F8F8F8` blanc cassé (liserés entre les anneaux, fond de la planche) |
 | contour | `#1D1B1A` noir chaud (tous les traits) |
-| aplats | jaune `#F4C946` · vert `#6AB357` · rose `#DB6DA2` · orange `#E26E3B` · bleu `#53B5E3` |
+| aplats (`ondes.py`, `plages.py`) | jaune `#F4C946` · vert `#6AB357` · rose `#DB6DA2` · orange `#E26E3B` · bleu `#53B5E3` |
+| aplats de `figures.py` | rose `#FF3EA5` · jaune `#FFD60A` · violet `#7B2FF7` · cyan `#2EC4F1` · vert `#39D353` · orange `#FF6A13` — `--palette pop` reprend la palette ci-dessus |
 
 ## Les scripts
 
@@ -33,7 +34,7 @@ python3 plages.py photo.jpg --seed 2005          # rejoue un tirage précis
 
 Options communes : `-o` (dossier de sortie), `--seed`, `--variants`,
 `--max-size`, `--quality`. Chaque passage complète `output/<script>/seeds.json`.
-Options propres : `figures.py --subjects 3 --no-rays --corners 3 --detail 0.03` ·
+Options propres : `figures.py --subjects 3 --no-rays --corners 3 --detail 0.03 --palette vive|pop` ·
 `ondes.py --rings 3 --mode auto|multiply|normal` ·
 `plages.py --levels 6 --blank 0.2 --dark 0.22 --no-protect`.
 

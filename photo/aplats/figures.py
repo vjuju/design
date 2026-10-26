@@ -6,10 +6,11 @@ vibre.
 1. On cherche les zones saillantes (voir `pop.subjects`) sur une copie de
    256 px de la photo.
 2. Autour de chacune on pose une silhouette élargie, dans une couleur de la
-   palette, légèrement décalée comme un repérage raté de sérigraphie. Sur un
-   fond clair, fusion multiply : la couleur éclate et le sujet reste lisible
-   au travers. Sur un fond sombre, où le multiply ne donnerait rien, l'aplat
-   devient un halo couvrant autour du sujet.
+   palette vive (`--palette pop` pour celle des autres scripts), légèrement
+   décalée comme un repérage raté de sérigraphie. Sur un fond clair,
+   fusion multiply : la couleur éclate et le sujet reste lisible au travers.
+   Sur un fond sombre, où le multiply ne donnerait rien, l'aplat devient un
+   halo couvrant autour du sujet.
    La silhouette n'est pas un masque de pixels : son contour est réduit à
    quelques points de passage, et une courbe lisse les relie.
 3. La silhouette est cernée d'un gros trait noir chaud, de largeur constante.
@@ -31,6 +32,8 @@ def add_args(ap) -> None:
     ap.add_argument("--no-rays", action="store_true", help="sans traits de vibration")
     ap.add_argument("--corners", type=int, default=3,
                     help="nombre d'angles soulignés par des arcs")
+    ap.add_argument("--palette", choices=sorted(pop.PALETTES), default="vive",
+                    help="couleurs des aplats : vive (défaut) ou pop, celle des autres scripts")
     ap.add_argument("--detail", type=float, default=0.03,
                     help="tolérance de simplification du contour, en part de la "
                          "diagonale : plus grand = moins de points de passage")
@@ -44,7 +47,7 @@ def render(photo, rng, args):
     small, k = pop.shrink(photo)
     ds = pop.diag(small.shape)
     subs = pop.subjects(small, args.subjects)
-    colors = pop.pick_colors(rng, len(subs))
+    colors = pop.pick_colors(rng, len(subs), pop.PALETTES[args.palette])
     stroke = 0.009 * d
     tol = args.detail * ds
 
