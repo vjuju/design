@@ -488,8 +488,8 @@ def vibrations(shape, curve: np.ndarray, rng: random.Random, *, gap: float, leng
     """Les vibrations de Keith Haring autour d'une courbe fermée.
 
     * Aux angles les plus marqués de la forme (là où la courbe tourne le plus
-      vite, côté bombé), deux arcs de longueur `arc` parallèles à la courbe,
-      décollés d'elle : ils soulignent l'angle comme un écho.
+      vite, côté bombé), un arc de longueur `arc` parallèle à la courbe,
+      décollé d'elle : il souligne l'angle comme un écho.
     * Ailleurs, des traits droits perpendiculaires, plus espacés qu'avant et
       absents autour des arcs.
     Tous les traits ont la même épaisseur et des bouts ronds.
@@ -520,7 +520,7 @@ def vibrations(shape, curve: np.ndarray, rng: random.Random, *, gap: float, leng
 
     covered = np.zeros(n, dtype=bool)
     for i in picked:
-        covered[np.arange(i - 2 * half, i + 2 * half + 1) % n] = True
+        covered[np.arange(i - half - 2, i + half + 3) % n] = True
 
     def draw(d, ss):
         lw = max(1, round(width * ss))
@@ -531,12 +531,10 @@ def vibrations(shape, curve: np.ndarray, rng: random.Random, *, gap: float, leng
                 d.ellipse([qx - r, qy - r, qx + r, qy + r], fill=255)
 
         for i in picked:
-            for layer, (g, span) in enumerate([(gap, half), (gap + 1.6 * width + gap * 0.6, int(half * 0.7))]):
-                idx = np.arange(i - span, i + span + 1) % n
-                arc = (pts[idx] + normal[idx] * g) * ss
-                line = [tuple(p) for p in arc]
-                d.line(line, fill=255, width=lw, joint="curve")
-                caps(line[0], line[-1])
+            idx = np.arange(i - half, i + half + 1) % n
+            line = [tuple(p) for p in (pts[idx] + normal[idx] * gap) * ss]
+            d.line(line, fill=255, width=lw, joint="curve")
+            caps(line[0], line[-1])
 
         count = max(4, int(n * step / spacing))
         offset = rng.randrange(n)

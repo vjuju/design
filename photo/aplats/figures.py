@@ -6,14 +6,15 @@ vibre.
 1. On cherche les zones saillantes (voir `pop.subjects`) sur une copie de
    256 px de la photo.
 2. Autour de chacune on pose une silhouette élargie, dans une couleur de la
-   palette, légèrement décalée comme un repérage raté de sérigraphie. Sur un fond clair, fusion multiply : la couleur éclate et le
-   sujet reste lisible au travers. Sur un fond sombre, où le multiply ne
+   palette, légèrement décalée comme un repérage raté de sérigraphie. Sur un
+   fond clair, fusion multiply : la couleur éclate et le sujet reste lisible
+   au travers. Sur un fond sombre, où le multiply ne
    donnerait rien, l'aplat devient un halo couvrant autour du sujet.
    La silhouette n'est pas un masque de pixels : son contour est réduit à
    quelques points de passage, et une courbe lisse les relie.
 3. La silhouette est cernée d'un gros trait noir chaud, de largeur constante.
-4. Autour du sujet principal, les vibrations de Keith Haring : des arcs
-   doublés qui soulignent ses angles les plus marqués, et quelques traits
+4. Autour du sujet principal, les vibrations de Keith Haring : de petits
+   arcs qui soulignent ses angles les plus marqués, et quelques traits
    droits rayonnants ailleurs.
 
     python3 figures.py photo.jpg
@@ -72,7 +73,7 @@ def render(photo, rng, args):
 
     if curves and not args.no_rays:
         ray = pop.vibrations((h, w), curves[0], rng, gap=0.018 * d, length=0.035 * d,
-                             width=stroke * 0.85, spacing=0.07 * d, arc=0.13 * d,
+                             width=stroke * 0.85, spacing=0.07 * d, arc=0.06 * d,
                              corners=args.corners)
         pop.paint(canvas, ray, pop.CONTOUR, "normal")
     return canvas

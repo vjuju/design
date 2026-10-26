@@ -53,8 +53,8 @@ Douglas-Peucker (`pop.key_points`, réglable avec `--detail`), puis relié en
 pleine résolution par une courbe de Catmull-Rom centripète (`pop.spline`) :
 pas de bord haché, un trait noir de largeur constante. Les vibrations
 (`pop.vibrations`) mêlent deux gestes : aux angles les plus saillants de la
-forme (là où la courbe tourne le plus vite), deux arcs parallèles à la courbe
-soulignent l'angle ; ailleurs, quelques traits droits perpendiculaires.
+forme (là où la courbe tourne le plus vite), un petit arc parallèle à la courbe
+souligne l'angle ; ailleurs, quelques traits droits perpendiculaires.
 
 **La forme au pinceau** (`pop.bold_shape`) : une fermeture morphologique
 (dilater puis éroder) comble les creux, les trous sont bouchés, le bord est
