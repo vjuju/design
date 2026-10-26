@@ -1,0 +1,16 @@
+/* Palette gigot.app — 8 couleurs.
+   Texte : noir sur couleur flash, blanc sur violet ou noir (WCAG AA 4,5:1).
+   Les couleurs flash entre elles ne servent qu'à la décoration, séparées par un contour noir. */
+:root {
+  --gigot-noir: #111111;
+  --gigot-blanc: #FFFFFF;
+  --gigot-rose: #FF3EA5;
+  --gigot-jaune: #FFD60A;
+  --gigot-violet: #7B2FF7;
+  --gigot-cyan: #2EC4F1;
+  --gigot-vert: #39D353;
+  --gigot-orange: #FF6A13;
+
+  --gigot-contour: var(--gigot-noir);   /* contours, rond central : toujours noirs */
+  --gigot-police: 'Titan One', 'Arial Rounded MT Bold', system-ui, sans-serif;
+}

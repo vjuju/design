@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gigot — design system</title>
+<meta name="description" content="Identité visuelle de gigot.app : palette, logo, pictogramme et bouton animé.">
+<link rel="icon" href="picto/gigot-picto-rose.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Titan+One&family=Work+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="bouton/gigot-button.css">
+<style>
+  /* Planche de référence : fond blanc, titres en Titan One, couleurs flash cernées de noir. */
+  :root {
+    --page: #FFFFFF;
+    --encre: var(--gigot-noir);
+    --doux: #4A4A52;
+    --filet: #E4E4E8;
+    --corps: 'Work Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--encre);
+    font: 16px/1.55 var(--corps);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 max(16px, env(safe-area-inset-right, 0px)) 96px max(16px, env(safe-area-inset-left, 0px));
+  }
+  a { color: inherit; }
+  .retour { display: inline-block; padding-top: 24px; font-size: 14px; color: var(--doux); }
+
+  header { padding: 40px 0 48px; border-bottom: 3px solid var(--encre); display: grid; gap: 20px; }
+  header img { width: min(420px, 100%); height: auto; display: block; border-radius: 24px; }
+  header p { margin: 0; max-width: 60ch; color: var(--doux); font-size: 18px; }
+
+  section { padding: 56px 0 8px; display: flex; flex-direction: column; gap: 20px; }
+  h2 {
+    margin: 0;
+    font: 400 clamp(30px, 5vw, 44px)/1 var(--gigot-police);
+    text-wrap: balance;
+  }
+  .chapo { margin: 0; max-width: 64ch; color: var(--doux); }
+  .etiquette { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--doux); }
+  code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  /* palette */
+  .palette { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; }
+  .pastille { display: flex; flex-direction: column; gap: 8px; }
+  .pastille .aplat {
+    aspect-ratio: 4 / 3; border: 3px solid var(--encre); border-radius: 16px;
+    display: flex; align-items: flex-end; padding: 10px 12px;
+    font: 400 22px/1 var(--gigot-police);
+  }
+  .pastille dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 14px; }
+  .pastille dt { color: var(--doux); }
+  .pastille dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+  /* planches d'images */
+  .planche { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+  .planche.petite { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+  .planche figure { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+  .planche img { width: 100%; height: auto; display: block; border-radius: 14px; border: 1px solid var(--filet); }
+  .planche figcaption { font-size: 13px; color: var(--doux); }
+
+  /* bouton */
+  .scene { display: flex; flex-wrap: wrap; align-items: center; gap: 28px 48px; }
+  .scene dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; flex: 1 1 280px; min-width: 0; }
+  .scene dt { font: 400 18px/1.3 var(--gigot-police); }
+  .scene dd { margin: 0; color: var(--doux); }
+  .boutons { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 20px; }
+  .boutons .gigot-btn { --taille: 110px; }
+
+  /* règles */
+  .regles { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
+  .regles ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+  .regles h3 { margin: 0 0 8px; font: 400 20px/1.2 var(--gigot-police); }
+  .table { overflow-x: auto; }
+  table { border-collapse: collapse; font-size: 14px; min-width: 420px; }
+  th, td { text-align: left; padding: 6px 14px 6px 0; border-bottom: 1px solid var(--filet); }
+  td.n { font-variant-numeric: tabular-nums; }
+  .duo { display: inline-flex; gap: 4px; vertical-align: middle; margin-right: 8px; }
+  .duo i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--encre); display: inline-block; }
+
+  .fichiers { display: grid; grid-template-columns: auto 1fr; gap: 6px 20px; margin: 0; }
+  .fichiers dt { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .fichiers dd { margin: 0; color: var(--doux); }
+  @media (max-width: 560px) {
+    .fichiers { grid-template-columns: 1fr; }
+    .fichiers dd { margin-bottom: 8px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="retour" href="../">← Bac à sable</a>
+
+  <header>
+    <img src="logo/gigot-logo-rose.svg" alt="gigot — l'app pour gigoter" width="600" height="600">
+    <p>Identité visuelle de gigot.app, l'agenda culturel pour gigoter : pop art, couleurs flash
+    cernées de noir épais, dans l'esprit de Keith Haring.</p>
+  </header>
+
+  <section aria-labelledby="t-palette">
+    <h2 id="t-palette">Palette</h2>
+    <p class="chapo">Huit couleurs. Le texte est noir sur les couleurs flash et blanc sur le violet ou le noir :
+    ce sont les seules combinaisons qui passent le contraste WCAG AA (4,5:1).</p>
+    <div class="palette" id="palette"></div>
+  </section>
+
+  <section aria-labelledby="t-logo">
+    <h2 id="t-logo">Logo</h2>
+    <p class="chapo">« gig », un O en tranche de gigot vue de face, « t », et la tagline. Le fond prend une des
+    huit couleurs ; les lettres, la face du O et son flanc en prennent trois autres, toutes différentes.
+    L'ombre, les arcs et la tagline sont blancs sur fond noir ou violet, noirs sinon.</p>
+    <div class="planche" id="logos"></div>
+  </section>
+
+  <section aria-labelledby="t-picto">
+    <h2 id="t-picto">Pictogramme</h2>
+    <p class="chapo">Le O seul : la face, son flanc décalé derrière, et deux arcs de mouvement écartés
+    de la largeur d'un contour. Pour le favicon, l'icône d'app et le bouton.</p>
+    <div class="planche petite" id="pictos"></div>
+  </section>
+
+  <section aria-labelledby="t-bouton">
+    <h2 id="t-bouton">Bouton</h2>
+    <p class="chapo">Le pictogramme en case à cocher. Essaie : survole, clique, survole encore, reclique.</p>
+    <div class="scene">
+      <div id="hero"></div>
+      <dl>
+        <dt>Survol</dt><dd>la face suit le curseur ; les arcs pivotent à 90° de l'axe centre → curseur et gardent leur position en sortie</dd>
+        <dt>Coché</dt><dd>la face se pose sur le flanc, un seul rond recentré rebondit ; les arcs deviennent des paupières depuis leur angle courant ; des traits rayonnent dans le O, et la pupille suit le curseur</dd>
+        <dt>Décoché</dt><dd>l'œil se referme, le O et les arcs reviennent</dd>
+      </dl>
+    </div>
+    <div class="boutons" id="boutons"></div>
+  </section>
+
+  <section aria-labelledby="t-regles">
+    <h2 id="t-regles">Règles</h2>
+    <div class="regles">
+      <div>
+        <h3>Toujours</h3>
+        <ul>
+          <li>Contours et rond central en noir <code>#111111</code>, épais.</li>
+          <li>Titan One pour le mot et la tagline (vectorisés dans les SVG).</li>
+          <li>Texte d'interface : noir sur couleur flash, blanc sur violet ou noir.</li>
+          <li>Deux couleurs flash côte à côte : toujours séparées par un contour noir.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Paires à ne jamais juxtaposer sans contour</h3>
+        <div class="table">
+          <table>
+            <thead><tr><th scope="col">Paire</th><th scope="col">Contraste</th><th scope="col">Problème</th></tr></thead>
+            <tbody id="paires"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-fichiers">
+    <h2 id="t-fichiers">Fichiers</h2>
+    <dl class="fichiers">
+      <dt><a href="tokens.css">tokens.css</a> · <a href="tokens.json">tokens.json</a></dt><dd>palette, police, variantes du logo</dd>
+      <dt>logo/gigot-logo-&lt;fond&gt;.svg</dt><dd>logo complet 600×600, couleurs dans le bloc <code>&lt;style&gt;</code> en tête</dd>
+      <dt>picto/gigot-picto-&lt;fond&gt;.svg</dt><dd>pictogramme 160×160</dd>
+      <dt><a href="bouton/gigot-button.js">bouton/gigot-button.js</a> · <a href="bouton/gigot-button.css">.css</a></dt><dd>bouton sans framework : <code>GigotButton.create({ fond, face, flanc })</code></dd>
+      <dt>bouton/react/GigotButton.tsx</dt><dd>composant React / Next.js (contrôlé ou non)</dd>
+      <dt>scripts/gen-logo.py · gen-picto.py</dt><dd>régénèrent les SVG (Python + fontTools)</dd>
+    </dl>
+  </section>
+</div>
+
+<script src="bouton/gigot-button.js"></script>
+<script>
+(function () {
+  var C = GigotButton.couleurs;
+  var TEXTE = { noir: 'blanc', violet: 'blanc' };
+  var ORDRE = ['rose', 'jaune', 'cyan', 'vert', 'orange', 'violet', 'noir', 'blanc'];
+
+  var palette = document.getElementById('palette');
+  ORDRE.forEach(function (nom) {
+    var texte = TEXTE[nom] || 'noir';
+    var d = document.createElement('div');
+    d.className = 'pastille';
+    d.innerHTML = '<div class="aplat" style="background:' + C[nom] + ';color:' + C[texte] + '">' + nom + '</div>' +
+      '<dl><dt>hex</dt><dd>' + C[nom] + '</dd><dt>texte</dt><dd>' + texte + '</dd></dl>';
+    palette.appendChild(d);
+  });
+
+  function planche(id, dossier, prefixe) {
+    var el = document.getElementById(id);
+    ORDRE.forEach(function (nom) {
+      var f = document.createElement('figure');
+      f.innerHTML = '<img src="' + dossier + '/' + prefixe + nom + '.svg" alt="' +
+        (prefixe.indexOf('logo') > -1 ? 'Logo gigot' : 'Pictogramme gigot') + ' sur fond ' + nom + '" loading="lazy">' +
+        '<figcaption>fond ' + nom + '</figcaption>';
+      el.appendChild(f);
+    });
+  }
+  planche('logos', 'logo', 'gigot-logo-');
+  planche('pictos', 'picto', 'gigot-picto-');
+
+  var VERSIONS = [
+    ['rose', 'cyan', 'violet'], ['jaune', 'cyan', 'violet'], ['cyan', 'jaune', 'rose'],
+    ['vert', 'rose', 'violet'], ['orange', 'jaune', 'violet'], ['violet', 'rose', 'cyan'],
+    ['noir', 'jaune', 'rose'], ['blanc', 'jaune', 'violet']
+  ];
+  document.getElementById('hero').appendChild(
+    GigotButton.create({ fond: 'rose', face: 'cyan', flanc: 'violet', taille: 220, label: 'gigot, essai' }));
+  var boutons = document.getElementById('boutons');
+  VERSIONS.forEach(function (v) {
+    boutons.appendChild(GigotButton.create({ fond: v[0], face: v[1], flanc: v[2], label: 'gigot, fond ' + v[0] }));
+  });
+
+  var PAIRES = [
+    ['cyan', 'vert', '1,03', 'même clarté'],
+    ['rose', 'orange', '1,13', 'même clarté, tritanopie'],
+    ['jaune', 'vert', '1,40', 'protanopie'],
+    ['orange', 'vert', '1,45', 'rouge / vert'],
+    ['blanc', 'jaune', '1,41', 'même clarté'],
+    ['jaune', 'cyan', '1,45', 'même clarté']
+  ];
+  var tbody = document.getElementById('paires');
+  PAIRES.forEach(function (p) {
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td><span class="duo" aria-hidden="true"><i style="background:' + C[p[0]] + '"></i><i style="background:' + C[p[1]] + '"></i></span>' +
+      p[0] + ' / ' + p[1] + '</td><td class="n">' + p[2] + '</td><td>' + p[3] + '</td>';
+    tbody.appendChild(tr);
+  });
+})();
+</script>
+</body>
+</html>
