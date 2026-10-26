@@ -32,7 +32,7 @@ python3 plages.py photo.jpg --seed 2005          # rejoue un tirage précis
 
 Options communes : `-o` (dossier de sortie), `--seed`, `--variants`,
 `--max-size`, `--quality`. Chaque passage complète `output/<script>/seeds.json`.
-Options propres : `figures.py --subjects 3 --no-rays --detail 0.03` ·
+Options propres : `figures.py --subjects 3 --no-rays --corners 3 --detail 0.03` ·
 `ondes.py --rings 3 --mode auto|multiply|normal` ·
 `plages.py --levels 6 --blank 0.2 --dark 0.22 --no-protect`.
 
@@ -51,9 +51,10 @@ plus rapide. Le contour du sujet y est suivi pixel par pixel
 (`pop.trace_contour`), réduit à quelques points de passage par
 Douglas-Peucker (`pop.key_points`, réglable avec `--detail`), puis relié en
 pleine résolution par une courbe de Catmull-Rom centripète (`pop.spline`) :
-pas de bord haché, un trait noir de largeur constante, des traits de
-vibration perpendiculaires à la courbe et régulièrement espacés
-(`pop.curve_rays`).
+pas de bord haché, un trait noir de largeur constante. Les vibrations
+(`pop.vibrations`) mêlent deux gestes : aux angles les plus saillants de la
+forme (là où la courbe tourne le plus vite), deux arcs parallèles à la courbe
+soulignent l'angle ; ailleurs, quelques traits droits perpendiculaires.
 
 **La forme au pinceau** (`pop.bold_shape`) : une fermeture morphologique
 (dilater puis éroder) comble les creux, les trous sont bouchés, le bord est

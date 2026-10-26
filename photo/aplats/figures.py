@@ -12,7 +12,9 @@ vibre.
    La silhouette n'est pas un masque de pixels : son contour est réduit à
    quelques points de passage, et une courbe lisse les relie.
 3. La silhouette est cernée d'un gros trait noir chaud, de largeur constante.
-4. Autour du sujet principal, les traits rayonnants de Keith Haring.
+4. Autour du sujet principal, les vibrations de Keith Haring : des arcs
+   doublés qui soulignent ses angles les plus marqués, et quelques traits
+   droits rayonnants ailleurs.
 
     python3 figures.py photo.jpg
     python3 figures.py sources/ --variants 3 --seed 7
@@ -26,6 +28,8 @@ import pop
 def add_args(ap) -> None:
     ap.add_argument("--subjects", type=int, default=3, help="nombre de sujets colorés")
     ap.add_argument("--no-rays", action="store_true", help="sans traits de vibration")
+    ap.add_argument("--corners", type=int, default=3,
+                    help="nombre d'angles soulignés par des arcs")
     ap.add_argument("--detail", type=float, default=0.03,
                     help="tolérance de simplification du contour, en part de la "
                          "diagonale : plus grand = moins de points de passage")
@@ -67,8 +71,9 @@ def render(photo, rng, args):
         pop.paint(canvas, pop.stroke_alpha((h, w), curve, stroke), pop.CONTOUR, "normal")
 
     if curves and not args.no_rays:
-        ray = pop.curve_rays((h, w), curves[0], rng, gap=0.018 * d, length=0.035 * d,
-                             width=stroke * 0.85, spacing=0.05 * d)
+        ray = pop.vibrations((h, w), curves[0], rng, gap=0.018 * d, length=0.035 * d,
+                             width=stroke * 0.85, spacing=0.07 * d, arc=0.13 * d,
+                             corners=args.corners)
         pop.paint(canvas, ray, pop.CONTOUR, "normal")
     return canvas
 

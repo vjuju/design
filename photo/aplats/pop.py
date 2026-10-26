@@ -475,34 +475,80 @@ def stroke_alpha(shape, curve: np.ndarray, width: float) -> np.ndarray:
     return _canvas_alpha(shape, draw)
 
 
-def curve_rays(shape, curve: np.ndarray, rng: random.Random, *, gap: float,
-               length: float, width: float, spacing: float) -> np.ndarray:
-    """Traits de vibration posés à intervalles réguliers le long de la courbe,
-    perpendiculaires à elle, tous de la même épaisseur."""
-    seg = np.diff(np.vstack([curve, curve[:1]]), axis=0)
-    dist = np.concatenate([[0], np.cumsum(np.hypot(*seg.T))])
-    total = dist[-1]
-    count = max(6, int(total / spacing))
-    x, y = curve[:, 0], curve[:, 1]
+def resample(curve: np.ndarray, step: float) -> np.ndarray:
+    """Points régulièrement espacés de `step` le long d'une courbe fermée."""
+    closed = np.vstack([curve, curve[:1]])
+    dist = np.concatenate([[0], np.cumsum(np.hypot(*np.diff(closed, axis=0).T))])
+    at = np.arange(0, dist[-1], step)
+    return np.stack([np.interp(at, dist, closed[:, 0]), np.interp(at, dist, closed[:, 1])], axis=1)
+
+
+def vibrations(shape, curve: np.ndarray, rng: random.Random, *, gap: float, length: float,
+               width: float, spacing: float, arc: float, corners: int = 3) -> np.ndarray:
+    """Les vibrations de Keith Haring autour d'une courbe fermée.
+
+    * Aux angles les plus marqués de la forme (là où la courbe tourne le plus
+      vite, côté bombé), deux arcs de longueur `arc` parallèles à la courbe,
+      décollés d'elle : ils soulignent l'angle comme un écho.
+    * Ailleurs, des traits droits perpendiculaires, plus espacés qu'avant et
+      absents autour des arcs.
+    Tous les traits ont la même épaisseur et des bouts ronds.
+    """
+    step = max(1.0, width / 2)
+    pts = resample(curve, step)
+    n = len(pts)
+    if n < 12:
+        return np.zeros(shape, dtype=np.float32)
+    x, y = pts[:, 0], pts[:, 1]
     area = 0.5 * float(np.sum(x * np.roll(y, -1) - np.roll(x, -1) * y))
     sign = 1.0 if area > 0 else -1.0
-    offset = rng.random() * total / count
+    tan = np.roll(pts, -1, axis=0) - np.roll(pts, 1, axis=0)
+    tan /= np.hypot(*tan.T)[:, None] + 1e-9
+    normal = np.stack([tan[:, 1], -tan[:, 0]], axis=1) * sign   # sortante
+
+    # Virage sur une fenêtre de la longueur d'un arc : positif = angle saillant.
+    k = max(2, int(arc / 2 / step))
+    t0, t1 = np.roll(tan, k, axis=0), np.roll(tan, -k, axis=0)
+    turn = (t0[:, 0] * t1[:, 1] - t0[:, 1] * t1[:, 0]) * sign
+    half = max(3, int(arc / 2 / step))             # demi-longueur d'un arc
+    picked: list[int] = []
+    for i in np.argsort(-turn):
+        if len(picked) == corners or turn[i] < 0.15:
+            break
+        if all(min(abs(i - j), n - abs(i - j)) > 3 * half for j in picked):
+            picked.append(int(i))
+
+    covered = np.zeros(n, dtype=bool)
+    for i in picked:
+        covered[np.arange(i - 2 * half, i + 2 * half + 1) % n] = True
 
     def draw(d, ss):
         lw = max(1, round(width * ss))
         r = lw / 2
-        for i in range(count):
-            at = (offset + i * total / count) % total
-            j = min(int(np.searchsorted(dist, at, side="right")) - 1, len(curve) - 1)
-            tx, ty = seg[j] / (math.hypot(*seg[j]) or 1.0)
-            nx, ny = ty * sign, -tx * sign       # normale sortante
-            px, py = curve[j]
-            L = length * (0.7 + 0.5 * rng.random())
-            p0 = ((px + nx * gap) * ss, (py + ny * gap) * ss)
-            p1 = ((px + nx * (gap + L)) * ss, (py + ny * (gap + L)) * ss)
-            d.line([p0, p1], fill=255, width=lw)
-            for qx, qy in (p0, p1):
+
+        def caps(*ps):
+            for qx, qy in ps:
                 d.ellipse([qx - r, qy - r, qx + r, qy + r], fill=255)
+
+        for i in picked:
+            for layer, (g, span) in enumerate([(gap, half), (gap + 1.6 * width + gap * 0.6, int(half * 0.7))]):
+                idx = np.arange(i - span, i + span + 1) % n
+                arc = (pts[idx] + normal[idx] * g) * ss
+                line = [tuple(p) for p in arc]
+                d.line(line, fill=255, width=lw, joint="curve")
+                caps(line[0], line[-1])
+
+        count = max(4, int(n * step / spacing))
+        offset = rng.randrange(n)
+        for c in range(count):
+            i = (offset + int(c * n / count)) % n
+            if covered[i]:
+                continue
+            L = length * (0.7 + 0.5 * rng.random())
+            p0 = (pts[i] + normal[i] * gap) * ss
+            p1 = (pts[i] + normal[i] * (gap + L)) * ss
+            d.line([tuple(p0), tuple(p1)], fill=255, width=lw)
+            caps(tuple(p0), tuple(p1))
     return _canvas_alpha(shape, draw)
 
 
