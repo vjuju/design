@@ -115,13 +115,45 @@ Survol : la face se soulève et suit le curseur. Appui : la face rejoint le flan
 passe en blanc sur violet et noir. Un bouton avec `aria-pressed` émet `change` (`detail.checked`).
 Dans un `.g-groupe[data-unique]`, un seul bouton reste activé.
 
+| Bouton | Classe | Rôle |
+| --- | --- | --- |
+| Enregistrer | `GigotButton` (bouton-œil) | en bas à droite du visuel ; « je garde un œil dessus », l'événement rejoint Mes sorties |
+| Action | `g-btn` | une seule par carte (réserver, billets, prendre ma place), face jaune, flanc de la catégorie |
+| J'y vais | `g-btn g-btn--petit` + `aria-pressed` | face blanche puis verte, suivi du nombre de personnes qui viennent : une sortie se vit à plusieurs |
+| Rond | `g-btn g-btn--rond` | icône seule avec `aria-label` : partager à quelqu'un, itinéraire, ajouter au calendrier |
+| Puce | `g-btn g-puce` | filtre, blanche au repos avec le flanc de la catégorie ; activée, elle prend sa couleur et une coche |
+| Jour | `g-btn g-jour` | une case par date dans un `.g-groupe[data-unique]` ; le jour choisi passe en noir |
+| Lien | `g-lien` | renvoi dans le texte, souligné de 3 px qui ondule au survol |
+
+Décalage du flanc : 5 px, 4 px en petit et en rond. Contour : 3 px `#111111`.
+
 ## Agenda
 
 [`agenda/`](agenda/) propose la liste d'événements : un bandeau rose, les jours et les puces de filtre, puis
-les événements par jour. Chaque carte porte la couleur de sa catégorie (concert rose, scène violet, danse cyan,
-expo jaune, atelier orange, plein air vert), une photo en aplats ou le pictogramme à défaut, le bouton-œil
-pour enregistrer, « J'y vais » avec le nombre de personnes qui viennent, partager, itinéraire, et une seule
-action payante. Les événements sont des exemples.
+les événements regroupés par jour (« Ce soir », « Demain », puis le nom du jour). Les événements sont des exemples.
+
+| Catégorie | Couleur | Œil (fond / face / flanc) |
+| --- | --- | --- |
+| Concert | rose | rose / cyan / violet |
+| Scène (théâtre, humour, mime) | violet | violet / rose / cyan |
+| Danse | cyan | cyan / jaune / rose |
+| Expo | jaune | jaune / cyan / violet |
+| Atelier | orange | orange / jaune / violet |
+| Plein air | vert | vert / rose / violet |
+
+Une carte, de haut en bas : la catégorie et le bouton-œil sur le visuel (photo en aplats, ou le pictogramme
+sur la couleur de la catégorie s'il n'y a pas de photo), l'heure de début et de fin, le titre, le lieu, un
+résumé d'une ou deux phrases, « J'y vais » et son compteur, partager et itinéraire, puis le prix et au plus
+une action payante. Sur écran étroit, le visuel passe au-dessus du texte.
+
+Filtres : toute la semaine ou un jour, les six catégories, « Gratuit ou prix libre », et « Mes sorties »
+dans le bandeau pour ne voir que les événements enregistrés. Quand rien ne correspond, la page propose
+d'aller marcher ou d'appeler quelqu'un, avec un bouton « Tout afficher ».
+
+Cette proposition a été faite sans accès à gigot.app : le domaine est bloqué par la politique réseau de
+l'environnement cloud où elle a été conçue (réglage *Accès réseau* de l'environnement, ajouter `gigot.app`
+aux domaines autorisés). Les champs et leur ordre sont à confronter à la vraie liste. Les règles sont aussi
+dans `tokens.json`, clés `boutons` et `agenda`.
 
 ## Aplats sur photo
 

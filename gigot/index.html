@@ -145,6 +145,20 @@
     <div class="boutons" id="boutons"></div>
   </section>
 
+  <section aria-labelledby="t-agenda">
+    <h2 id="t-agenda">Agenda</h2>
+    <p class="chapo">La liste d'événements regroupés par jour. Chaque catégorie a sa couleur, reprise par l'étiquette,
+    le fond du bouton-œil et le flanc des boutons de la carte. <a href="agenda/">Voir l'agenda →</a></p>
+    <div class="table">
+      <table>
+        <thead><tr><th scope="col">Catégorie</th><th scope="col">Couleur</th><th scope="col">Œil : fond / face / flanc</th></tr></thead>
+        <tbody id="categories"></tbody>
+      </table>
+    </div>
+    <p class="chapo">Proposition faite sans accès à gigot.app (domaine bloqué par le réseau de l'environnement de conception) :
+    champs et ordre à confronter à la vraie liste.</p>
+  </section>
+
   <section aria-labelledby="t-aplats">
     <h2 id="t-aplats">Aplats sur photo</h2>
     <p class="chapo">Les couleurs flash posées sur une photo, cernées de noir, avec des traits de vibration. Multiply sur
@@ -237,6 +251,18 @@
   var boutons = document.getElementById('boutons');
   VERSIONS.forEach(function (v) {
     boutons.appendChild(GigotButton.create({ fond: v[0], face: v[1], flanc: v[2], label: 'gigot, fond ' + v[0] }));
+  });
+
+  var CATEGORIES = [
+    ['Concert', 'rose', 'cyan', 'violet'], ['Scène', 'violet', 'rose', 'cyan'], ['Danse', 'cyan', 'jaune', 'rose'],
+    ['Expo', 'jaune', 'cyan', 'violet'], ['Atelier', 'orange', 'jaune', 'violet'], ['Plein air', 'vert', 'rose', 'violet']
+  ];
+  var tcat = document.getElementById('categories');
+  CATEGORIES.forEach(function (c) {
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + c[0] + '</td><td><span class="duo" aria-hidden="true"><i style="background:' + C[c[1]] + '"></i></span>' + c[1] +
+      '</td><td>' + c[1] + ' / ' + c[2] + ' / ' + c[3] + '</td>';
+    tcat.appendChild(tr);
   });
 
   var PAIRES = [
