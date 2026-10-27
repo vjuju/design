@@ -63,7 +63,7 @@ TEMPLATE = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" widt
     .lettres {{ fill: {lettres}; }}
     .o       {{ fill: {o}; }}
     .contour {{ fill: {contour}; }}
-    .encre   {{ color: {encre}; }} /* ombre, arcs et tagline : noir ou blanc */
+    .encre   {{ color: {encre}; }} /* ombre, arcs et tagline : noir ou blanc */{anim}
   </style>
   <defs>
     <path id="gig" d="{gig}"/>
@@ -104,12 +104,35 @@ PALETTE = {
 # encre blanche seulement sur les fonds sombres (contraste ≥ 4,5 : noir, violet)
 ENCRE_BLANCHE = {"noir", "violet"}
 
-def make(fond, lettres, o, contour):
+# ---- version animée : lettres, face et flanc passent d'une couleur à l'autre ----
+# Cycle dans l'ordre des teintes (fondus sans gris), sans le fond ni le noir.
+# Les trois parties parcourent le même cycle en partant de leur couleur fixe :
+# elles avancent ensemble, donc ne se rejoignent jamais.
+CYCLE = ["rose", "orange", "jaune", "vert", "cyan", "violet", "blanc"]
+PAS, TENUE = 2.0, 0.35   # secondes par couleur, part du pas où la couleur reste posée
+
+def animation(fond, parts):
+    cycle = [c for c in CYCLE if c != fond]
+    n, duree = len(cycle), len(cycle) * PAS
+    pct = lambda v: ("%.2f" % (100 * v / n)).rstrip("0").rstrip(".")
+    etapes = []
+    for i, c in enumerate(cycle):
+        etapes.append(f"{pct(i)}%, {pct(i + TENUE)}% {{ fill: {PALETTE[c]}; }}")
+    etapes.append(f"100% {{ fill: {PALETTE[cycle[0]]}; }}")
+    regles = "".join(
+        f"\n      .{cls} {{ animation: gigot-couleurs {duree:g}s ease-in-out {-cycle.index(c) * PAS:g}s infinite; }}"
+        for cls, c in parts)
+    return ("\n    /* couleurs en cycle ; mouvement réduit : version fixe ci-dessus */"
+            "\n    @keyframes gigot-couleurs {\n      " + "\n      ".join(etapes) + "\n    }"
+            "\n    @media (prefers-reduced-motion: no-preference) {" + regles + "\n    }")
+
+def make(fond, lettres, o, contour, anime=False):
     assert len({fond, lettres, o, contour}) == 4, "quatre couleurs distinctes requises"
     encre = "blanc" if fond in ENCRE_BLANCHE else "noir"
     P = PALETTE
+    anim = animation(fond, [("lettres", lettres), ("o", o), ("contour", contour)]) if anime else ""
     return TEMPLATE.format(fond=P[fond], lettres=P[lettres], o=P[o], contour=P[contour],
-                           encre=P[encre], gig=gig_d, t=t_d, tag=tag_d, OX=OX, OY=OY)
+                           encre=P[encre], anim=anim, gig=gig_d, t=t_d, tag=tag_d, OX=OX, OY=OY)
 
 VERSIONS = [
     ("rose",   "jaune",  "cyan",   "violet"),
@@ -126,7 +149,8 @@ if __name__ == "__main__":
     out = sys.argv[1]
     os.makedirs(out, exist_ok=True)
     for v in VERSIONS:
-        name = f"gigot-logo-{v[0]}.svg"
-        with open(os.path.join(out, name), "w") as f:
-            f.write(make(*v))
-        print(name)
+        for anime, suffixe in ((False, ""), (True, "-anime")):
+            name = f"gigot-logo-{v[0]}{suffixe}.svg"
+            with open(os.path.join(out, name), "w") as f:
+                f.write(make(*v, anime=anime))
+            print(name)

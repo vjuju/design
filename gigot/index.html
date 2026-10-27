@@ -47,7 +47,7 @@
     text-wrap: balance;
   }
   .chapo { margin: 0; max-width: 64ch; color: var(--doux); }
-  .etiquette { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--doux); }
+  .etiquette { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--doux); }
   code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
 
   /* palette */
@@ -102,7 +102,7 @@
   <a class="retour" href="../">← Bac à sable</a>
 
   <header>
-    <img src="logo/gigot-logo-rose.svg" alt="gigot — l'app pour gigoter" width="600" height="600">
+    <img src="logo/gigot-logo-rose-anime.svg" alt="gigot — l'app pour gigoter" width="600" height="600">
     <p>Identité visuelle de gigot.app, l'agenda culturel pour gigoter : pop art, couleurs flash
     cernées de noir épais, dans l'esprit de Keith Haring.</p>
   </header>
@@ -120,6 +120,11 @@
     huit couleurs ; les lettres, la face du O et son flanc en prennent trois autres, toutes différentes.
     L'ombre, les arcs et la tagline sont blancs sur fond noir ou violet, noirs sinon.</p>
     <div class="planche" id="logos"></div>
+    <h3 class="etiquette">Animé</h3>
+    <p class="chapo">Les lettres, la face et le flanc passent d'une couleur à l'autre, dans l'ordre des teintes :
+    rose, orange, jaune, vert, cyan, violet, blanc, sans jamais prendre celle du fond. Les trois parties
+    parcourent le même cycle, décalées : elles ne se rejoignent jamais. En mouvement réduit, le logo reste fixe.</p>
+    <div class="planche" id="logos-anime"></div>
   </section>
 
   <section aria-labelledby="t-picto">
@@ -183,7 +188,7 @@
     <h2 id="t-fichiers">Fichiers</h2>
     <dl class="fichiers">
       <dt><a href="tokens.css">tokens.css</a> · <a href="tokens.json">tokens.json</a></dt><dd>palette, police, variantes du logo</dd>
-      <dt>logo/gigot-logo-&lt;fond&gt;.svg</dt><dd>logo complet 600×600, couleurs dans le bloc <code>&lt;style&gt;</code> en tête</dd>
+      <dt>logo/gigot-logo-&lt;fond&gt;.svg</dt><dd>logo complet 600×600, couleurs dans le bloc <code>&lt;style&gt;</code> en tête ; <code>-anime.svg</code> : couleurs en cycle</dd>
       <dt>picto/gigot-picto-&lt;fond&gt;.svg</dt><dd>pictogramme 160×160</dd>
       <dt><a href="bouton/gigot-button.js">bouton/gigot-button.js</a> · <a href="bouton/gigot-button.css">.css</a></dt><dd>bouton sans framework : <code>GigotButton.create({ fond, face, flanc })</code></dd>
       <dt>bouton/react/GigotButton.tsx</dt><dd>composant React / Next.js (contrôlé ou non)</dd>
@@ -210,17 +215,18 @@
     palette.appendChild(d);
   });
 
-  function planche(id, dossier, prefixe) {
+  function planche(id, dossier, prefixe, suffixe) {
     var el = document.getElementById(id);
     ORDRE.forEach(function (nom) {
       var f = document.createElement('figure');
-      f.innerHTML = '<img src="' + dossier + '/' + prefixe + nom + '.svg" alt="' +
+      f.innerHTML = '<img src="' + dossier + '/' + prefixe + nom + (suffixe || '') + '.svg" alt="' +
         (prefixe.indexOf('logo') > -1 ? 'Logo gigot' : 'Pictogramme gigot') + ' sur fond ' + nom + '" loading="lazy">' +
         '<figcaption>fond ' + nom + '</figcaption>';
       el.appendChild(f);
     });
   }
   planche('logos', 'logo', 'gigot-logo-');
+  planche('logos-anime', 'logo', 'gigot-logo-', '-anime');
   planche('pictos', 'picto', 'gigot-picto-');
 
   var VERSIONS = [
