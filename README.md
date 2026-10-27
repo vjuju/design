@@ -14,6 +14,7 @@ piste, avec le script qui fabrique et la planche qui montre le résultat.
 | [`photo/aplats/`](photo/aplats/) | aplats francs, contours noirs et traits de vibration à la Keith Haring, posés sans IA sur n'importe quelle photo |
 | [`photo/aplats/web/`](photo/aplats/web/) | les aplats de `figures.py` calculés par le navigateur, et animés : ils évitent le curseur, un clic les déplace |
 | [`gigot/`](gigot/) | design system de gigot.app : palette, logo, pictogramme, bouton animé et aplats sur photo, façon Keith Haring |
+| [`gigot/accueil/`](gigot/accueil/) | maquette de l'accueil de gigot.app avec le design system : cartes, aperçu au survol, fiche, clair / sombre |
 
 ## Publication
 

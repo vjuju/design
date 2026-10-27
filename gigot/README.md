@@ -18,6 +18,7 @@ pop art, couleurs flash cernées de noir épais, dans l'esprit de Keith Haring.
 | `aplats/figures.py` + `pop.py` | aplats gigot sur photo, en Python |
 | `aplats/aplats.js` | le même traitement dans le navigateur, formes animées |
 | `aplats/index.html`, `aplats/exemples/` | la planche des aplats, en direct et en Python |
+| `accueil/index.html`, `accueil/photos/` | maquette de la page d'accueil de l'app (voir plus bas) |
 | `index.html` | la planche |
 
 `<fond>` ∈ rose, jaune, cyan, vert, orange, violet, noir, blanc.
@@ -119,6 +120,36 @@ saillante et en prend la silhouette. `fill` choisit la pose de la couleur (`scre
 
 Ces fichiers sont la version gigot de [`photo/aplats/`](../photo/aplats/), où la piste a été
 explorée : mêmes scripts, contours en noir gigot et palette gigot par défaut.
+
+## Accueil de l'app
+
+[`accueil/`](accueil/) : la page d'arrivée de gigot.app refaite avec le design system, sur les vraies sorties
+de Rouen du 27 octobre 2026 (75 sorties, aujourd'hui et demain, relevées sur gigot.app avec leurs photos).
+
+- Barre du haut : le logo, puis des pictos ronds (rechercher, ajouter, mes sorties, ma commu, clair / sombre, compte).
+- Filtres : Quand, Catégorie, En journée, En soirée, Gratuit, Ma commu, Nouveaux.
+- Liste : un jour, des créneaux horaires repliables à gauche, des cartes réduites à la photo et au titre.
+- Survol : la carte grandit sans décaler la grille et montre horaire, prix, lieu, catégories, « Garder » et le
+  chevron *Plus d'infos*. Le chevron ouvre la fiche au centre avec l'API View Transitions.
+- Aplats : deux couleurs par catégorie, regroupées en familles.
+
+| Famille | Catégorie | Aplats |
+| --- | --- | --- |
+| Sur scène | Musique | rose, violet |
+| | Théâtre & spectacles | rose, jaune |
+| | Cinéma | violet, rose |
+| À voir, à apprendre | Expositions | cyan, violet |
+| | Conférences & savoirs | cyan, jaune |
+| En famille, à table | Famille & ateliers | jaune, cyan |
+| | Fêtes & gastronomie | orange, jaune |
+| Au grand air | Sport | vert, violet |
+| | Balades & patrimoine | vert, orange |
+
+- Fin de liste : « Je suis prêt à gigoter plus loin », « Dis-moi dès qu'il y a du neuf », « Il manque un événement ! ».
+- Clair / sombre : suit l'appareil ; le bouton soleil / lune impose l'autre mode et s'en souvient.
+
+La page charge `../bouton/` et `../aplats/aplats.js` : elle se sert sur le site, pas en `file://`
+(les aplats lisent les pixels des photos).
 
 ## Régénérer les SVG
 

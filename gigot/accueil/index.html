@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Maquette de l'accueil de gigot.app avec le design system : cartes photo + titre, aperçu au survol, fiche centrée au chevron, aplats colorés par catégorie.">
+<title>gigot · Sorties à Rouen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Titan+One&family=Work+Sans:wght@400;500;600;700&display=swap">
+<link rel="icon" href="../picto/gigot-picto-rose.svg">
+<link rel="stylesheet" href="../bouton/gigot-button.css">
+<style>
+  /* Accueil gigot.app, version épurée : fond noir, cartes = photo + titre, aperçu au survol façon
+     plateforme vidéo, fiche centrée au chevron. Couleurs flash réservées aux aplats et aux choix. */
+  :root {
+    --gigot-noir: #111111; --gigot-blanc: #FFFFFF; --gigot-rose: #FF3EA5; --gigot-jaune: #FFD60A;
+    --gigot-violet: #7B2FF7; --gigot-cyan: #2EC4F1; --gigot-vert: #39D353; --gigot-orange: #FF6A13;
+    --page: #111111;
+    --surface: #1C1C20;
+    --surface-2: #2A2A30;
+    --encre: #F4F4F6;
+    --doux: #A6A6B0;
+    --filet: #2E2E35;
+    --bulle: #E8E8EC;                 /* infobulles, comme « Plus d'infos » */
+    --bulle-texte: #111111;
+    --cerne: rgb(255 255 255 / .55);   /* contour des boutons ronds */
+    --cerne-fort: #FFFFFF;
+    --cerne-fond: rgb(255 255 255 / .08);
+    --puce-bord: #3A3A43;
+    --puce-survol: #FFFFFF;
+    --contour-photo: #FFFFFF;
+    --ombre-pop: rgb(0 0 0 / .65);
+    --ombre-dure: #FFFFFF;
+    --anneau: rgb(255 255 255 / .25);
+    --voile: rgb(0 0 0 / .72);
+    --voir-fond: #FFFFFF; --voir-texte: #111111;
+    --chevron: var(--gigot-jaune);
+    --focus: var(--gigot-jaune);
+    --notes-titre: var(--gigot-jaune);
+    --notes-texte: #D6D6DC;
+    --w-encre: #FFFFFF; --w-lettres: var(--gigot-jaune); --w-o: var(--gigot-rose); --w-flanc: var(--gigot-violet);
+    --titre: 'Titan One', 'Arial Rounded MT Bold', system-ui, sans-serif;
+    --corps: 'Work Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --entete: 64px;
+    --jour: 46px;
+    color-scheme: dark;
+  }
+  /* mode clair : le système le demande, ou le bouton soleil/lune l'impose */
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+    --page: #FFFFFF; --surface: #F4F4F7; --surface-2: #E8E8ED; --encre: #111111; --doux: #55555F; --filet: #E3E3E8;
+    --bulle: #111111; --bulle-texte: #FFFFFF;
+    --cerne: rgb(17 17 17 / .4); --cerne-fort: #111111; --cerne-fond: rgb(17 17 17 / .06);
+    --puce-bord: #CFCFD6; --puce-survol: #111111;
+    --contour-photo: #111111;
+    --ombre-pop: rgb(17 17 17 / .22); --ombre-dure: #111111;
+    --anneau: rgb(17 17 17 / .2);
+    --voile: rgb(17 17 17 / .55);
+    --voir-fond: #111111; --voir-texte: #FFFFFF;
+    --chevron: var(--gigot-violet);
+    --focus: var(--gigot-violet);
+    --notes-titre: var(--gigot-violet);
+    --notes-texte: #33333B;
+    --w-encre: #111111; --w-lettres: var(--gigot-rose); --w-o: var(--gigot-jaune); --w-flanc: var(--gigot-violet);
+    color-scheme: light;
+    }
+  }
+  :root[data-theme="light"] {
+    --page: #FFFFFF; --surface: #F4F4F7; --surface-2: #E8E8ED; --encre: #111111; --doux: #55555F; --filet: #E3E3E8;
+    --bulle: #111111; --bulle-texte: #FFFFFF;
+    --cerne: rgb(17 17 17 / .4); --cerne-fort: #111111; --cerne-fond: rgb(17 17 17 / .06);
+    --puce-bord: #CFCFD6; --puce-survol: #111111;
+    --contour-photo: #111111;
+    --ombre-pop: rgb(17 17 17 / .22); --ombre-dure: #111111;
+    --anneau: rgb(17 17 17 / .2);
+    --voile: rgb(17 17 17 / .55);
+    --voir-fond: #111111; --voir-texte: #FFFFFF;
+    --chevron: var(--gigot-violet);
+    --focus: var(--gigot-violet);
+    --notes-titre: var(--gigot-violet);
+    --notes-texte: #33333B;
+    --w-encre: #111111; --w-lettres: var(--gigot-rose); --w-o: var(--gigot-jaune); --w-flanc: var(--gigot-violet);
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html { padding-block: env(safe-area-inset-top, 0px) env(safe-area-inset-bottom, 0px); }
+  body { margin: 0; }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+  html, body { overflow-x: clip; }
+  body { background: var(--page); color: var(--encre); font: 15px/1.5 var(--corps); -webkit-font-smoothing: antialiased; }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--page); }
+  a { color: inherit; }
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+  .wrap {
+    max-width: 1320px; margin: 0 auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  svg.i { width: 22px; height: 22px; flex: none; }
+
+  /* --- boutons ronds et infobulles --- */
+  .rond {
+    position: relative; display: inline-grid; place-items: center; flex: none;
+    width: 42px; height: 42px; border-radius: 50%;
+    border: 2px solid transparent; background: none; color: var(--encre);
+    cursor: pointer; text-decoration: none;
+    transition: background .15s, border-color .15s, transform .15s;
+  }
+  .rond:hover { background: var(--surface-2); }
+  .rond:active { transform: scale(.92); }
+  .rond.cerne { border-color: var(--cerne); }
+  .rond.cerne:hover { border-color: var(--cerne-fort); background: var(--cerne-fond); }
+  [data-tip]::after {
+    content: attr(data-tip); position: absolute; left: 50%; top: calc(100% + 10px); z-index: 60;
+    transform: translate(-50%, -4px); padding: 7px 12px; border-radius: 6px;
+    background: var(--bulle); color: var(--bulle-texte); font: 600 14px/1.2 var(--corps); white-space: nowrap;
+    opacity: 0; pointer-events: none; transition: opacity .15s, transform .15s;
+  }
+  [data-tip]::before {
+    content: ""; position: absolute; left: 50%; top: calc(100% + 4px); z-index: 60;
+    border: 6px solid transparent; border-bottom-color: var(--bulle); border-top: 0;
+    transform: translate(-50%, -4px); opacity: 0; pointer-events: none; transition: opacity .15s, transform .15s;
+  }
+  [data-tip].haut::after { top: auto; bottom: calc(100% + 10px); transform: translate(-50%, 4px); }
+  [data-tip].haut::before { top: auto; bottom: calc(100% + 4px); border-bottom-color: transparent; border-top: 6px solid var(--bulle); border-bottom: 0; transform: translate(-50%, 4px); }
+  [data-tip].bord-droit::after { left: auto; right: -6px; transform: translate(0, -4px); }
+  [data-tip].bord-droit.haut::after { transform: translate(0, 4px); }
+  @media (hover: hover) {
+    [data-tip]:hover::after, [data-tip]:hover::before { opacity: 1; transform: translate(-50%, 0); }
+    [data-tip].bord-droit:hover::after { transform: translate(0, 0); }
+  }
+  [data-tip]:focus-visible::after, [data-tip]:focus-visible::before { opacity: 1; transform: translate(-50%, 0); }
+
+  /* --- barre du haut --- */
+  .entete { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--page); }
+  .entete .wrap { height: var(--entete); display: flex; align-items: center; gap: 8px; }
+  .marque { display: flex; align-items: center; line-height: 0; margin-right: auto; }
+  /* logo : le mot « gigot » seul, le O posé sur la ligne des lettres */
+  .wordmark { height: 40px; width: auto; display: block; flex: none; }
+  .w-encre { color: var(--w-encre); }
+  .w-lettres { fill: var(--w-lettres); }
+  .w-o { fill: var(--w-o); }
+  .w-flanc { fill: var(--w-flanc); }
+  .theme .soleil, :root[data-effectif="light"] .theme .lune { display: none; }
+  :root[data-effectif="light"] .theme .soleil { display: block; }
+  .compte {
+    position: absolute; top: 2px; right: 0; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+    background: var(--gigot-jaune); color: #111111; font: 400 11px/18px var(--titre); text-align: center;
+  }
+  .compte:empty { display: none; }
+  .moi { background: var(--gigot-violet); color: #FFFFFF; }
+  .moi:hover { background: #8D4BFF; }
+
+  /* --- la ville --- */
+  .ville { padding-block: 18px 6px; }
+  .ville h1 { margin: 0; font: 400 clamp(40px, 7vw, 64px)/1 var(--titre); letter-spacing: .01em; }
+  .choix-ville { display: inline-flex; align-items: center; gap: 12px; padding: 0; border: 0; background: none; cursor: pointer; font: inherit; letter-spacing: inherit; }
+  .choix-ville svg { width: 30px; height: 30px; color: var(--chevron); margin-top: 6px; transition: transform .2s; }
+  .choix-ville:hover svg { transform: translateY(3px); }
+
+  /* --- filtres --- */
+  .filtres-zone { padding-block: 14px 4px; }
+  .filtres { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-block: 2px; margin-inline: -2px; padding-inline: 2px; }
+  .filtres::-webkit-scrollbar { display: none; }
+  .puce {
+    display: inline-flex; align-items: center; gap: 6px; flex: none;
+    height: 36px; padding: 0 14px; border-radius: 999px;
+    border: 1.5px solid var(--puce-bord); background: none; color: var(--encre);
+    font: 600 14px/1 var(--corps); white-space: nowrap; cursor: pointer; text-decoration: none;
+    transition: border-color .15s, background .15s;
+  }
+  .puce:hover { border-color: var(--puce-survol); }
+  .puce svg { width: 14px; height: 14px; transition: transform .2s; }
+  .puce[aria-expanded="true"] svg { transform: rotate(90deg); }
+  .puce[aria-pressed="true"], .puce[aria-expanded="true"] { background: var(--gigot-jaune); border-color: var(--gigot-jaune); color: #111111; }
+  .puce .n { font-weight: 500; color: var(--doux); font-variant-numeric: tabular-nums; }
+  .puce[aria-pressed="true"] .n { color: #111111; }
+  .tiroir { padding-block: 14px 4px; display: flex; flex-wrap: wrap; gap: 18px 28px; }
+  .famille { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .famille h3 { margin: 0; font: 700 11.5px/1.2 var(--corps); letter-spacing: .1em; text-transform: uppercase; color: var(--doux); }
+  .famille div { display: flex; flex-wrap: wrap; gap: 8px; }
+  .puce .pastille { width: 14px; height: 14px; border-radius: 50%; flex: none; background: linear-gradient(135deg, var(--c1) 50%, var(--c2) 50%); box-shadow: 0 0 0 1.5px #111111, 0 0 0 3px var(--anneau); }
+  .puce.cat[aria-pressed="true"] { background: var(--c1); border-color: var(--c1); color: var(--sur, #111111); }
+  .puce.cat[aria-pressed="true"] .n { color: inherit; }
+  .puce.lien::after { content: "↗"; font-weight: 500; }
+
+  /* --- jours et créneaux --- */
+  .jour { padding-block: 12px 8px; }
+  .jour-titre {
+    position: sticky; top: calc(var(--entete) + env(safe-area-inset-top, 0px)); z-index: 8;   /* au-dessus des cartes survolées */
+    height: var(--jour); margin: 0; display: flex; align-items: center; gap: 10px;
+    background: var(--page); border-bottom: 1px solid var(--filet);
+    font: 700 13px/1 var(--corps); letter-spacing: .1em; text-transform: uppercase;
+  }
+  .jour-titre span { color: var(--doux); font-weight: 600; }
+  .creneau { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 0 20px; padding-block: 18px; border-bottom: 1px solid var(--filet); }
+  .creneau:last-child { border-bottom: 0; }
+  .rail {
+    position: sticky; top: calc(var(--entete) + var(--jour) + env(safe-area-inset-top, 0px) + 12px); align-self: start;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+    padding: 0; border: 0; background: none; text-align: left; cursor: pointer;
+  }
+  .rail b { font: 400 24px/1.05 var(--titre); font-variant-numeric: tabular-nums; }
+  .rail b.long { font-size: 18px; }
+  .rail small { display: inline-flex; align-items: center; gap: 4px; font: 600 12px/1.2 var(--corps); color: var(--doux); }
+  .rail small svg { width: 13px; height: 13px; transition: transform .2s; }
+  .rail:hover small { color: var(--encre); }
+  .creneau.replie .rail small svg { transform: rotate(-90deg); }
+  .repli { display: none; align-items: center; gap: 6px; min-height: 30px; color: var(--doux); font-size: 13px; }
+  .repli i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+  .creneau.replie .repli { display: flex; }
+  .creneau.replie .cartes { display: none; }
+  .creneau.replie { padding-block: 12px; }
+
+  /* --- cartes : photo + titre ; au survol, l'aperçu --- */
+  .cartes { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(182px, 1fr)); gap: 22px 14px; }
+  .carte { position: relative; min-width: 0; }
+  .pop { position: relative; border-radius: 10px; cursor: pointer; transform-origin: 50% 30%; transition: transform .22s ease, background-color .22s ease, box-shadow .22s ease; }
+  .photo { position: relative; aspect-ratio: 16 / 10; max-width: 100%; overflow: hidden; border-radius: 10px; container-type: size; background: var(--surface-2); transition: border-radius .22s; }
+  .photo .cadre { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: max(100cqw, calc(100cqh * var(--r))); aspect-ratio: var(--r); }
+  .photo img, .photo canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .photo img { object-fit: cover; }
+  .photo.sans { display: grid; place-items: center; background: var(--c1); }
+  .photo.sans img { position: static; width: 44%; height: auto; border-radius: 12px; }
+  .aplats-canvas { opacity: 0; transition: opacity .4s; }
+  .aplats-canvas.is-ready { opacity: 1; }
+  .carte .aplats-canvas { pointer-events: none; }
+  /* contour des photos de cartes (blanc en sombre, noir en clair), posé au-dessus de l'image et des aplats */
+  .carte .photo::after { content: ""; position: absolute; inset: 0; z-index: 1; border: 2px solid var(--contour-photo); border-radius: inherit; pointer-events: none; }
+  .garde-marque { position: absolute; top: 8px; right: 8px; z-index: 2; width: 26px; height: 26px; border-radius: 50%; background: var(--gigot-jaune); border: 2px solid #111111; display: none; place-items: center; }
+  .garde-marque svg { width: 14px; height: 14px; color: #111111; }
+  .carte.gardee .garde-marque { display: grid; }
+  /* hauteur fixe (2 lignes) : la grille ne bouge jamais, le titre complet est dans l'aperçu */
+  .titre { box-sizing: border-box; height: calc(8px + 2.6em); margin: 0; padding: 8px 2px 0; font: 600 var(--t-taille, 14px)/1.3 var(--corps); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .titre a { text-decoration: none; }
+  .nouveau { display: inline-block; margin-right: 6px; padding: 1px 6px; border-radius: 4px; background: var(--gigot-rose); color: #111111; font: 700 10.5px/1.5 var(--corps); letter-spacing: .06em; text-transform: uppercase; vertical-align: 1px; }
+  .panneau {
+    position: absolute; top: calc(100% - 8px - 2.6 * var(--t-taille, 14px)); left: 0; right: 0;
+    padding: 4px 12px 14px; border-radius: 0 0 10px 10px; background: var(--surface);
+    display: flex; flex-direction: column; gap: 8px;
+    opacity: 0; visibility: hidden; transition: opacity .18s, visibility 0s .18s;
+  }
+  .panneau .actions { display: flex; align-items: center; gap: 8px; padding-top: 6px; }
+  .panneau .actions .rond:last-child { margin-left: auto; }
+  .panneau .gigot-btn { --taille: 40px; border-radius: 50%; border: 2px solid var(--cerne); }
+  .panneau .meta { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 14px; color: var(--encre); }
+  .boite { padding: 1px 7px; border: 1.5px solid var(--cerne); border-radius: 4px; font-size: 12.5px; font-weight: 600; }
+  .panneau .lieu { margin: 0; font-size: 13.5px; color: var(--doux); }
+  .genres { margin: 0; display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 13.5px; font-weight: 500; }
+  .genres span { display: inline-flex; align-items: center; gap: 6px; }
+  .genres i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); flex: none; }
+  .titre-plein { margin: 0; padding-top: 4px; font: 600 14px/1.3 var(--corps); }
+
+  /* aperçu au survol, à toutes les largeurs dès que l'appareil sait survoler */
+  @media (hover: hover) {
+    .carte:hover, .carte:has(:focus-visible) { z-index: 5; }
+    .carte:hover .pop, .carte:has(:focus-visible) .pop {
+      transform: scale(1.16); background: var(--surface); border-radius: 10px 10px 0 0;
+      box-shadow: 0 18px 40px var(--ombre-pop);
+      transition-delay: .28s;
+    }
+    .carte:hover .titre, .carte:has(:focus-visible) .titre { visibility: hidden; transition: visibility 0s .28s; }
+    .carte:hover .panneau, .carte:has(:focus-visible) .panneau {
+      opacity: 1; visibility: visible; box-shadow: 0 18px 40px var(--ombre-pop);
+      transition: opacity .15s .28s, visibility 0s .28s;
+    }
+  }
+
+  /* --- fin de liste : trois choix --- */
+  .fin { padding-block: 40px 56px; display: flex; flex-direction: column; gap: 20px; }
+  .fin h2 { margin: 0; font: 400 clamp(28px, 4vw, 40px)/1.05 var(--titre); text-wrap: balance; }
+  .fin > p { margin: 0; color: var(--doux); max-width: 60ch; }
+  .choix { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+  .choix > * {
+    position: relative; display: flex; flex-direction: column; justify-content: space-between; gap: 18px;
+    min-height: 168px; padding: 20px; border: 3px solid #111111; border-radius: 22px;
+    background: var(--c); color: #111111; text-align: left; text-decoration: none; cursor: pointer;
+    box-shadow: 6px 6px 0 var(--ombre-dure); transition: transform .12s ease-out, box-shadow .12s ease-out;
+    font: inherit;
+  }
+  .choix > *:hover { transform: translate(-2px, -2px); box-shadow: 8px 8px 0 var(--ombre-dure); }
+  .choix > *:active { transform: translate(4px, 4px); box-shadow: 1px 1px 0 var(--ombre-dure); }
+  .choix strong { font: 400 clamp(22px, 2.4vw, 27px)/1.1 var(--titre); text-wrap: balance; }
+  .choix span { font-size: 14.5px; font-weight: 500; }
+  .choix .gigot-btn { --taille: 54px; border: 2.5px solid #111111; position: absolute; top: 16px; right: 16px; }
+  .choix .avec-oeil strong { padding-right: 64px; }
+  .choix svg.fleche { width: 30px; height: 30px; position: absolute; top: 18px; right: 18px; }
+  .choix .avec-fleche strong { padding-right: 40px; }
+
+  /* --- états vides --- */
+  .vide { margin: 18px 0; padding: 28px; border: 1.5px dashed var(--puce-bord); border-radius: 16px; color: var(--doux); display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+  .vide strong { color: var(--encre); font-weight: 600; }
+
+  /* --- la fiche, au centre --- */
+  .voile {
+    position: fixed; inset: 0; z-index: 50; display: grid; place-items: center;
+    padding: calc(24px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+    background: var(--voile); view-transition-name: voile;
+  }
+  .fiche {
+    position: relative; width: min(860px, 100%); max-height: min(100%, 760px);
+    display: grid; grid-template-rows: auto minmax(0, 1fr);
+    background: var(--surface); border-radius: 14px; overflow: hidden;
+    box-shadow: 0 30px 80px var(--ombre-pop);
+  }
+  .fiche .photo { aspect-ratio: 16 / 8; border-radius: 0; }
+  .fiche .photo .aplats-canvas { pointer-events: auto; cursor: pointer; }
+  .fiche .photo::after { content: ""; position: absolute; inset: auto 0 0; height: 22%; background: linear-gradient(transparent, var(--surface)); pointer-events: none; }
+  .fiche-corps { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); align-content: start; gap: 8px 32px; padding: 6px 32px 28px; min-height: 0; overflow-y: auto; }
+  .fiche h2 { grid-column: 1 / -1; margin: 0 0 6px; font: 400 clamp(24px, 3.4vw, 34px)/1.1 var(--titre); text-wrap: balance; }
+  .fiche .actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .fiche .actions .gigot-btn { --taille: 46px; border-radius: 50%; border: 2px solid var(--cerne); }
+  .fiche .voir { display: inline-flex; align-items: center; gap: 8px; height: 46px; padding: 0 20px; border-radius: 999px; background: var(--voir-fond); color: var(--voir-texte); font-weight: 700; text-decoration: none; }
+  .fiche .voir:hover { background: var(--gigot-jaune); color: #111111; }
+  .fiche .meta { margin: 0 0 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 15px; }
+  .fiche .desc { display: flex; flex-direction: column; gap: 10px; font-size: 15px; line-height: 1.6; max-width: 62ch; }
+  .fiche .desc p { margin: 0; }
+  .fiche .cote { display: flex; flex-direction: column; gap: 14px; font-size: 14px; }
+  .fiche .cote dt { color: var(--doux); }
+  .fiche .cote dd { margin: 2px 0 0; }
+  .fiche .cote dl { margin: 0; display: flex; flex-direction: column; gap: 12px; }
+  .fiche .source { margin: 6px 0 0; font-size: 12.5px; color: var(--doux); }
+  .fermer { position: absolute; top: 14px; right: 14px; z-index: 3; background: rgb(17 17 17 / .8); color: #FFFFFF; }
+  .fermer:hover { background: #111111; }
+
+  ::view-transition-group(*) { animation-duration: .45s; animation-timing-function: cubic-bezier(.3, 1.1, .45, 1); }
+  ::view-transition-old(fiche-photo), ::view-transition-new(fiche-photo) { height: 100%; object-fit: cover; }
+  ::view-transition-old(fiche), ::view-transition-new(fiche) { height: 100%; }
+  ::view-transition-group(voile) { animation-duration: .3s; animation-timing-function: ease-out; }
+
+  /* --- notes de maquette --- */
+  .notes { border-top: 1px solid var(--filet); }
+  .notes .wrap { padding-block: 40px 72px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px 48px; }
+  .notes h2 { grid-column: 1 / -1; margin: 0; font: 400 24px/1.1 var(--titre); color: var(--notes-titre); }
+  .notes h3 { margin: 0 0 8px; font: 700 13px/1.2 var(--corps); letter-spacing: .1em; text-transform: uppercase; color: var(--doux); }
+  .notes ul, .notes ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; color: var(--notes-texte); font-size: 14.5px; max-width: 64ch; }
+  .notes b { color: var(--encre); font-weight: 600; }
+  .palette { display: flex; flex-direction: column; gap: 6px; }
+
+  @media (max-width: 900px) {
+    .choix { grid-template-columns: 1fr; }
+    .choix > * { min-height: 0; }
+    .notes .wrap { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 720px) {
+    :root { --entete: 56px; }
+    .entete .wrap { gap: 2px; }
+    .wordmark { height: 34px; }
+    .rond { width: 38px; height: 38px; }
+    .creneau { grid-template-columns: 1fr; gap: 12px; padding-block: 14px; }
+    .rail { position: static; flex-direction: row; align-items: baseline; gap: 10px; width: 100%; }
+    .rail small { margin-left: auto; }
+    .cartes { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 12px; }
+    .cartes { --t-taille: 13.5px; }
+    .fiche { max-height: 100%; }
+    .voile { place-items: end center; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+    .fiche .photo { aspect-ratio: 16 / 10; }
+    .fiche-corps { grid-template-columns: 1fr; padding: 4px 18px 20px; }
+    .fiche .voir { padding: 0 16px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pop, .photo, .panneau, .choix > *, .aplats-canvas, .rond { transition: none !important; }
+  }
+</style>
+
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-loupe" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="m15.5 15.5 5 5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 4.5v15M4.5 12h15" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+  <symbol id="i-liste" viewBox="0 0 24 24"><path d="M9 6.5h11M9 12h11M9 17.5h11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="4.5" cy="6.5" r="1.5" fill="currentColor"/><circle cx="4.5" cy="12" r="1.5" fill="currentColor"/><circle cx="4.5" cy="17.5" r="1.5" fill="currentColor"/></symbol>
+  <symbol id="i-commu" viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3.5" fill="none" stroke="currentColor" stroke-width="2.1"/><path d="M2.8 19.5c.6-3.4 3.1-5.5 6.2-5.5s5.6 2.1 6.2 5.5" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><path d="M15.5 5.2a3.4 3.4 0 0 1 0 6.6M17.5 14.3c2 .7 3.3 2.5 3.7 5.2" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></symbol>
+  <symbol id="i-compte" viewBox="0 0 24 24"><circle cx="12" cy="9" r="3.8" fill="none" stroke="currentColor" stroke-width="2.1"/><path d="M5 20c1-3.6 3.8-5.6 7-5.6s6 2 7 5.6" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></symbol>
+  <symbol id="i-lune" viewBox="0 0 24 24"><path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/></symbol>
+  <symbol id="i-soleil" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="2.1"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></symbol>
+  <symbol id="i-bas" viewBox="0 0 24 24"><path d="m5 9 7 7 7-7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-droite" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-croix" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-coche" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-sortie" viewBox="0 0 24 24"><path d="M14 5h5v5M19 5l-8 8M17 14v5H5V7h5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<header class="entete">
+  <div class="wrap">
+    <a class="marque" href="https://gigot.app/" target="_blank" rel="noopener" aria-label="gigot, accueil"><svg viewBox="52 188 522 186" class="wordmark" role="img" aria-label="gigot">
+  
+  
+  <defs>
+    <path id="gig" d="M115 319.2V310H113.8Q113.1 310.8 111.5 312Q109.9 313.2 103.6 315.2Q97.3 317.3 89.4 317.3Q81.4 317.3 76 314.9Q70.6 312.5 67.5 308.9Q64.5 305.3 62.7 299.2Q60 289.8 60 273.6Q60 255.1 67.8 245.2Q70.9 241.2 76.9 238.4Q82.9 235.6 89.8 235.6Q96.6 235.6 101.1 237.1Q105.6 238.6 107.8 240.7Q112.3 245.2 113 248.5L113.1 250H114.4L115.8 243.7Q117.4 237 141.1 237Q151.7 237 153.9 240.2Q155.2 242.1 155.5 243.8Q155.8 245.5 155.8 248.8V315.9Q155.8 334.8 143.5 344.7Q131.2 354.6 107.4 354.6Q82.1 354.6 73 349.6Q69 347.4 69 345Q69 341.2 72.1 332Q75.2 322.9 77.9 322.9Q78.6 322.9 82.4 324Q94.6 327.2 102.2 327.2Q109.8 327.2 112.4 325.3Q115 323.4 115 319.2ZM108.6 299.1Q110.4 299.1 111.5 297.8Q112.6 296.5 112.6 294.9V262Q112 258.6 109.1 258.6Q103 258.6 103 278.6Q103 287.9 104.6 293.5Q106.1 299.1 108.6 299.1ZM211 247.1V326Q211 327.7 201.8 328.8Q192.6 329.8 183 329.8Q173.3 329.8 170.5 328.9Q167.7 328 167.7 326V250Q167.7 246.4 176.7 243Q185.8 239.6 196.5 239.6Q211 239.6 211 247.1ZM189.3 205Q199.8 205 205.8 208.1Q211.8 211.2 211.8 219.4Q211.8 233.8 189.4 233.8Q167 233.8 167 219.4Q167 205 189.3 205ZM276.5 319.2V310H275.2Q274.6 310.8 273 312Q271.4 313.2 265 315.2Q258.7 317.3 250.8 317.3Q242.9 317.3 237.4 314.9Q232 312.5 229 308.9Q225.9 305.3 224.2 299.2Q221.4 289.8 221.4 273.6Q221.4 255.1 229.3 245.2Q232.3 241.2 238.3 238.4Q244.3 235.6 251.2 235.6Q258.1 235.6 262.6 237.1Q267 238.6 269.3 240.7Q273.8 245.2 274.4 248.5L274.6 250H275.8L277.3 243.7Q278.9 237 302.6 237Q313.1 237 315.4 240.2Q316.6 242.1 317 243.8Q317.3 245.5 317.3 248.8V315.9Q317.3 334.8 305 344.7Q292.6 354.6 268.8 354.6Q243.5 354.6 234.4 349.6Q230.4 347.4 230.4 345Q230.4 341.2 233.5 332Q236.6 322.9 239.4 322.9Q240 322.9 243.8 324Q256 327.2 263.6 327.2Q271.2 327.2 273.8 325.3Q276.5 323.4 276.5 319.2ZM270.1 299.1Q271.8 299.1 273 297.8Q274.1 296.5 274.1 294.9V262Q273.4 258.6 270.6 258.6Q264.5 258.6 264.5 278.6Q264.5 287.9 266 293.5Q267.5 299.1 270.1 299.1Z"/>
+    <path id="t" d="M492.5 324.4Q480.8 316.5 480.8 291.7V266.8H472.8Q471 266.8 469.8 263.1Q468.5 259.4 468.5 253Q468.5 246.6 470.5 241.7Q472.5 236.8 475.7 236.8H480.8V217.5Q480.8 212.5 490.5 209.5Q500.2 206.4 509.4 206.4Q524 206.4 524 213.6V236.8H535.8Q540 236.8 540 248.8Q540 256.7 538.2 261.7Q536.3 266.8 533.4 266.8H524V296Q524 300.4 527.7 302.2Q531.4 304 534.2 304Q537 304 537.6 306.8Q538.2 309.5 538.2 314.9Q538.2 325.6 535.4 328.4Q532.5 331.1 522.2 331.1Q512 331.1 505.3 329.7Q498.6 328.4 492.5 324.4Z"/>
+  </defs>
+
+  
+
+  <!-- ombre portée des lettres -->
+  <g class="w-encre" fill="currentColor" stroke="currentColor" stroke-width="6" stroke-linejoin="round" transform="translate(10 10)">
+    <use href="#gig"/><use href="#t"/>
+  </g>
+  <!-- lettres gig + t -->
+  <g class="w-lettres" stroke="#111111" stroke-width="6" stroke-linejoin="round">
+    <use href="#gig"/><use href="#t"/>
+  </g>
+
+  <!-- le O : arcs de mouvement, contour (flanc) décalé, face, rond central -->
+  <g transform="translate(328.9 194.2)">
+    <g class="w-encre" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round">
+      <path d="M1.6 37.5A60 60 0 0 1 37.5 1.6"/>
+      <path d="M128.4 92.5A60 60 0 0 1 92.5 128.4"/>
+    </g>
+    <circle class="w-flanc" cx="72" cy="72" r="46" stroke="#111111" stroke-width="7"/>
+    <circle class="w-o" cx="58" cy="58" r="46" stroke="#111111" stroke-width="7"/>
+    <circle cx="58" cy="58" r="13" fill="#111111"/>
+  </g>
+
+  
+</svg></a>
+    <a class="rond" href="https://gigot.app/recherche" target="_blank" rel="noopener" aria-label="Rechercher" data-tip="Rechercher"><svg class="i" aria-hidden="true"><use href="#i-loupe"/></svg></a>
+    <a class="rond" href="https://gigot.app/creer" target="_blank" rel="noopener" aria-label="Ajouter un événement" data-tip="Ajouter un événement"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></a>
+    <a class="rond" href="https://gigot.app/agendas" target="_blank" rel="noopener" aria-label="Mes sorties" data-tip="Mes sorties"><svg class="i" aria-hidden="true"><use href="#i-liste"/></svg><b class="compte" data-compte></b></a>
+    <a class="rond" href="https://gigot.app/sorties/rouen?onglet=commu" target="_blank" rel="noopener" aria-label="Ma commu" data-tip="Ma commu"><svg class="i" aria-hidden="true"><use href="#i-commu"/></svg></a>
+    <button class="rond theme" type="button" id="theme" aria-label="Passer en mode clair" data-tip="Mode clair"><svg class="i lune" aria-hidden="true"><use href="#i-lune"/></svg><svg class="i soleil" aria-hidden="true"><use href="#i-soleil"/></svg></button>
+    <a class="rond moi bord-droit" href="https://gigot.app/connexion" target="_blank" rel="noopener" aria-label="Mon compte" data-tip="Se connecter"><svg class="i" aria-hidden="true"><use href="#i-compte"/></svg></a>
+  </div>
+</header>
+
+<main>
+  <section class="ville wrap" aria-label="Ville">
+    <h1><button class="choix-ville" type="button">Rouen<svg aria-hidden="true"><use href="#i-bas"/></svg><span class="sr">, changer de ville</span></button></h1>
+  </section>
+
+  <div class="filtres-zone wrap">
+    <div class="filtres" role="toolbar" aria-label="Filtres">
+      <button class="puce" type="button" id="f-quand" aria-expanded="false" aria-controls="t-quand">Quand<svg aria-hidden="true"><use href="#i-droite"/></svg></button>
+      <button class="puce" type="button" id="f-cat" aria-expanded="false" aria-controls="t-cat">Catégorie<svg aria-hidden="true"><use href="#i-droite"/></svg></button>
+      <button class="puce" type="button" id="f-journee" aria-pressed="false" data-moment="journee">En journée</button>
+      <button class="puce" type="button" id="f-soiree" aria-pressed="false" data-moment="soiree">En soirée</button>
+      <button class="puce" type="button" id="f-gratuit" aria-pressed="false">Gratuit</button>
+      <button class="puce" type="button" id="f-commu" aria-pressed="false">Ma commu</button>
+      <button class="puce" type="button" id="f-nouveaux" aria-pressed="false">Nouveaux</button>
+    </div>
+    <div class="tiroir" id="t-quand" hidden>
+      <div class="famille"><h3>Quand ?</h3><div>
+        <button class="puce" type="button" aria-pressed="false" data-quand="auj">Aujourd’hui</button>
+        <button class="puce" type="button" aria-pressed="false" data-quand="dem">Demain</button>
+        <a class="puce lien" href="https://gigot.app/sorties/rouen/ce-week-end" target="_blank" rel="noopener">Ce week-end</a>
+        <a class="puce lien" href="https://gigot.app/sorties/rouen/cette-semaine" target="_blank" rel="noopener">Cette semaine</a>
+      </div></div>
+    </div>
+    <div class="tiroir" id="t-cat" hidden></div>
+  </div>
+
+  <div class="wrap" id="liste"></div>
+
+  <section class="fin wrap" id="fin" aria-labelledby="t-fin">
+    <h2 id="t-fin">Tu as tout vu !</h2>
+    <p id="fin-texte">C’était la dernière sortie d’aujourd’hui à Rouen.</p>
+    <div class="choix">
+      <button type="button" class="avec-fleche" id="plus-loin" style="--c: var(--gigot-jaune)">
+        <svg class="fleche" aria-hidden="true"><use href="#i-bas"/></svg>
+        <strong>Je suis prêt à gigoter plus loin</strong><span>Afficher les sorties de demain</span>
+      </button>
+      <a class="avec-fleche" id="plus-loin-lien" href="https://gigot.app/sorties/rouen/cette-semaine" target="_blank" rel="noopener" style="--c: var(--gigot-jaune)" hidden>
+        <svg class="fleche" aria-hidden="true"><use href="#i-sortie"/></svg>
+        <strong>Je suis prêt à gigoter plus loin</strong><span>Voir toute la semaine sur gigot.app</span>
+      </a>
+      <div class="avec-oeil" id="alerte" style="--c: var(--gigot-cyan)" role="group" aria-labelledby="alerte-titre">
+        <strong id="alerte-titre">Dis-moi dès qu’il y a du neuf</strong><span id="alerte-detail">Une alerte quand une sortie arrive à Rouen</span>
+      </div>
+      <a class="avec-fleche" href="https://gigot.app/creer" target="_blank" rel="noopener" style="--c: var(--gigot-rose)">
+        <svg class="fleche" aria-hidden="true"><use href="#i-sortie"/></svg>
+        <strong>Il manque un événement !</strong><span>L’ajouter en deux minutes sur gigot.app</span>
+      </a>
+    </div>
+  </section>
+</main>
+
+<section class="notes" aria-labelledby="t-notes">
+  <div class="wrap">
+    <h2 id="t-notes">Notes de maquette</h2>
+    <div>
+      <h3>Ce qui a changé</h3>
+      <ul>
+        <li><b>Barre du haut</b> : le mot « gigot » seul, à plat, puis des pictos ronds (rechercher, ajouter, mes sorties, ma commu, clair/sombre, compte). Leur nom apparaît en infobulle au survol.</li>
+        <li><b>Clair / sombre</b> : la page suit le réglage de l’appareil ; le soleil ou la lune impose l’autre mode et s’en souvient. En clair, le logo passe en lettres roses et le contour des photos devient noir.</li>
+        <li><b>Cartes</b> : une photo et un titre, rien d’autre. Au survol, après un court temps, la carte grandit et révèle l’horaire, le prix, le lieu, les catégories, « Garder » et le chevron <i>Plus d’infos</i>.</li>
+        <li><b>Chevron</b> : il ouvre la fiche au centre de la page avec l’API View Transitions. Au doigt, toucher la carte ouvre directement la fiche.</li>
+        <li><b>Créneaux</b> : l’heure reste à gauche et se replie d’un clic. Repliée, elle garde le nombre de sorties et leurs couleurs.</li>
+        <li><b>Fin de liste</b> : trois choix. « Plus loin » ajoute demain, puis renvoie vers la semaine sur gigot.app.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Couleur des aplats par catégorie</h3>
+      <div class="palette" id="legende"></div>
+    </div>
+    <div>
+      <h3>Ce que la maquette ne fait pas</h3>
+      <ul>
+        <li>« Ma commu » demande un compte : la maquette montre l’écran d’invitation.</li>
+        <li>« Dis-moi dès qu’il y a du neuf » change d’état mais ne crée aucune alerte.</li>
+        <li>Aucune sortie gratuite aujourd’hui ni demain à Rouen : le filtre renvoie vers la liste gratuite de gigot.app.</li>
+        <li>Données : 75 sorties d’aujourd’hui et de demain relevées sur gigot.app le 27 octobre.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>À trancher</h3>
+      <ol>
+        <li>Délai avant l’aperçu (0,28 s) et grossissement (×1,16) : plus vif, plus calme ?</li>
+        <li>Les créneaux repliables : utiles pour aller vite, ou un repli par jour suffit ?</li>
+        <li>« Nouveaux » en filtre, ou une simple étiquette sur la photo (déjà affichée) ?</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<script src="../bouton/gigot-button.js"></script>
+<script src="../aplats/aplats.js"></script>
+<script>
+(function () {
+  'use strict';
+  var SORTIES = [{"j": "auj", "t": "Rouen-Norvège par Fred Ivar Klemetsen & le festival Les Boréales", "lieu": "Rouen", "heure": "9h", "moment": "journee", "cats": ["Expositions"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/00", "href": "https://gigot.app/evenement/rouen-norvege-par-fred-ivar-klemetsen-le-festival-les-boreales-2ebc8c670f51", "quand": "MARDI 27 OCTOBRE · 9H → 28 OCT.", "ou": "Rouen", "adresse": "19 Place de la Basse-Vieille-Tour, 76000 Rouen", "desc": "Automne Curieux", "source": "www.infolocale.fr", "r": 2.0}, {"j": "auj", "t": "Gens de Malraux, en images et en mots", "lieu": "Rouen", "heure": "9h", "moment": "journee", "cats": ["Conférences & savoirs"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/01", "href": "https://gigot.app/evenement/gens-de-malraux-en-images-et-en-mots-9e30ab9cb1b4", "quand": "MARDI 27 OCTOBRE · 9H → 14 NOV.", "ou": "Rue François-Couperin, Rouen", "adresse": "76000 Rouen", "desc": "Automne Curieux", "source": "www.infolocale.fr", "r": 2.0}, {"j": "auj", "t": "Exposition \"Histoire de(s) cimetières\"", "lieu": "Saint-Étienne-du-Rouvray", "heure": "10h", "moment": "journee", "cats": ["Expositions"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/02", "href": "https://gigot.app/evenement/exposition-histoire-de-s-cimetieres-4bc01b48096d", "quand": "MARDI 27 OCTOBRE · 10H → 30 OCT.", "ou": "Saint-Étienne-du-Rouvray", "adresse": "271 rue de Paris, 76800 Saint-Étienne-du-Rouvray", "desc": "L'Athipat (Atelier histoire et patrimoine de Saint-Étienne-du-Rouvray) prouve que la visite des cimetières n'a rien de morbide.", "source": "www.infolocale.fr", "r": 1.3333}, {"j": "auj", "t": "Exposition photo \"Dans la rue\"", "lieu": "Saint-Étienne-du-Rouvray", "heure": "10h", "moment": "journee", "cats": ["Expositions"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/03", "href": "https://gigot.app/evenement/exposition-photo-dans-la-rue-6713b0c4a8a2", "quand": "MARDI 27 OCTOBRE · 10H → 27 NOV.", "ou": "Saint-Étienne-du-Rouvray", "adresse": "76800 Saint-Étienne-du-Rouvray", "desc": "Durant la saison 2025-2026, les adhérentes et adhérents de l’atelier photo se sont confrontés à un thème difficile où l’humain est le principal élément de sa prise de vue…", "source": "www.infolocale.fr", "r": 1.4981}, {"j": "auj", "t": "Windows Art le concept novateur depuis 1999", "lieu": "Rouen", "heure": "10h", "moment": "journee", "cats": ["Expositions"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/04", "href": "https://gigot.app/evenement/windows-art-le-concept-novateur-depuis-1999-34929b6eca98", "quand": "MARDI 27 OCTOBRE · 10H → 31 JANV. 2027", "ou": "Rouen", "adresse": "8, rue Eugène Boudin", "desc": "Louis Runemberg est un artiste pluridisciplinaire, peintre, sculpteur et photographe français né le 25 mars 1969 à Mont-Saint-Aignan (Normandie). Reconnu pour sa démarche multidisciplinaire, il réside et travaille principalement à Sotteville-lès-Rouen. Formé à l’École Régionale des Beaux-Arts de Rouen, il développe une expertise en dessin, sculpture, modelage et peinture à l’huile. Sa doctrine privilégie la liberté totale de création et refuse la simple représentation de la réalité. Il oscille entre des œuvres figuratives (paysages normands, marines, vues urbaines) et des compositions plus abstraites. En 1999, il crée le concept du Windows Art, qui juxtapose plusieurs images sur une même toile pour démultiplier les perspectives visuelles et susciter des réponses émotionnelles variées chez le spectateur. Ce travail est étudié dans l’histoire de l’art et enseigné dans l’Éducation nationale. Notoriété et expositions : il est membre de la Fondation Taylor, de la Maison des Artistes et de l’ADAGP. Il est peintre officiel de l’Armada de Rouen depuis 1999 et a participé à des ventes aux enchères à l’Hôtel Drouot. Ses créations ont voyagé à l’international, notamment en Suisse (Genève, Davos, Berne). Il collabore régulièrement avec des institutions normandes lors de performances artistiques au Musée des Beaux-Arts de Rouen ou lors d’expositions à La Galerie de Rouen.", "source": "www.infolocale.fr", "r": 2.2222}, {"j": "auj", "t": "Ateliers de conversation en français", "lieu": "Rouen", "heure": "10h", "moment": "journee", "cats": ["Famille & ateliers"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/05", "href": "https://gigot.app/evenement/ateliers-de-conversation-en-francais-85332d45eff0", "quand": "MARDI 27 OCTOBRE · 10H–11H", "ou": "Place de Châtelet, Rouen", "adresse": "76000 Rouen", "desc": "Vous apprenez le français ? Ce rendez-vous est pour vous !", "source": "www.infolocale.fr", "r": 0.813}, {"j": "auj", "t": "Escales Exotiques - Exposition de Marie Détrée - Peintre de la Marine", "lieu": "Rouen", "heure": "10h", "moment": "journee", "cats": ["Expositions"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/06", "href": "https://gigot.app/evenement/escales-exotiques-exposition-de-marie-detree-peintre-de-la-marine-c9c468492f26", "quand": "MARDI 27 OCTOBRE · 10H → 30 OCT.", "ou": "Rouen", "adresse": "23, rue Saint-Nicolas", "desc": "La Galerie - L’Art des Marines a le plaisir d’annoncer la nouvelle exposition de Marie Détrée - Peintre Officiel de la Marine. Située au cœur du centre historique de Rouen, à quelques pas de la Cathédrale, La Galerie L’Art des Marines célèbre la mer sous toutes ses formes, à travers les peintures, sculptures d’une quinzaine d’artistes contemporains.", "source": "www.infolocale.fr", "r": 1.0}, {"j": "auj", "t": "Impact : la biodiversité en questions [Exposition]", "lieu": "Rouen", "heure": "10h", "moment": "journee", "cats": ["Expositions"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/07", "href": "https://gigot.app/evenement/impact-la-biodiversite-en-questions-exposition-f953d9d10b90", "quand": "MARDI 27 OCTOBRE · 10H → 16 MAI 2027", "ou": "Quai de Boisguilbert, Rouen", "adresse": "76000 Rouen", "desc": "Le Pavillon des Transitions vous propose une grande exposition consacrée à la biodiversité.", "source": "www.infolocale.fr", "r": 0.7505}, {"j": "auj", "t": "Dictionnaire (presque) complet de la photographie • O - Ouverture • EOP - Espaces d'Œuvres Photographiques • Réseau LUX", "lieu": "Rouen", "heure": "10h", "moment": "journee", "cats": ["Expositions", "Famille & ateliers"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/08", "href": "https://gigot.app/evenement/dictionnaire-presque-complet-de-la-photographie-o-ouverture-eop-espaces-d-uvres-9248e40c2eb1", "quand": "MARDI 27 OCTOBRE · 10H → 29 NOV.", "ou": "Rouen", "adresse": "48 rue Victor Hugo 76000 ROUEN", "desc": "Le festival EOP - Espaces d'Œuvres Photographiques a choisi la lettre O comme Ouverture pour le Dictionnaire (presque) complet de la photographie édité par le Réseau LUX.", "source": "www.infolocale.fr", "r": 1.0}, {"j": "auj", "t": "Tous Differents Tous Attachants", "lieu": "Rouen", "heure": "11h", "moment": "journee", "cats": ["Famille & ateliers", "Théâtre & spectacles"], "prix": "Dès 10,95 €", "gratuit": false, "nouveau": false, "photo": "photos/09", "href": "https://gigot.app/evenement/tous-differents-tous-attachants-35ae14471f2d", "quand": "MARDI 27 OCTOBRE · 11H → 1 NOV.", "ou": "THEATRE A L'OUEST, Rouen", "adresse": "26 quai Gaston Boulet, 76000 Rouen", "desc": "Ce soir, Sacha ne trouve pas le sommeil...", "source": "www.ticketmaster.fr", "r": 1.7778}, {"j": "auj", "t": "Cité Immersive Viking", "lieu": "Rouen", "heure": "12h15", "moment": "journee", "cats": ["Balades & patrimoine", "Fêtes & gastronomie"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/10", "href": "https://gigot.app/evenement/cite-immersive-viking-3417c83f9b07", "quand": "MARDI 27 OCTOBRE · 12H15 → 30 DÉC.", "ou": "Rouen", "adresse": "Hangar 105 Allée François Mitterrand 76100 ROUEN", "desc": "La Cité Immersive Viking propose une expérience pédagogique et immersiveà la découverte de l’univers fascinant des vikings en Normandie, afin d’en raconter l’histoire.\nPoints clés :\nParcours sensoriel et historique hors du commun\n1000 m2 de scénographie innovante\nPour tous les publics\n60° de spectacle video-mapping\n1h0-2h00 d’expérience unique\nEmplacement idéal à Rouen : Installée sur les quais de Seine, côté rive gauche, la Cité Immersive Viking offre un accès facile aux visiteurs locaux et aux touristes, à 15 minutes du centre historique\nDécouvrez l'incroyable histoire de la Normandie, la terre des Hommes du Nord. Il y a plus de mille ans, une nouvelle menace s’abattait sur l’Europe occidentale : des vikings assoiffés d’or débarquaient de Scandinavie. Comment, par un incroyable miracle de l’Histoire, le chef des vikings est-il devenu le fondateur de l’Empire normand ? À travers les 6 salles du parcours et grâce à des technologies de pointe, préparez-vous à voyager dans le temps pour découvrir, vivre et ressentir l’Histoire grandeur nature.\nUne immersion totale dans la vie fascinante de Rollon, premier viking devenu normand. Un plongeon dans la culture, les traditions et les légendes scandinaves des vikings installés à Rouen.\nLes 5 sens en éveil :\nDes objets vikings authentiques (IX et Xe siècles), véritable trésor patrimonial\nDes décors historiques monumentaux et interactifs\nDes projections vidéo à 60°\nDes immersions sonores spatialisées D\nDurée du parcours : 1h0-2h", "source": "www.seine-maritime-tourisme.com", "r": 1.3333}, {"j": "auj", "t": "Exposition ZOOnose de Christel JEANNE", "lieu": "Rouen", "heure": "13h30", "moment": "journee", "cats": ["Expositions"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/11", "href": "https://gigot.app/evenement/exposition-zoonose-de-christel-jeanne-eba4b8fb00e9", "quand": "MARDI 27 OCTOBRE · 13H30 → 20 NOV.", "ou": "Rouen", "adresse": "80 Boulevard de l'Yser", "desc": "Ouvert du lundi au vendredi de 13h30 à 17h30, à l’exception des 6, 7, 8, 20, 22 octobre et 3, 4, 5, 19 novembre Le vernissage aura lieu le mercredi 30 septembre à 18h30. L'inscription est obligatoire. Pendant ce temps suspendu du premier confinement, Christel JEANNE est partie à la recherche de tous ces animaux qui semblaient avoir repris possession de leur territoire, ou plutôt du nôtre : la ville ! La presse évoquait l’apparition de lièvres, de renards, de cerfs et de biches déambulant librement dans les rues des villes, la réalité s’est avérée toute autre. Mis à part quelques canards, pigeons et moineaux, Paris restait déserte et muette. L’idée s’est imposée, si elle désirait voir surgir ce monde imaginaire et magique où tout un bestiaire d’espèces rares et menacées s’inviterait dans les rues de Paris en visiteurs inattendus, il fallait donc l’inventer et tenter de répondre ainsi aux attentes de ce fantasme collectif. Elle a donc fait échapper les animaux du Parc Zoologique de Paris dans la ville. Ainsi l’histoire de ces bêtes extraordinaires dans Paris pouvait être racontée… * Les Zoonoses sont des maladies ou infections qui se transmettent des animaux vertébrés à l’homme et vice versa. Les pathogènes en cause peuvent être des bactéries, des virus ou des parasites.", "source": "www.infolocale.fr", "r": 1.4981}, {"j": "auj", "t": "Ateliers Fantômes", "lieu": "Rouen", "heure": "14h", "moment": "journee", "cats": ["Famille & ateliers"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/12", "href": "https://gigot.app/evenement/ateliers-fantomes-16973bdc16af", "quand": "MARDI 27 OCTOBRE · 14H → 30 OCT.", "ou": "Rue François-Couperin, Rouen", "adresse": "76000 Rouen", "desc": "Automne Curieux", "source": "www.infolocale.fr", "r": 2.0}, {"j": "auj", "t": "Les Fêtes Macabres - Les Monstres de l'Aître", "lieu": "Rouen", "heure": "14h", "moment": "journee", "cats": ["Théâtre & spectacles"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/13", "href": "https://gigot.app/evenement/les-fetes-macabres-les-monstres-de-l-aitre-4221efd1d874", "quand": "MARDI 27 OCTOBRE · 14H → 28 OCT.", "ou": "Rouen", "adresse": "186, rue Martainville, 76000 Rouen", "desc": "Rendez-vous du 21 au 28 octobre 2026 pour une nouvelle édition des Fêtes Macabres, placée cette année sous le signe des monstres !", "source": "www.infolocale.fr", "r": 0.8}, {"j": "auj", "t": "Petit-Quevilly et ses usines : une histoire de cohabitation", "lieu": "Le Petit-Quevilly", "heure": "14h", "moment": "journee", "cats": ["Conférences & savoirs"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/14", "href": "https://gigot.app/evenement/petit-quevilly-et-ses-usines-une-histoire-de-cohabitation-12dfb8152537", "quand": "MARDI 27 OCTOBRE · 14H → 31 OCT.", "ou": "Rue François-Mitterrand, Le Petit-Quevilly", "adresse": "Petit-Quevilly", "desc": "Exposition à découvrir !", "source": "www.infolocale.fr", "r": 0.8}, {"j": "auj", "t": "EOP", "lieu": "Rouen", "heure": "14h", "moment": "journee", "cats": ["Expositions"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/15", "href": "https://gigot.app/evenement/eop-4382e148d0af", "quand": "MARDI 27 OCTOBRE · 14H → 28 NOV.", "ou": "Rouen", "adresse": "48 rue Victor-Hugo, 76000 Rouen", "desc": "Automne Curieux", "source": "www.infolocale.fr", "r": 2.0}, {"j": "auj", "t": "Plein les yeux ! Une histoire animale du livre photographique pour enfants", "lieu": "Rouen", "heure": "14h", "moment": "journee", "cats": ["Expositions"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/16", "href": "https://gigot.app/evenement/plein-les-yeux-une-histoire-animale-du-livre-photographique-pour-enfants-5cae5083788c", "quand": "MARDI 27 OCTOBRE · 14H → 30 JANV. 2027", "ou": "Rouen", "adresse": "15 rue de la Chaîne, 76000 Rouen, France", "desc": "Pour inaugurer le bicentenaire de la naissance de la photographie, l’exposition \"Plein les yeux\" propose de célébrer le jeune âge et l’histoire en se penchant sur le livre photographique pour enfants. Longtemps méconsidéré, il s’avère pourtant constituer une forme artistique à part entière dont les photographes se sont saisis d’emblée avec entrain, faisant preuve d’une très grande inventivité pour créer autour de leurs images des fictions, des livres d’apprentissage ou des albums novateurs. Par le prisme de la figure animale, l’exposition met en lumière la pluralité des formes du livre photographique pour enfants – de l’objet documentaire au récit visuel, du manifeste esthétique à l’imagier poétique. Associant ouvrages et tirages modernes et d’époque, elle réunit les créations de David Crossley, Dominique Darbois, Robert Doisneau, Charles Fréger, Tana Hoban, Frank Horvat, Xavier Lambours, Thérèse Le Prat, Jean Lecointre, Marc Riboud, Alexandre Rodtchenko, Jean Tourane, Tomi Ungerer, William Wegman et Ylla. Commissaire associée : Laurence Le Guen. L’exposition est labellisée par le ministère de la Culture et s’inscrit dans la programmation officielle du Bicentenaire de la Photographie. Avec le soutien de la Médiathèque du Patrimoine et de la Photographie et le fonds patrimonial Heure Joyeuse (médiathèque Françoise-Sagan, Ville de Paris).", "source": "www.infolocale.fr", "r": 1.5038}, {"j": "auj", "t": "Je gargouille, tu gargouilles… (7-12 ans)", "lieu": "Rouen", "heure": "14h", "moment": "journee", "cats": ["Famille & ateliers"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/17", "href": "https://gigot.app/evenement/je-gargouille-tu-gargouilles-7-12-ans-7e8ee420af73", "quand": "MARDI 27 OCTOBRE · 14H–17H", "ou": "Atelier du patrimoine, Rouen", "adresse": "27, rue Victor Hugo, Rouen", "desc": "Découverte des gargouilles de Rouen suivie d'un atelier de modelage", "source": "openagenda.com", "r": 1.6194}, {"j": "auj", "t": "Plein les yeux !", "lieu": "Rouen", "heure": "14h", "moment": "journee", "cats": ["Expositions"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/18", "href": "https://gigot.app/evenement/plein-les-yeux-cf240cab11dc", "quand": "MARDI 27 OCTOBRE · 14H → 30 JANV. 2027", "ou": "Rouen", "adresse": "15, rue de la Chaîne, Rouen", "desc": "Automne Curieux", "source": "www.infolocale.fr", "r": 2.0}, {"j": "auj", "t": "Territoire & climat : comprendre, débattre, agir", "lieu": "Rouen", "heure": "14h", "moment": "journee", "cats": ["Expositions"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/19", "href": "https://gigot.app/evenement/territoire-climat-comprendre-debattre-agir-e88632bd5799", "quand": "MARDI 27 OCTOBRE · 14H → 31 DÉC.", "ou": "Rouen", "adresse": "48, rue Victor-Hugo", "desc": "En Normandie, le changement climatique est déjà à l’œuvre dans nos territoires. Les paysages évoluent sous l’effet de plusieurs transformations désormais observables : hausse des températures, modification des régimes de pluie et multiplication des évènements extrêmes, recul du trait de côte. Ces transformations interrogent directement nos manières d’habiter, de produire et d’aménager. L’exposition propose d’explorer ces mutations en s’appuyant sur les travaux scientifiques du GIEC normand. Elle éclaire les évolutions climatiques en cours et donne à voir des initiatives déjà engagées sur le terrain. À travers des projets d’architecture, d’urbanisme et de paysage, l’exposition montre comment communes, acteurs publics, professionnels et habitants expérimentent de nouvelles façons d’aménager les territoires et d’adapter les modes de vie face aux transformations climatiques. Parce que le climat redéfinit déjà les conditions d’aménagement et d’habitation, cette exposition invite chacun à comprendre les évolutions en cours, débattre des choix à venir et imaginer collectivement les territoires de demain.", "source": "www.infolocale.fr", "r": 1.2121}, {"j": "auj", "t": "Ateliers Pour de vrai ?", "lieu": "Rouen", "heure": "14h", "moment": "journee", "cats": ["Famille & ateliers"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/20", "href": "https://gigot.app/evenement/ateliers-pour-de-vrai-f1a9855aae0d", "quand": "MARDI 27 OCTOBRE · 14H → 30 OCT.", "ou": "Hangar 107 Centre d'Art. 107, Rouen", "adresse": "Rouen", "desc": "Automne Curieux", "source": "openagenda.com", "r": 2.0}, {"j": "auj", "t": "Windows Art Nouvelle collection, Windows Church", "lieu": "Rouen", "heure": "14h", "moment": "journee", "cats": ["Expositions"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/21", "href": "https://gigot.app/evenement/windows-art-nouvelle-collection-windows-church-da774403021f", "quand": "MARDI 27 OCTOBRE · 14H → 31 DÉC.", "ou": "Rouen", "adresse": "8, rue Eugène Boudin", "desc": "La Résidence présente la nouvelle collection Louis Runemberg. La Résidence présente Louis Runemberg artiste peintre référence de l'histoire de l'art, peintre de l'Armada de Rouen depuis 1999, créateur du concept Windows Art, membre de la fondation Taylor et de l'Adagp. Les œuvres de Louis Runemberg sont présentes dans de nombreuses collections publiques et privées en France et à l'étranger. Présent sur Artprice et autres références de cotation, présent dans le Benezit. Il entre à l'âge de 14 ans au cours de dessin l'école des beaux-arts de Rouen de 1984 à 1987. A 18 ans il est accepté à l'Académie de peinture de l'école des beaux-arts de Rouen sous la direction de Christian Sauvé. De 1987 à 1989 puis de 1996 à 2002. Aitre Saint Maclou lieu de nostalgie et lieu d'inspiration Exposition permanente à la Résidence Exposition permanente aussi Galerie de Rouen. Reproduction d'art numérotée signée à la demande avec petit tirage", "source": "www.infolocale.fr", "r": 0.5326}, {"j": "auj", "t": "Stage Bleu soleil", "lieu": "Rouen", "heure": "14h", "moment": "journee", "cats": ["Expositions", "Famille & ateliers"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/22", "href": "https://gigot.app/evenement/stage-bleu-soleil-f0aabaddd909", "quand": "MARDI 27 OCTOBRE · 14H–16H30", "ou": "Rouen", "adresse": "27 rue Victor-Hugo, 76000 Rouen", "desc": "Automne Curieux", "source": "www.infolocale.fr", "r": 2.0}, {"j": "auj", "t": "Professeur Cyrano - Vive le Théâtre", "lieu": "Rouen", "heure": "14h30", "moment": "journee", "cats": ["Théâtre & spectacles"], "prix": "Dès 10,95 €", "gratuit": false, "nouveau": false, "photo": "photos/23", "href": "https://gigot.app/evenement/professeur-cyrano-vive-le-theatre-9635d2067850", "quand": "MARDI 27 OCTOBRE · 14H30 → 29 OCT.", "ou": "Théâtre à l'Ouest, Rouen", "adresse": "26 quai Gaston Boulet, 76000 Rouen", "desc": "Le Professeur Cyrano va vous dévoiler les secrets du monde du théâtre. Son ami Filou le rejoint sur scène pour lui donner la réplique. Mais tout ne va pas se passer comme prévu car Filou, qui en plus de comprendre tout de travers, commence à avoir le trac... Pas de panique ! Le Professeur Cyrano est là pour prouver aux enfants que tout est possible ! Une pincée de confiance en soi, un soupçon d'émotions, de l'humour à profusion, c'est la recette de ce spectacle interactif qui met en avant la positivité.   Une comédie pour enfants à partir de 4 ans de Cyril Ledoublée Avec Cyril Ledoublée et Eric Brulé", "source": "www.infolocale.fr", "r": 1.0}, {"j": "auj", "t": "Création Lanternes de l'horreur [Atelier Créatif]", "lieu": "Rouen", "heure": "14h30", "moment": "journee", "cats": ["Famille & ateliers"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/24", "href": "https://gigot.app/evenement/creation-lanternes-de-l-horreur-atelier-creatif-aa8cd4eaddf6", "quand": "MARDI 27 OCTOBRE · 14H30 → 1 NOV.", "ou": "Pavillon des transitions, Rouen", "adresse": "Quai de Boisguilbert, 76000 Rouen", "desc": "À partir de bocaux ou de petits contenants de récupération, création de lanternes effrayantes décorées avec des papiers colorés, silhouettes de monstres et motifs lumineux.", "source": "my.weezevent.com", "r": 2.1277}, {"j": "auj", "t": "Professeur Biscoto", "lieu": "Rouen", "heure": "14h30", "moment": "journee", "cats": ["Famille & ateliers", "Théâtre & spectacles"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/25", "href": "https://gigot.app/evenement/professeur-biscoto-e32bac91c387", "quand": "MARDI 27 OCTOBRE · 14H30", "ou": "THEATRE A L'OUEST, Rouen", "adresse": "26 QUAI GASTON BOULET", "desc": "", "source": "www.ticketmaster.fr", "r": 1.7778}, {"j": "auj", "t": "Les incontournables", "lieu": "Rouen", "heure": "15h", "moment": "journee", "cats": ["Balades & patrimoine"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/26", "href": "https://gigot.app/evenement/les-incontournables-de7d0592ba10", "quand": "MARDI 27 OCTOBRE · 15H", "ou": "Rouen", "adresse": "Esplanade Marcel Duchamp 76000", "desc": "Suivez le guide à la découverte des trésors de la capitale normande\nRencontrer une ville, c'est en découvrir les plus beaux trésors et en savourer l'Histoire ! Suivez le guide, de la Cathédrale à la Place du Vieux Marché, découvrez les maisons à pans de bois et vibrez au souvenir de Jeanne d'Arc. Anecdotes, repères historiques et surprises architecturales sont au programme !", "source": "www.seine-maritime-tourisme.com", "r": 1.3333}, {"j": "auj", "t": "Rouen en famille", "lieu": "Rouen", "heure": "15h", "moment": "journee", "cats": ["Balades & patrimoine"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/27", "href": "https://gigot.app/evenement/rouen-en-famille-4fff3f0b9693", "quand": "MARDI 27 OCTOBRE · 15H → 5 MARS 2027", "ou": "Esplanade Marcel Duchamp, Rouen", "adresse": "", "desc": "Suivez le guide à la découverte des trésors de la capitale normande\nRencontrer une ville, c'est en découvrir les plus beaux trésors et en savourer l'Histoire ! Suivez le guide, de la Cathédrale à la Place du Vieux Marché, découvrez les maisons à pans de bois et vibrez au souvenir de Jeanne d'Arc. Anecdotes, repères historiques et surprises architecturales sont au programme !", "source": "www.infolocale.fr", "r": 1.4981}, {"j": "auj", "t": "Visite balade sensorielle et gourmande", "lieu": "Saint-Martin-de-Boscherville", "heure": "16h", "moment": "journee", "cats": ["Balades & patrimoine", "Famille & ateliers"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/28", "href": "https://gigot.app/evenement/visite-balade-sensorielle-et-gourmande-53edf2c9af4f", "quand": "MARDI 27 OCTOBRE · 16H → 31 OCT.", "ou": "Saint-Martin-de-Boscherville", "adresse": "Place de l'abbaye 76840 SAINT-MARTIN-DE-BOSCHERVILLE", "desc": "Découvrez les Jardins de l'Abbaye Saint-Georges avec vos sens : regardez, sentez, goûtez, écoutez, touchez !", "source": "www.seine-maritime-tourisme.com", "r": 1.3333}, {"j": "auj", "t": "Voile et traces - esprits d'ici et ailleurs", "lieu": "Rouen", "heure": "16h", "moment": "journee", "cats": ["Expositions"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/29", "href": "https://gigot.app/evenement/voile-et-traces-esprits-d-ici-et-ailleurs-922c5178efad", "quand": "MARDI 27 OCTOBRE · 16H → 30 OCT.", "ou": "Rouen", "adresse": "16 rue Duguay-Trouin, 76000 Rouen", "desc": "Automne Curieux", "source": "www.infolocale.fr", "r": 2.0}, {"j": "auj", "t": "Promenade nocturne à l'écoute des animaux de la forêt", "lieu": "Orival (76)", "heure": "18h30", "moment": "soiree", "cats": ["Balades & patrimoine", "Fêtes & gastronomie"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/30", "href": "https://gigot.app/evenement/promenade-nocturne-a-l-ecoute-des-animaux-de-la-foret-7eb962d06b44", "quand": "MARDI 27 OCTOBRE · 18H30", "ou": "Rouen, Orival (76)", "adresse": "La Maison des forêts Allée des Roches 76500 Orival", "desc": "Participez en famille à une balade commentée dans une forêt d'exception à la découverte de la faune nocturne.\nA la tombée de la nuit, venez-vous balader en famille accompagné d’un animateur nature dans la forêt de la Londe Rouvray labélisée forêt d’exception.\nTous vos sens seront en éveil : les odeurs décuplées, vos yeux s’habitueront à l’obscurité et votre ouïe s’affinera. Partez à la rencontre des habitants de la forêt et écoutez les cris des animaux et les bruits de la nuit.\nUne expérience originale pour appréhender la nature autrement sur un parcours de 3km.\nUn atelier pour les enfants ponctuera cette balade avec la fabrication d’une chauve-souris.", "source": "www.seine-maritime-tourisme.com", "r": 1.3333}, {"j": "auj", "t": "Cluedo - Carnage à l'asile", "lieu": "Rouen", "heure": "19h", "moment": "soiree", "cats": ["Famille & ateliers"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/31", "href": "https://gigot.app/evenement/cluedo-carnage-a-l-asile-59687aa9b0e4", "quand": "MARDI 27 OCTOBRE · 19H–21H", "ou": "Quais de Boisguilbert, Rouen", "adresse": "", "desc": "À Rouen. Une murder party se déroule dans l'asile de Saint-Damien, fermé depuis des décennies. Un médecin est retrouvé mort, et les participants doivent résoudre ce meurtre en interrogeant des personnages et en examinant des indices.", "source": "www.infolocale.fr", "r": 0.789}, {"j": "auj", "t": "NOAPOLOGY / ODC // Le Fury Défendu", "lieu": "Rouen", "heure": "19h", "moment": "soiree", "cats": ["Musique", "Théâtre & spectacles"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/32", "href": "https://gigot.app/evenement/noapology-odc-le-fury-defendu-e6f9724b04ca", "quand": "MARDI 27 OCTOBRE · 19H–23H59", "ou": "Rouen", "adresse": "2 Quai Pierre Corneille, 76000 Rouen, France", "desc": "NOAPOLOGY - Alternative Modern Metal (Ukraine) NOAPOLOGY sera au Fury Défendu pour sa première tournée en Europe ! Le groupe fusionne les éléments les plus puissants du hard rock à voix féminine et…", "source": "www.infolocale.fr", "r": 1.9139}, {"j": "auj", "t": "Cluedo Géant - Carnage à l'asile", "lieu": "Rouen", "heure": "19h", "moment": "soiree", "cats": ["Cinéma", "Fêtes & gastronomie"], "prix": "Dès 15 €", "gratuit": false, "nouveau": false, "photo": "photos/33", "href": "https://gigot.app/evenement/cluedo-geant-carnage-a-l-asile-e7e536bb346f", "quand": "MARDI 27 OCTOBRE · 19H–21H30", "ou": "Rouen", "adresse": "Quai de Boisguilbert 76000 ROUEN", "desc": "Événement exceptionnel\n__________________________________\nSavez-vous ce qu’est une murder party ? Vous incarnez des enquêteurs·trices qui doivent résoudre un crime mystérieux en interrogeant des personnages, en examinant des indices et en révélant le coupable.\n_____________________________\nLe scénario ?\n« Carnage à l’asile ». Dans cet asile, la folie n’est pas la pire menace…\nFermé depuis des décennies, l’asile de Saint-Damien ouvre ses portes pour une expérience unique : confronter ses patients au public.\nMais quand un médecin est retrouvé mort, la séance vire au cauchemar.\nUn meurtrier rôde… et vous êtes enfermé·es avec lui.\nL’expérience devait être scientifique.\nElle sera sanglante.\nBienvenue dans l’asile interdit.\n_______________________________\nAu Bureau, Quais de Boisguilbert, Rouen\n15€ par joueur, 1H30 de jeu\nÀ partir de 16 ans.\nPlus d’informations :\n0781121529\nlookatcitygame@gmail.com", "source": "www.normandie-tourisme.fr", "r": 1.5038}, {"j": "auj", "t": "Cours de théâtre adultes à Notre-Dame-De Bondeville", "lieu": "Notre-Dame-de-Bondeville", "heure": "19h30", "moment": "soiree", "cats": ["Famille & ateliers", "Théâtre & spectacles"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/34", "href": "https://gigot.app/evenement/cours-de-theatre-adultes-a-notre-dame-de-bondeville-c36c8967c439", "quand": "MARDI 27 OCTOBRE · 19H30 → 6 JUIN 2027", "ou": "Notre-Dame-de-Bondeville", "adresse": "3, rue Victor Hugo", "desc": "La Fabrik Direction des cours par des artistes professionnels, pour élever des personnes à l’esprit créatif et artistique. Nous proposons des cours de théâtre adultes Deux représentations de fin d’année à la salle André Gide de Notre-Dame-de Bondeville. Des lectures en plein air avec les artistes en herbe de la Fabrik, des actions ponctuelles . Dirigé par Gwen Buhot Travail approfondi de l’acteur, de la scène, du texte et de la dramaturgie.Création d’une pièce complète avec de grands rôles à défendre. 2 restitutions et représentations publiques. Reprise des spectacles de fin d’année.", "source": "www.infolocale.fr", "r": 1.5038}, {"j": "auj", "t": "Rouen-Cergy-Pontoise", "lieu": "Rouen", "heure": "20h", "moment": "soiree", "cats": ["Sport"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/35", "href": "https://gigot.app/evenement/rouen-cergy-pontoise-a6fa276dd617", "quand": "MARDI 27 OCTOBRE · 20H–22H30", "ou": "Patinoire Nathalie-Péchalat, Rouen", "adresse": "Avenue Jacques-Chastellain, 76000 Rouen", "desc": "Journée 13 de Synerglace ligue Magnus", "source": "rhe76.com", "r": 1.6327}, {"j": "dem", "t": "Art nouveau, art déco en Seine-Maritime", "lieu": "Rouen", "heure": "Toute la journée", "moment": "journee", "cats": ["Expositions"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/36", "href": "https://gigot.app/evenement/art-nouveau-art-deco-en-seine-maritime-1e7a05543809", "quand": "MERCREDI 28 OCTOBRE → SAMEDI 16 JANVIER 2027", "ou": "Tour des Archives de Rouen, Rouen", "adresse": "42 Rue Henri II Plantagenêt", "desc": "Le tournant du XXe siècle connaît une période de renouveau de l’architecture et des arts décoratifs, notamment par le biais de deux mouvements européens majeurs que sont l’Art nouveau puis l’Art déco. De nombreux bouleversements politiques, artistiques, sociaux et technologiques amènent alors les architectes et décorateurs à développer la notion de « beau utile » : la fonction de l’objet ne doit pas empêcher son esthétique, qui embellit la vie quotidienne.\nL’exposition présentée aux Archives départementales interroge la place de ces courants sur notre territoire, réputé en retrait. Quels sont les motifs, codes, matériaux et acteurs de ces styles et comment se diffusent-ils au sein de la population ? Elle s’accompagne d’une publication richement illustrée, coéditée avec les éditions des méandres.", "source": "www.infolocale.fr", "r": 1.4981}, {"j": "dem", "t": "Destination IA – l’expo qui casse les codes", "lieu": "Rouen", "heure": "Toute la journée", "moment": "journee", "cats": ["Expositions", "Famille & ateliers"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/37", "href": "https://gigot.app/evenement/destination-ia-l-expo-qui-casse-les-codes-261f57b763a0", "quand": "MERCREDI 28 OCTOBRE → DIMANCHE 31 OCTOBRE 2027", "ou": "Rouen", "adresse": "115 Boulevard de l'Europe", "desc": "Deux robots vous accueillent à l’entrée… et l’exploration peut commencer !\nÀ l’Atrium situé à Rouen, l’exposition DESTINATION IA vous invite à découvrir l’intelligence artificielle à travers un parcours interactif et surprenant.\nMontez à bord d’un tracteur connecté, testez un véhicule autonome, explorez une salle d’opération high-tech ou plongez dans les coulisses du numérique. Jeux, manipulations et expériences permettent de comprendre comment l’IA transforme déjà notre quotidien.\nUne sortie ludique et instructive pour toute la famille, pour expérimenter, s’étonner… et poser des questions sur le monde numérique qui nous entoure.\n- Atrium situé à Rouen\n- Jusqu’au 31 octobre 2027", "source": "www.infolocale.fr", "r": 1.5038}, {"j": "dem", "t": "Territoire et climat : comprendre, débattre, agir", "lieu": "Rouen", "heure": "Toute la journée", "moment": "journee", "cats": ["Conférences & savoirs"], "prix": null, "gratuit": false, "nouveau": false, "photo": null, "href": "https://gigot.app/evenement/territoire-et-climat-comprendre-debattre-agir-290cf6f3d8ca", "quand": "MERCREDI 28 OCTOBRE → JEUDI 31 DÉCEMBRE", "ou": "Rouen", "adresse": "48 Rue Victor Hugo", "desc": "En Normandie, le changement climatique est déjà à l’œuvre dans nos territoires. Les paysages évoluent sous l’effet de de plusieurs transformations désormais observables : hausse des températures, modification des régimes de pluie et multiplication des évènements extrêmes, recul du trait de côte.\nCes transformations affectent nos villes, nos campagnes et nos littoraux, et interrogent directement nos manières d’habiter, de produire et d’aménager.\nL’exposition Territoire et climat : comprendre, débattre, agir propose d’explorer ces mutations à l’échelle de la Normandie. En s’appuyant sur les travaux scientifiques du GIEC* normand, elle éclaire les évolutions climatiques en cours et donne à voir des initiatives déjà engagées sur le terrain.", "source": "www.infolocale.fr"}, {"j": "dem", "t": "Et si votre plus belle sortie d'Automne était à la ferme ?", "lieu": "Rouen", "heure": "Toute la journée", "moment": "journee", "cats": ["Famille & ateliers"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/39", "href": "https://gigot.app/evenement/et-si-votre-plus-belle-sortie-d-automne-etait-a-la-ferme-3450f8094ba3", "quand": "MERCREDI 28 OCTOBRE → DIMANCHE 20 DÉCEMBRE", "ou": "Rouen", "adresse": "", "desc": "🍂 Et si votre plus belle sortie d'Automne était à la Ferme ? 🎃 L’Automne s’installe en Normandie, et avec lui, une multitude d’animations organisées par les fermes du réseau Bienvenue à la Ferme. ➡️ Le Programme est disponible ici 🍁 ➡️ L’Affiche est disponible ici N’hésitez pas à relayer partout autour de vous pour faire rayonner ce bel événement ! 😉", "source": "www.infolocale.fr", "r": 1.1461}, {"j": "dem", "t": "VTT, skate, roller et trottinette", "lieu": "Grand-Couronne", "heure": "Toute la journée", "moment": "journee", "cats": ["Sport"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/40", "href": "https://gigot.app/evenement/vtt-skate-roller-et-trottinette-384a67053669", "quand": "MERCREDI 28 OCTOBRE → DIMANCHE 17 JANVIER 2027", "ou": "rue du champ du bois, Grand-Couronne", "adresse": "", "desc": "Soyez les bienvenus au parc Mobi'ludique de Grand-Couronne ! Situé aux Essarts, rue du champ du bois, à côté du centre de loisirs Jean-Coiffier, ce nouvel équipement va ravir tous les amateurs, filles et garçons, de VTT, skate, roller, draisienne et trottinette ! En accès libre, il est ouvert de 10h à 16h (période hivernale), 7J/7. Le lieu, sécurisé et clos, compte plusieurs zones : une zone SRAV \"savoir rouler à vélo\" pour les 6- 11 ans la pumptrack avec plusieurs pistes (verte pour les débutants puis bleue, rouge, noire en fonction du niveau) À vous les virages, bosses, freelines et shark fins... !", "source": "www.infolocale.fr", "r": 1.7778}, {"j": "dem", "t": "Octobre rose à l’Atrium", "lieu": "Rouen", "heure": "Toute la journée", "moment": "journee", "cats": ["Conférences & savoirs"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/41", "href": "https://gigot.app/evenement/octobre-rose-a-l-atrium-46279defa4f4", "quand": "MERCREDI 28 OCTOBRE → VENDREDI 30 OCTOBRE", "ou": "Rouen", "adresse": "115 Boulevard de l'Europe", "desc": "Tout au long du mois d’octobre, l’Atrium se mobilise à l’occasion d’Octobre Rose, la campagne annuelle de sensibilisation au dépistage du cancer du sein.\nPour l’occasion, une programmation spéciale est proposée autour de la prévention, de la santé et de la place des femmes dans les sciences et le numérique.\nAu programme :\n- Conférence rose – samedi 24 octobre à 14h\nAnimée par la Ligue contre le cancer, cette conférence permettra de mieux comprendre les enjeux de la prévention et du dépistage du cancer du sein, mais aussi les actions menées par l’association en matière d’accompagnement et de recherche. Gratuit sur réservation.\n- Visite Hackeuses – samedi 24 octobre à 16h\nPartez à la rencontre de femmes qui ont marqué l’histoire de l’informatique et du numérique à travers une visite théâtralisée ponctuée de casse-têtes et d’énigmes.", "source": "www.infolocale.fr", "r": 2.8571}, {"j": "dem", "t": "Les cartes et le territoire. Artiste invité : Thomas Bertrand", "lieu": "Martainville-Épreville", "heure": "Toute la journée", "moment": "journee", "cats": ["Expositions"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/42", "href": "https://gigot.app/evenement/les-cartes-et-le-territoire-artiste-invite-thomas-bertrand-5244b9ea5397", "quand": "MERCREDI 28 OCTOBRE → SAMEDI 6 MARS 2027", "ou": "Route du château, Martainville-Épreville", "adresse": "", "desc": "Les cartes et le territoire présente 45 mouchoirs imprimés issus du fonds des collections du Musée des Traditions et Arts Normands ainsi que le prêt exceptionnel de la collection particulière de Jean-Luc Lesaffre autour du thème des cartes, des plans de villes européennes et de grands évènements tels que les Expositions Internationales, Universelles et Régionales qui se sont déroulées au XIXe siècle. Ces documents imprimés sur textile nous livrent aujourd'hui de nombreuses informations sur l'évolution géographique de la France et des pays européens et, reflètent les changements dans la conception du territoire au cours du XIXe siècle. L’artiste invité Thomas Bertrand présente son projet Cartes et Territoires du Monde regroupant la création sur carreaux de faïence de 200 pays du monde peints à la main à la feuille d’or.", "source": "www.infolocale.fr", "r": 0.67}, {"j": "dem", "t": "Automne curieux", "lieu": "Rouen", "heure": "Toute la journée", "moment": "journee", "cats": ["Conférences & savoirs"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/43", "href": "https://gigot.app/evenement/automne-curieux-57b623e48eea", "quand": "MERCREDI 28 OCTOBRE → SAMEDI 14 NOVEMBRE", "ou": "Rouen", "adresse": "", "desc": "Avec Automne curieux, la ville devient, le temps de quelques semaines, un espace de création, de découverte et d'échange.\nDu 18 septembre au 15 novembre, expositions, installations, performances, projections, ateliers et rencontres investiront nos musées, nos galeries, nos jardins, notre espace public et notre patrimoine. Cette programmation met à l’honneur les artistes locaux, les regards venus d’ailleurs et les grands enjeux actuels.\nCette 5è édition s’ouvrira par l’inauguration, place Foch, d’une œuvre de Marianne Mispelaëre en hommage à Gisèle Halimi. Elle inscrit durablement dans notre paysage la mémoire d’une femme dont les combats pour la liberté et l’égalité continuent de nous inspirer.", "source": "www.infolocale.fr", "r": 1.5038}, {"j": "dem", "t": "Exposition - Enfants et alcools : normes, éducation, prévention", "lieu": "Rouen", "heure": "Toute la journée", "moment": "journee", "cats": ["Expositions"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/44", "href": "https://gigot.app/evenement/exposition-enfants-et-alcools-normes-education-prevention-5fec96190a32", "quand": "MERCREDI 28 OCTOBRE → JEUDI 14 JANVIER 2027", "ou": "Musée national de l'Éducation, Rouen", "adresse": "185 Rue Eau de Robec", "desc": "L’exposition Enfants et alcools : normes, éducation, prévention revient sur les représentations sociales liées à l’alcool, du XIXème au XXIème siècle : de l’acceptation à la prévention en passant par l’éducation « antialcoolique ». Elle s’appuie sur une large typologie d’objets issus des collections du musée agrémentés de prêts de collections particulières.\nAu travers d'une centaine d'objets et documents, l'exposition revient sur les représentations sociales liées à l'alcool du 19ème au 21ème siècle.", "source": "www.infolocale.fr", "r": 1.5038}, {"j": "dem", "t": "Cours de cuisine Ecole Fauchon", "lieu": "Rouen", "heure": "Toute la journée", "moment": "journee", "cats": ["Balades & patrimoine", "Famille & ateliers"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/45", "href": "https://gigot.app/evenement/cours-de-cuisine-ecole-fauchon-15c8494b3e95", "quand": "MERCREDI 28 OCTOBRE → SAMEDI 28 AOÛT 2027", "ou": "Rouen", "adresse": "4 Place des Faïenciers 76100 ROUEN", "desc": "Découvrez, le temps d'un atelier de quelques heures, les techniques professionnelles des grands chefs, en cuisine ou en pâtisserie. Vous serez encadrés par une équipe de formateurs professionnels, vous participerez à l'élaboration de recettes travaillées dans le respect des produits de saison et avec du matériel professionnel. Vous pourrez ensuite déguster vos réalisations ! Cours pour adultes, adolescent et enfant ! Voir toute la programmation et les thèmes dans le document PDF ci-dessous, rubrique \"documentation\" en cliquant sur RESERVER COURS DE PATISSERIE Rejoignez ces ateliers pratiques de 3h, puis 30 min de dégustation et de la remise des attestations, suivie d'un instant photos ! Accompagné d’un chef expérimenté, vous apprendrez les techniques essentielles pour réaliser des desserts gourmands. A la fin du cours, vous dégusterez la réalisation faite par le/la Chef/fe et vous repartirez avec votre création. COURS DE CUISINE Rejoignez cet atelier culinaire de 3h30, incluant 30 minutes de dégustation afin de savourer vos créations culinaires, ainsi que la remise de vos diplômes et d'un instant photo. A la fin du cours, vous dégusterez la réalisation faite par le/la Chef/fe et vous repartirez avec votre création. COURS POUR ENFANTS et ADOLESCENTS Vos enfants aiment pâtisser, cuisiner ? Faites-leur découvrir une recette à travers un cours de pâtisserie ou de cuisine encadré par un professionnel ! Cours d'une durée d'1h30, puis une dégustation de 30 minutes, sans oublier la remise de diplômes et quelques photos pour immortaliser le moment... Accessibles dès l'âge de 8 à 14 ans A la fin du cours, vous dégusterez la réalisation faite par le/la Chef/fe et vous repartirez avec votre création.", "source": "www.seine-maritime-tourisme.com", "r": 1.3333}, {"j": "dem", "t": "Initiation gratuite au golf", "lieu": "Lieu à préciser", "heure": "Toute la journée", "moment": "journee", "cats": [], "prix": null, "gratuit": false, "nouveau": false, "photo": null, "href": "https://gigot.app/evenement/initiation-gratuite-au-golf-730b1aff39a1", "quand": "MERCREDI 28 OCTOBRE", "ou": "Lieu à préciser", "adresse": "Source : jouer.golf", "desc": "", "source": "jouer.golf"}, {"j": "dem", "t": "Aller et venir de lumière par Ange Leccia", "lieu": "Saint-Martin-de-Boscherville", "heure": "Toute la journée", "moment": "journee", "cats": ["Expositions"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/47", "href": "https://gigot.app/evenement/aller-et-venir-de-lumiere-par-ange-leccia-836060bd8ec1", "quand": "MERCREDI 28 OCTOBRE → VENDREDI 30 OCTOBRE", "ou": "Place de l'abbaye, Saint-Martin-de-Boscherville", "adresse": "", "desc": "Du 30 mai au 30 septembre 2026\nÀ l’occasion du centenaire de la mort de Claude Monet, l’artiste plasticien Ange Leccia, pionnier de l’art vidéo en France, propose un hommage contemporain à Claude Monet et à ses célèbres Nymphéas.\nDans les jardins de l’abbaye Saint-Georges, il déploie une constellation d’images autour du jardin comme force vitale.\nDans la salle capitulaire, une version remontée de son installation vidéo (D’)après Monet, présentée pour la première fois en 2022 au musée de l’Orangerie, eﬀace la présence du peintre pour ne garder que les nénuphars, l’eau irisée et la lumière vibrante, dans une atmosphère ﬂottante, presque immergée.\nAu Pavillon des vents, deux duos d’écrans composent un medley de motifs ﬁlmés au ﬁl des années pour capter une énergie élémentaire du vivant dans la nature.", "source": "www.infolocale.fr", "r": 1.5038}, {"j": "dem", "t": "Galerie l'Art des Marines - Escales Exotiques - Exposition de Marie Détrée", "lieu": "Rouen", "heure": "Toute la journée", "moment": "journee", "cats": ["Expositions"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/48", "href": "https://gigot.app/evenement/galerie-l-art-des-marines-escales-exotiques-exposition-de-marie-detree-872d551fdd33", "quand": "MERCREDI 28 OCTOBRE → JEUDI 29 OCTOBRE", "ou": "Rouen", "adresse": "23 Rue Saint-Nicolas", "desc": "Galerie l'Art des Marines - Escales Exotiques - Exposition de Marie Détrée", "source": "www.infolocale.fr", "r": 0.67}, {"j": "dem", "t": "« La Réunion rencontre Giverny »", "lieu": "Rouen", "heure": "Toute la journée", "moment": "journee", "cats": ["Fêtes & gastronomie"], "prix": null, "gratuit": false, "nouveau": true, "photo": "photos/49", "href": "https://gigot.app/evenement/la-reunion-rencontre-giverny-89ca70aafe8f", "quand": "MERCREDI 28 OCTOBRE → MERCREDI 30 JUIN 2027", "ou": "Rouen", "adresse": "37 Rue Saint-Etienne des Tonneliers", "desc": "A Rouen, au restaurant LéLa, la cheffe Lynda Jumel, originaire de La Réunion, propose le menu « La Réunion rencontre Giverny ». Sensible à l’impressionnisme bien avant de devenir cheffe, elle retourne chaque printemps à Giverny, au moment des floraisons. Elle y puise la couleur, la lumière, la nature et l’émotion, sans chercher à reproduire les œuvres de Monet. Le menu s’ouvre sur une soupe verte revisitée (cresson, petits pois, épinards), éclairée de touches de crème d’Isigny, avec capucines, bleuets et pensées en écho au bassin des Nymphéas. Pour le plat principal, le canard, la crème et le beurre de la Ferme de Borniambuc y rencontrent la vanille Bourbon dans une sauce crémeuse, trait d’union entre la Normandie et La Réunion. Le Gâteau Vert Vert, autour du matcha et de la pistache, prolonge les nuances de vert des jardins de Giverny.", "source": "www.infolocale.fr", "r": 1.4981}, {"j": "dem", "t": "\"De l'ombre vers la lumière\" - Charles Angrand - Exposition", "lieu": "Rouen", "heure": "Toute la journée", "moment": "journee", "cats": ["Expositions", "Famille & ateliers"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/50", "href": "https://gigot.app/evenement/de-l-ombre-vers-la-lumiere-charles-angrand-exposition-8db83c5d0255", "quand": "MERCREDI 28 OCTOBRE → SAMEDI 9 JANVIER 2027", "ou": "Esplanade Marcel Duchamp, Rouen", "adresse": "", "desc": "En 2026, le musée des Beaux-Arts de Rouen célèbre le centième anniversaire de la disparition de Charles Angrand et rend hommage à cette personnalité à la fois singulière et centrale du mouvement néo-impressionniste.\nPeintre et dessinateur, Charles Angrand a étudié à l'École municipale de peinture et de dessin de Rouen, sous la direction de Gustave Morin et de Philippe Zacharie entre 1875 et 1882, avant de partir à Paris. C'est aussi à Rouen qu'il s'éteint en 1926, treize ans après s'être installé quai de Paris.\nExposition accessible gratuitement, tous les jours sauf le mardi.", "source": "www.infolocale.fr", "r": 1.5038}, {"j": "dem", "t": "Les incontournables", "lieu": "Rouen", "heure": "Toute la journée", "moment": "journee", "cats": [], "prix": null, "gratuit": false, "nouveau": false, "photo": null, "href": "https://gigot.app/evenement/les-incontournables-684145bedd38", "quand": "MERCREDI 28 OCTOBRE", "ou": "Esplanade Marcel Duchamp, Rouen", "adresse": "Source : data.datatourisme.fr", "desc": "", "source": "data.datatourisme.fr"}, {"j": "dem", "t": "Vacances d’automne à l’Atrium", "lieu": "Rouen", "heure": "Toute la journée", "moment": "journee", "cats": ["Sport"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/52", "href": "https://gigot.app/evenement/vacances-d-automne-a-l-atrium-a560709cc966", "quand": "MERCREDI 28 OCTOBRE → SAMEDI 31 OCTOBRE", "ou": "Rouen", "adresse": "115 Boulevard de l'Europe", "desc": "Du 17 octobre au 1er novembre, profitez des vacances d’automne à l’Atrium ! En famille ou entre amis, découvrez une programmation mêlant sciences, espace, intelligence artificielle et découvertes.\nAu programme : partez à la découverte du système solaire avec « Les tout petits astronautes », embarquez pour une mission spatiale avec « Parés au décollage », ou imaginez le robot du futur lors d’un atelier autour de l’IA, de l’énergie et de l’environnement.\nLes familles pourront également découvrir l’exposition Destination IA à travers une visite ludique et interactive, tandis que les adolescents et les adultes pourront approfondir leurs connaissances avec la visite guidée « Les coulisses de l’IA ».\nEt pour compléter les vacances, deux temps forts sont à retrouver à l’Atrium : une journée spéciale Octobre rose le 24 octobre et une journée Halloween le 31 octobre.\nDu 17 octobre au 1er novembre 2026\nL’Atrium – Rouen", "source": "www.infolocale.fr", "r": 1.5038}, {"j": "dem", "t": "Les monstres de l'Aître - Fêtes macabres à l’Aître Saint-Maclou", "lieu": "Rouen", "heure": "Toute la journée", "moment": "journee", "cats": ["Théâtre & spectacles"], "prix": null, "gratuit": false, "nouveau": true, "photo": "photos/53", "href": "https://gigot.app/evenement/les-monstres-de-l-aitre-fetes-macabres-a-l-aitre-saint-maclou-b20f9aadfe59", "quand": "MERCREDI 28 OCTOBRE", "ou": "Rouen", "adresse": "186 Rue Martainville", "desc": "Chaque année, l’Aître Saint-Maclou se pare d’une atmosphère fascinante et mystérieuse pour accueillir les Fêtes Macabres, s’inscrivant dans la continuité d’un héritage gothique et funéraire profondément ancré dans l’histoire du lieu. Entre visites nocturnes, spectacles, contes déambulés, ateliers et expériences insolites, l’événement plonge les visiteurs dans une expérience immersive où l’art dialogue avec la mémoire des morts. Les façades sculptées de l’ossuaire, ornées de crânes et d’outils de fossoyeur, deviennent le décor d’un théâtre vivant célébrant la frontière fragile entre vie et trépas. Cette célébration atypique, à la fois poétique et troublante, invite chacun à redécouvrir l’Aître sous un nouveau jour : celui d’un patrimoine vivant, vibrant au rythme de la créativité contemporaine tout en honorant les mystères de son passé.\nPour l’occasion, le collectif HSH a imaginé une installation artistique spécialement conçue pour le monument !", "source": "www.infolocale.fr", "r": 1.4981}, {"j": "dem", "t": "Une nouvelle expérience au coeur du 13e siècle", "lieu": "Rouen", "heure": "Toute la journée", "moment": "journee", "cats": ["Balades & patrimoine"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/54", "href": "https://gigot.app/evenement/une-nouvelle-experience-au-coeur-du-13e-siecle-be827aeee989", "quand": "MERCREDI 28 OCTOBRE → JEUDI 30 DÉCEMBRE 2027", "ou": "Rue du Donjon, Rouen", "adresse": "", "desc": "Le Moyen Âge en haute fidélité : remontez le temps jusqu’en 1210 et pénétrez dans une forteresse médiévale entièrement reconstituée, pensée pour être explorée librement, touchée et habitée. Ici, le Moyen-Âge ne se contemple pas. Il se vit.\nDu mardi au dimanche, le Donjon de Rouen vous ouvre ses portes pour une visite en autonomie. Venez parcourir le château à votre rythme, selon votre âge, votre curiosité et votre envie d’exploration.\nAu fil des espaces, vous déambulez, observez, ouvrez, manipulez. Attardez-vous sur les objets, les matières et les scènes reconstituées. Mettez-vous en scène, prenez la pose et photographiez-vous librement dans ce décor d’exception.\nComposez votre propre parcours, entre curiosité, jeu, observation et découverte historique?!", "source": "www.infolocale.fr", "r": 1.4981}, {"j": "dem", "t": "Exposition Sandrine GADEBOIS - Ce qu'il reste", "lieu": "Rouen", "heure": "Toute la journée", "moment": "journee", "cats": ["Expositions"], "prix": null, "gratuit": false, "nouveau": true, "photo": "photos/55", "href": "https://gigot.app/evenement/exposition-sandrine-gadebois-ce-qu-il-reste-c8551a5e92f8", "quand": "MERCREDI 28 OCTOBRE → SAMEDI 31 OCTOBRE", "ou": "Rouen", "adresse": "5 Rue du Donjon", "desc": "Exposition de l'artiste rouennaise Sandrine GADEBOIS - Dessins, huiles\nRe-découvrez Rouen et le Havre à travers la vision du monde de Sandrine Gadebois, qui trouve ses racines dans les profondeurs du passé pour se jeter dans les lignes de fuite de la perspective. Le paysage se ferme ou se floute, il devient lointain, ou bien il s'ouvre et s'éclaircit comme un monde accessible et lumineux.", "source": "www.infolocale.fr", "r": 1.5038}, {"j": "dem", "t": "Vitrines thématiques : Potiers et poteries d'Armentières-sur-Avre", "lieu": "Martainville-Épreville", "heure": "Toute la journée", "moment": "journee", "cats": ["Balades & patrimoine"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/56", "href": "https://gigot.app/evenement/vitrines-thematiques-potiers-et-poteries-d-armentieres-sur-avre-eac6d8df55bb", "quand": "MERCREDI 28 OCTOBRE → SAMEDI 6 MARS 2027", "ou": "Route du château, Martainville-Épreville", "adresse": "", "desc": "Les vitrines thématiques consacrées au centre potier d'Armentières-sur-Avre présente une trentaine de pièces sélectionnées par les collectionneurs du GEVAC. Elles sont accompagnées d'une publication scientifique sur la production de l’un des principaux centres potiers de l’Eure durant les XVIIIe et XIXe siècles. L'histoire des potiers d'Armentières nous est livrée avec la présentation de collections particulières inédites.", "source": "www.infolocale.fr", "r": 1.4981}, {"j": "dem", "t": "Exposition \"Plaisir et vitamines, fruits et légumes\"", "lieu": "Montville", "heure": "Toute la journée", "moment": "journee", "cats": ["Expositions"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/57", "href": "https://gigot.app/evenement/exposition-plaisir-et-vitamines-fruits-et-legumes-fca58f6e3297", "quand": "MERCREDI 28 OCTOBRE → VENDREDI 30 OCTOBRE", "ou": "Musée des Sapeurs-Pompiers de France, Montville", "adresse": "rue Baron Bigot", "desc": "Dans le cadre de la Semaine du Goût 2026, le Musée des Sapeurs-Pompiers de France présente l’exposition « Plaisir et vitamines , Fruits et Légumes l'expo ».\nConçue par la Ligue contre le cancer à destination des enfants l'exposition fait découvrir aux petits et grands les fruits et légumes, leurs différentes familles, leurs bienfaits et les façons de les consommer.\nElle est complétée par une exposition de légumes présentées par les Jardins Ouvriers et Familiaux de Montville.\nSur place pour pourrez également consulter les ouvrages mis à disposition par la bibliothèque de Montville (CBPT Montville).", "source": "www.infolocale.fr", "r": 1.4981}, {"j": "dem", "t": "28/10/2026 Formation PSC (Premiers Secours Citoyen )", "lieu": "Bihorel", "heure": "8h30", "moment": "journee", "cats": [], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/58", "href": "https://gigot.app/evenement/28-10-2026-formation-psc-premiers-secours-citoyen-d78dbb7f76b0", "quand": "MERCREDI 28 OCTOBRE · 8H30–16H30", "ou": "(UDPS 76) - Union Départementale des Premiers Secours de la Seine Maritime, Bihorel", "adresse": "1 Rue Argiliere", "desc": "Formation PSC (Premiers Secours Citoyen)\nTarif pour une Inscription Grand public\nPour les titulaires de la Carte Atout Normandie (15 -25 ans) peuvent bénéficier d’une réduction de 40 € un coupon de prépaiement vous sera demandé en PJ.\nTout dossier Incomplet et non conforme, votre inscription fera l'objet d'un remboursement dans les 72H ouvrées.\nPour les Collectivités, Entreprise, Service Civique, Groupes : Nous contacter au 02 35 98 08 03 @: udps76@anps.fr", "source": "www.helloasso.com", "r": 7.6923}, {"j": "dem", "t": "Atelier Repair Café Rouen - BIOCOOP - 28/10/2026 - Bois-Guillaume", "lieu": "Bois-Guillaume", "heure": "10h", "moment": "journee", "cats": ["Famille & ateliers"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/59", "href": "https://gigot.app/evenement/atelier-repair-cafe-rouen-biocoop-28-10-2026-bois-guillaume-8d06b0b9ddfc", "quand": "MERCREDI 28 OCTOBRE · 10H–18H30", "ou": "BIOCOOP, Bois-Guillaume", "adresse": "45 Rue Georges de Buffon", "desc": "Repair Café Rouen est un atelier collaboratif de réparation, où l'on vous aide à réparer vos objets défectueux. Chacun est le bienvenu même s'il ne sait pas réparer et s'il souhaite, on lui apprendra.\nRéparation Gratuite. Si vous souhaitez nous soutenir, vous pourrez faire un don le jour de l'atelier ou bien via helloasso.com\nL'atelier se déroulera de 10h00 à 18h30, afin de mieux organiser l'ordre de passage et limiter le temps d'attente merci de choisir une séance.", "source": "www.helloasso.com", "r": 7.6923}, {"j": "dem", "t": "Atelier petite enfance - L'automne", "lieu": "Martainville-Épreville", "heure": "10h30", "moment": "journee", "cats": ["Expositions", "Famille & ateliers"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/60", "href": "https://gigot.app/evenement/atelier-petite-enfance-l-automne-120ed741d414", "quand": "MERCREDI 28 OCTOBRE · 10H30", "ou": "Martainville-Épreville", "adresse": "Route du château 76116 MARTAINVILLE-EPREVILLE", "desc": "Atelier pour les tout-petits de 18 mois à 3 ans, sur le thème « Les couleurs ». Découverte des couleurs par le biais de contes et d'activités au sein du château musée. Possibilité d'apporter une paire de chaussons antidérapants, pour plus de confort.", "source": "www.seine-maritime-tourisme.com", "r": 1.3333}, {"j": "dem", "t": "En quête à l’Historial", "lieu": "Rouen", "heure": "10h30", "moment": "journee", "cats": ["Conférences & savoirs"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/61", "href": "https://gigot.app/evenement/en-quete-a-l-historial-38c5d34d0298", "quand": "MERCREDI 28 OCTOBRE · 10H30–11H30", "ou": "Rouen", "adresse": "7 rue Saint-Romain, 76000 Rouen", "desc": "Parcours enquête en famille", "source": "www.infolocale.fr", "r": 1.0}, {"j": "dem", "t": "COMPLET | La forêt des tout-petits", "lieu": "Saint-Étienne-du-Rouvray", "heure": "10h30", "moment": "journee", "cats": ["Balades & patrimoine", "Famille & ateliers"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/62", "href": "https://gigot.app/evenement/complet-la-foret-des-tout-petits-8af4c101e024", "quand": "MERCREDI 28 OCTOBRE · 10H30–11H30", "ou": "maison des forets - temporaire centre de loisirs la sapinière, Saint-Étienne-du-Rouvray", "adresse": "chemin des cateliers 76800 Saint Etienne du Rouvray", "desc": "Partagez un moment de jeux sensoriels à la découverte de la forêt avec vos tout-petits", "source": "www.billetweb.fr", "r": 1.5444}, {"j": "dem", "t": "À petits petons vers les histoires", "lieu": "Rouen", "heure": "10h30", "moment": "journee", "cats": ["Conférences & savoirs"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/63", "href": "https://gigot.app/evenement/a-petits-petons-vers-les-histoires-ab66164dd20a", "quand": "MERCREDI 28 OCTOBRE · 10H30–11H", "ou": "Place de Châtelet, Rouen", "adresse": "76000 Rouen", "desc": "Assis, couchés ou confortablement lovés dans les bras d’un adulte, les tout-petits viennent découvrir des histoires.", "source": "www.infolocale.fr", "r": 1.4981}, {"j": "dem", "t": "Cité Immersive Viking", "lieu": "Rouen", "heure": "10h45", "moment": "journee", "cats": ["Balades & patrimoine", "Théâtre & spectacles"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/64", "href": "https://gigot.app/evenement/cite-immersive-viking-7b3b00fc8440", "quand": "MERCREDI 28 OCTOBRE · 10H45", "ou": "Rouen", "adresse": "Hangar 105 Allée François Mitterrand 76100", "desc": "La Cité Immersive Viking propose une expérience pédagogique et immersiveà la découverte de l’univers fascinant des vikings en Normandie, afin d’en raconter l’histoire.\nPoints clés :\nParcours sensoriel et historique hors du commun\n1000 m2 de scénographie innovante\nPour tous les publics\n60° de spectacle video-mapping\n1h0-2h00 d’expérience unique\nEmplacement idéal à Rouen : Installée sur les quais de Seine, côté rive gauche, la Cité Immersive Viking offre un accès facile aux visiteurs locaux et aux touristes, à 15 minutes du centre historique\nDécouvrez l'incroyable histoire de la Normandie, la terre des Hommes du Nord. Il y a plus de mille ans, une nouvelle menace s’abattait sur l’Europe occidentale : des vikings assoiffés d’or débarquaient de Scandinavie. Comment, par un incroyable miracle de l’Histoire, le chef des vikings est-il devenu le fondateur de l’Empire normand ? À travers les 6 salles du parcours et grâce à des technologies de pointe, préparez-vous à voyager dans le temps pour découvrir, vivre et ressentir l’Histoire grandeur nature.\nUne immersion totale dans la vie fascinante de Rollon, premier viking devenu normand. Un plongeon dans la culture, les traditions et les légendes scandinaves des vikings installés à Rouen.\nLes 5 sens en éveil :\nDes objets vikings authentiques (IX et Xe siècles), véritable trésor patrimonial\nDes décors historiques monumentaux et interactifs\nDes projections vidéo à 60°\nDes immersions sonores spatialisées D\nDurée du parcours : 1h0-2h", "source": "www.seine-maritime-tourisme.com", "r": 1.3333}, {"j": "dem", "t": "Tous Differents Tous Attachants", "lieu": "Rouen", "heure": "11h", "moment": "journee", "cats": ["Famille & ateliers", "Théâtre & spectacles"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/65", "href": "https://gigot.app/evenement/tous-differents-tous-attachants-359ebfced1a5", "quand": "MERCREDI 28 OCTOBRE · 11H", "ou": "THEATRE A L'OUEST, Rouen", "adresse": "26 QUAI GASTON BOULET", "desc": "", "source": "www.ticketmaster.fr", "r": 1.7778}, {"j": "dem", "t": "Paysages en série – graver, encrer, imprimer", "lieu": "Rouen", "heure": "14h", "moment": "journee", "cats": ["Balades & patrimoine", "Expositions"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/66", "href": "https://gigot.app/evenement/paysages-en-serie-graver-encrer-imprimer-1091129c00a9", "quand": "MERCREDI 28 OCTOBRE · 14H → 29 OCT.", "ou": "Musée des Beaux-Arts, Rouen", "adresse": "26bis, rue Jean-Lecanuet, 76000 Rouen", "desc": "Grande fabrique", "source": "openagenda.com", "r": 4.0404}, {"j": "dem", "t": "Exposition Near Est", "lieu": "Sotteville-lès-Rouen", "heure": "14h", "moment": "journee", "cats": ["Expositions"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/67", "href": "https://gigot.app/evenement/exposition-near-est-140e953d722c", "quand": "MERCREDI 28 OCTOBRE · 14H → 7 MARS 2027", "ou": "Sotteville-lès-Rouen", "adresse": "3, place des Martyrs-de-la-Résistance", "desc": "Basée sur la collection du Frac Normandie, l'exposition rassemble des artistes d'horizons multiples autour de l'est, notion aussi familière qu'insaisissable. Plus qu'un territoire, l'est apparaît ici comme un espace mental, un territoire de rencontres et de possibles.", "source": "www.infolocale.fr", "r": 1.3289}, {"j": "dem", "t": "Pour de vrai ?", "lieu": "Rouen", "heure": "14h", "moment": "journee", "cats": ["Expositions"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/68", "href": "https://gigot.app/evenement/pour-de-vrai-171ecae09d9c", "quand": "MERCREDI 28 OCTOBRE · 14H → 13 DÉC.", "ou": "Rouen", "adresse": "", "desc": "Automne Curieux", "source": "www.infolocale.fr", "r": 2.0}, {"j": "dem", "t": "Cours de théâtre enfants Rouen", "lieu": "Rouen", "heure": "14h", "moment": "journee", "cats": ["Famille & ateliers", "Théâtre & spectacles"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/69", "href": "https://gigot.app/evenement/cours-de-theatre-enfants-rouen-1f571e56b093", "quand": "MERCREDI 28 OCTOBRE · 14H → 5 JUIN 2027", "ou": "Rouen", "adresse": "78, rue Jean Texcier", "desc": "Dirigé par Gwen Buhot Apprendre à être un acteur. Apprendre un texte de théâtre. Jouer, improviser. S’amuser à être un personnage de théâtre. Apprendre un texte. 1er restitution au mois de mars Une représentation en juin Les cours, les séances et les mises en scène sont dirigés par des professionnel.les de la scène.", "source": "www.infolocale.fr", "r": 1.2579}, {"j": "dem", "t": "Décorations mortelles", "lieu": "Rouen", "heure": "14h", "moment": "journee", "cats": ["Famille & ateliers"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/70", "href": "https://gigot.app/evenement/decorations-mortelles-27a24845f1c3", "quand": "MERCREDI 28 OCTOBRE · 14H–18H", "ou": "Rouen", "adresse": "8 All. Eugène Delacroix, 76000 Rouen", "desc": "Venez décorer la bibliothèque Parment pour la fête des morts.", "source": "www.infolocale.fr", "r": 1.1299}, {"j": "dem", "t": "Near Est", "lieu": "Sotteville-lès-Rouen", "heure": "14h", "moment": "journee", "cats": ["Expositions"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/71", "href": "https://gigot.app/evenement/near-est-53b954196d02", "quand": "MERCREDI 28 OCTOBRE · 14H → 7 MARS 2027", "ou": "Sotteville-lès-Rouen", "adresse": "3, Place des Martyrs de la Résistance, Sotteville-lès-Rouen", "desc": "Automne Curieux", "source": "www.infolocale.fr", "r": 2.0}, {"j": "dem", "t": "COMPLET | Initiation au pistage de la faune forestière", "lieu": "Darnétal", "heure": "14h", "moment": "journee", "cats": ["Balades & patrimoine", "Famille & ateliers"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/72", "href": "https://gigot.app/evenement/complet-initiation-au-pistage-de-la-faune-forestiere-5eb422ad418a", "quand": "MERCREDI 28 OCTOBRE · 14H–16H30", "ou": "Maison des forêts de Darnétal, Darnétal", "adresse": "Allée du bois du Roule, 76160 Darnétal", "desc": "Incarnez de véritables pisteurs d’animaux sauvages grâce à des empreintes plus vraies que nature. Découvrez l’univers fascinant des oiseaux et mammifères de notre région.", "source": "www.billetweb.fr", "r": 1.0}, {"j": "dem", "t": "Mirage", "lieu": "Le Grand-Quevilly", "heure": "14h", "moment": "journee", "cats": ["Théâtre & spectacles"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/73", "href": "https://gigot.app/evenement/mirage-accdc000d838", "quand": "MERCREDI 28 OCTOBRE · 14H → 12 DÉC.", "ou": "Allée des Arcades, Le Grand-Quevilly", "adresse": "Grand Quevilly", "desc": "Automne Curieux", "source": "www.infolocale.fr", "r": 2.0}, {"j": "dem", "t": "Atelier d'argile en famille", "lieu": "Rouen", "heure": "14h", "moment": "journee", "cats": ["Balades & patrimoine", "Expositions"], "prix": null, "gratuit": false, "nouveau": false, "photo": "photos/74", "href": "https://gigot.app/evenement/atelier-d-argile-en-famille-c1f5264e0d89", "quand": "MERCREDI 28 OCTOBRE · 14H → 4 DÉC. 2027", "ou": "Rouen", "adresse": "186 Rue Martainville 76000 ROUEN", "desc": "A partir de 7 ans.\nLes enfants découvrent le plaisir de façonner la terre au gré de leur imagination et de leurs envies et explorent le contact avec la matière, tandis que les plus âgés s’exercent aux techniques de modelage et débutent leur initiation à la décoration.\nPoints clés :\nMoment de partage parent / enfant\nCréez de vos mains !\nInitiation et imagination\nCet atelier est dédié aux enfants mais aussi aux plus grands : parents, accompagnants et grands-parents peuvent également participer pour partager en famille un moment de créativité.\nDans notre salle pédagogique équipée, les séances sont encadrées par des céramistes professionnels détenteurs du BAFA.\n1 samedi par mois de 14h à 16h\nles créations réalisées lors des cours de modelage peuvent être emportées avec soi à la fin de l’activité mais seront relativement peu résistantes aux chocs. Comme tous nos autres cours de céramique, le tarif comprend la première cuisson des pièces, qui leur confère leur solidité. Pour en bénéficier, les participants doivent nous confier leurs créations 3 à 6 semaines après quoi ils peuvent venir les récupérer. Chacun est bien entendu libre de faire comme il l’entend.", "source": "www.seine-maritime-tourisme.com", "r": 1.3333}];
+  var C = GigotButton.couleurs;
+
+  // Catégories regroupées en quatre familles ; chaque catégorie donne deux couleurs à ses aplats.
+  var FAMILLES = [
+    { nom: 'Sur scène', cats: [['Musique', 'rose', 'violet'], ['Théâtre & spectacles', 'rose', 'jaune'], ['Cinéma', 'violet', 'rose']] },
+    { nom: 'À voir, à apprendre', cats: [['Expositions', 'cyan', 'violet'], ['Conférences & savoirs', 'cyan', 'jaune']] },
+    { nom: 'En famille, à table', cats: [['Famille & ateliers', 'jaune', 'cyan'], ['Fêtes & gastronomie', 'orange', 'jaune']] },
+    { nom: 'Au grand air', cats: [['Sport', 'vert', 'violet'], ['Balades & patrimoine', 'vert', 'orange']] }
+  ];
+  var CAT = {};
+  FAMILLES.forEach(function (f) {
+    f.cats.forEach(function (c) {
+      var cle = 'cat-' + Object.keys(CAT).length;
+      CAT[c[0]] = { c1: c[1], c2: c[2], palette: cle };
+      Aplats.palettes[cle] = { a: C[c[1]], b: C[c[2]] };
+    });
+  });
+  function infoCat(s) { return CAT[s.cats[0]] || { c1: 'rose', c2: 'cyan', palette: 'vive' }; }
+  var FLASH = ['rose', 'jaune', 'violet', 'cyan', 'vert', 'orange'];
+
+  var JOURS = { auj: ['Aujourd’hui', 'mardi 27 octobre'], dem: ['Demain', 'mercredi 28 octobre'] };
+  var etat = { moment: null, gratuit: false, commu: false, nouveaux: false, cats: {}, quand: null, plusLoin: false, replis: {}, alerte: false };
+
+  var gardes = {};
+  try { gardes = JSON.parse(localStorage.getItem('gigot-gardes') || '{}') || {}; } catch (e) { gardes = {}; }
+  function sauve() { try { localStorage.setItem('gigot-gardes', JSON.stringify(gardes)); } catch (e) {} }
+  function compte() {
+    var n = Object.keys(gardes).length;
+    document.querySelectorAll('[data-compte]').forEach(function (el) { el.textContent = n ? String(n) : ''; });
+  }
+
+  function el(tag, cls, txt) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (txt != null) e.textContent = txt;
+    return e;
+  }
+  function icone(id, cls) {
+    var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    s.setAttribute('class', cls || 'i'); s.setAttribute('aria-hidden', 'true');
+    var u = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+    u.setAttribute('href', '#' + id); s.appendChild(u);
+    return s;
+  }
+  function boutonGarder(s, i, taille, onchange) {
+    var ic = infoCat(s);
+    var reste = FLASH.filter(function (c) { return c !== ic.c1; });
+    var b = GigotButton.create({ fond: ic.c1, face: reste[(i * 2) % 5], flanc: reste[(i * 2 + 3) % 5], taille: taille,
+      label: 'Garder « ' + s.t + ' »', checked: !!gardes[s.href] });
+    b.addEventListener('change', function (e) {
+      if (e.detail.checked) gardes[s.href] = 1; else delete gardes[s.href];
+      sauve(); compte();
+      document.querySelectorAll('.carte').forEach(function (li) {
+        if (li._s.href !== s.href) return;
+        li.classList.toggle('gardee', e.detail.checked);
+        if (li._b !== b) li._b.checked = e.detail.checked;
+      });
+      if (onchange) onchange(e.detail.checked);
+    });
+    return b;
+  }
+  function photo(s, i, grande) {
+    var ic = infoCat(s);
+    var p = el('div', 'photo');
+    p.style.setProperty('--c1', C[ic.c1]);
+    if (!s.photo) {
+      p.classList.add('sans');
+      var pic = el('img'); pic.src = '../picto/gigot-picto-' + (ic.c1 === 'jaune' ? 'noir' : 'jaune') + '.svg'; pic.alt = '';
+      p.appendChild(pic);
+      return p;
+    }
+    var cadre = el('div', 'cadre');
+    cadre.style.setProperty('--r', s.r);
+    var img = el('img');
+    img.src = s.photo + (grande ? '-l' : '') + '.webp'; img.alt = ''; img.decoding = 'async';
+    cadre.appendChild(img);
+    p.appendChild(cadre);
+    // aplats aux couleurs de la catégorie ; la même graine dans la carte et dans la fiche
+    Aplats.attach(img, { seed: 4000 + i * 97, subjects: 2, palette: ic.palette, eager: !!grande });
+    return p;
+  }
+  function genres(s) {
+    var g = el('p', 'genres');
+    s.cats.forEach(function (c) {
+      var sp = el('span');
+      var dot = el('i'); dot.style.setProperty('--c', C[(CAT[c] || { c1: 'blanc' }).c1]);
+      sp.appendChild(dot); sp.appendChild(document.createTextNode(c));
+      g.appendChild(sp);
+    });
+    return g;
+  }
+  function horaire(s) {
+    if (s.heure === 'Toute la journée') return 'Toute la journée';
+    return s.heure + ' · ' + (s.moment === 'soiree' ? 'en soirée' : 'en journée');
+  }
+
+  function carte(s, i) {
+    var li = el('li', 'carte' + (gardes[s.href] ? ' gardee' : ''));
+    li._s = s; li._i = i;
+    var pop = el('div', 'pop');
+    var p = photo(s, i, false);
+    var m = el('span', 'garde-marque'); m.appendChild(icone('i-coche', 'i')); m.setAttribute('aria-hidden', 'true');
+    p.appendChild(m);
+    pop.appendChild(p);
+    var h = el('h3', 'titre');
+    if (s.nouveau) h.appendChild(el('span', 'nouveau', 'Nouveau'));
+    var a = el('a', null, s.t);
+    a.href = s.href; a.target = '_blank'; a.rel = 'noopener';
+    h.appendChild(a);
+    pop.appendChild(h);
+
+    var pan = el('div', 'panneau');
+    var tp = el('p', 'titre-plein', s.t);
+    tp.setAttribute('aria-hidden', 'true');
+    pan.appendChild(tp);
+    var act = el('div', 'actions');
+    li._b = boutonGarder(s, i, 40);
+    act.appendChild(li._b);
+    var plus = el('button', 'rond cerne haut plus');
+    plus.type = 'button';
+    plus.setAttribute('aria-label', 'Plus d’infos sur « ' + s.t + ' »');
+    plus.setAttribute('data-tip', 'Plus d’infos');
+    plus.appendChild(icone('i-bas'));
+    act.appendChild(plus);
+    pan.appendChild(act);
+    var meta = el('p', 'meta');
+    meta.appendChild(el('span', null, horaire(s)));
+    if (s.prix) meta.appendChild(el('span', 'boite', s.prix));
+    pan.appendChild(meta);
+    pan.appendChild(el('p', 'lieu', s.lieu));
+    pan.appendChild(genres(s));
+    pop.appendChild(pan);
+    li.appendChild(pop);
+
+    plus.addEventListener('click', function (e) { e.stopPropagation(); ouvre(li); });
+    // la carte entière ouvre aussi la fiche (indispensable au doigt, sans survol)
+    pop.addEventListener('click', function (e) {
+      if (e.target.closest('.gigot-btn, .plus') || e.metaKey || e.ctrlKey || e.shiftKey) return;
+      e.preventDefault();
+      ouvre(li);
+    });
+    // l'aperçu grandit vers l'intérieur de la grille quand la carte est au bord
+    li.addEventListener('pointerenter', function () {
+      var g = li.parentElement.getBoundingClientRect(), r = li.getBoundingClientRect();
+      pop.style.transformOrigin = (r.left - g.left < 8 ? '0%' : g.right - r.right < 8 ? '100%' : '50%') + ' 30%';
+      plus.classList.toggle('bord-droit', g.right - r.right < 8);
+    });
+    return li;
+  }
+
+  function passe(s) {
+    if (etat.moment && s.moment !== etat.moment) return false;
+    if (etat.gratuit && !s.gratuit) return false;
+    if (etat.nouveaux && !s.nouveau) return false;
+    var cs = Object.keys(etat.cats);
+    if (cs.length && !s.cats.some(function (c) { return etat.cats[c]; })) return false;
+    return true;
+  }
+  function joursAffiches() {
+    if (etat.quand) return [etat.quand];
+    return etat.plusLoin ? ['auj', 'dem'] : ['auj'];
+  }
+  function lienGigot(texte, url) {
+    var a = el('a', 'puce lien', texte); a.href = url; a.target = '_blank'; a.rel = 'noopener';
+    return a;
+  }
+
+  function rends() {
+    var liste = document.getElementById('liste');
+    liste.textContent = '';
+    var fin = document.getElementById('fin');
+    if (etat.commu) {
+      var v = el('div', 'vide');
+      v.innerHTML = '<span><strong>Ma commu</strong> montre où vont tes potes. Connecte-toi pour suivre ta commu.</span>';
+      v.appendChild(lienGigot('Se connecter', 'https://gigot.app/connexion'));
+      liste.appendChild(v);
+      fin.hidden = true;
+      return;
+    }
+    fin.hidden = false;
+    var total = 0;
+    joursAffiches().forEach(function (j) {
+      var sec = el('section', 'jour');
+      sec.id = 'jour-' + j;
+      var h = el('h2', 'jour-titre', JOURS[j][0]);
+      h.appendChild(el('span', null, JOURS[j][1]));
+      sec.appendChild(h);
+      var groupes = [], par = {};
+      SORTIES.forEach(function (s, i) {
+        if (s.j !== j || !passe(s)) return;
+        if (!par[s.heure]) { par[s.heure] = []; groupes.push(s.heure); }
+        par[s.heure].push([s, i]);
+      });
+      total += groupes.length;
+      if (!groupes.length) {
+        var v = el('div', 'vide');
+        v.appendChild(el('span', null, etat.gratuit ? 'Pas de sortie gratuite ' + JOURS[j][0].toLowerCase() + ' dans cette sélection.' : 'Aucune sortie ne correspond à ces filtres ' + JOURS[j][0].toLowerCase() + '.'));
+        if (etat.gratuit) v.appendChild(lienGigot('Toutes les sorties gratuites à Rouen', 'https://gigot.app/sorties/rouen?gratuit=1'));
+        sec.appendChild(v);
+      }
+      groupes.forEach(function (heure) {
+        var cle = j + '|' + heure, n = par[heure].length;
+        var bloc = el('div', 'creneau' + (etat.replis[cle] ? ' replie' : ''));
+        var rail = el('button', 'rail');
+        rail.type = 'button';
+        rail.setAttribute('aria-expanded', etat.replis[cle] ? 'false' : 'true');
+        rail.appendChild(el('b', heure.length > 6 ? 'long' : null, heure === 'Toute la journée' ? 'Toute la journée' : heure));
+        var sm = el('small', null, n + (n > 1 ? ' sorties' : ' sortie'));
+        sm.appendChild(icone('i-bas'));
+        rail.appendChild(sm);
+        rail.addEventListener('click', function () {
+          etat.replis[cle] = !etat.replis[cle];
+          bloc.classList.toggle('replie', !!etat.replis[cle]);
+          rail.setAttribute('aria-expanded', etat.replis[cle] ? 'false' : 'true');
+        });
+        bloc.appendChild(rail);
+        var repli = el('div', 'repli');
+        par[heure].slice(0, 14).forEach(function (p) { var d = el('i'); d.style.setProperty('--c', C[infoCat(p[0]).c1]); repli.appendChild(d); });
+        bloc.appendChild(repli);
+        var ul = el('ul', 'cartes');
+        par[heure].forEach(function (p) { ul.appendChild(carte(p[0], p[1])); });
+        bloc.appendChild(ul);
+        sec.appendChild(bloc);
+      });
+      liste.appendChild(sec);
+    });
+    var jours = joursAffiches();
+    var dernier = jours[jours.length - 1];
+    document.getElementById('fin-texte').textContent = 'C’était la dernière sortie ' + (dernier === 'dem' ? 'de demain' : 'd’aujourd’hui') + ' à Rouen' + (filtresActifs() ? ' avec ces filtres.' : '.');
+    var demain = jours.indexOf('dem') >= 0;
+    document.getElementById('plus-loin').hidden = demain;
+    document.getElementById('plus-loin-lien').hidden = !demain;
+    compteCats();
+  }
+  function filtresActifs() {
+    return etat.moment || etat.gratuit || etat.nouveaux || Object.keys(etat.cats).length;
+  }
+
+  // ---------------------------------------------------------------------------
+  // La fiche : au clic sur le chevron, l'aperçu s'envole au centre (View Transitions).
+  // ---------------------------------------------------------------------------
+  var fiche = null, enCours = false;
+  var reduit = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function nomme(li, oui) {
+    li.querySelector('.pop').style.viewTransitionName = oui ? 'fiche' : '';
+    li.querySelector('.photo').style.viewTransitionName = oui ? 'fiche-photo' : '';
+    li.querySelector('.titre').style.viewTransitionName = oui ? 'fiche-titre' : '';
+  }
+  function transition(maj) {
+    if (!document.startViewTransition || reduit) { maj(); return Promise.resolve(); }
+    enCours = true;
+    var t = document.startViewTransition(maj);
+    return t.finished.catch(function () {}).then(function () { enCours = false; });
+  }
+  function construitFiche(li) {
+    var s = li._s, i = li._i;
+    var voile = el('div', 'voile');
+    var f = el('article', 'fiche');
+    f.setAttribute('role', 'dialog'); f.setAttribute('aria-modal', 'true'); f.setAttribute('aria-labelledby', 'fiche-titre');
+    f.style.viewTransitionName = 'fiche';
+    var p = photo(s, i, true);
+    p.style.viewTransitionName = 'fiche-photo';
+    f.appendChild(p);
+
+    var corps = el('div', 'fiche-corps');
+    var h = el('h2', null, s.t); h.id = 'fiche-titre'; h.style.viewTransitionName = 'fiche-titre';
+    corps.appendChild(h);
+    var act = el('div', 'actions');
+    act.appendChild(boutonGarder(s, i, 46));
+    var voir = el('a', 'voir', 'Voir sur gigot.app'); voir.href = s.href; voir.target = '_blank'; voir.rel = 'noopener';
+    voir.appendChild(icone('i-sortie'));
+    act.appendChild(voir);
+    corps.appendChild(act);
+
+    var gauche = el('div');
+    var meta = el('p', 'meta');
+    meta.appendChild(el('span', null, s.quand ? s.quand.charAt(0) + s.quand.slice(1).toLowerCase() : horaire(s)));
+    if (s.prix) meta.appendChild(el('span', 'boite', s.prix));
+    if (s.nouveau) meta.appendChild(el('span', 'nouveau', 'Nouveau'));
+    gauche.appendChild(meta);
+    var desc = el('div', 'desc');
+    (s.desc || 'Pas de description sur gigot.app pour cette sortie.').split('\n').forEach(function (t) { if (t.trim()) desc.appendChild(el('p', null, t)); });
+    gauche.appendChild(desc);
+    if (s.source) gauche.appendChild(el('p', 'source', 'Source : ' + s.source));
+    corps.appendChild(gauche);
+
+    var cote = el('div', 'cote');
+    var dl = el('dl');
+    var d1 = el('div'); d1.appendChild(el('dt', null, 'Où')); var dd = el('dd', null, s.ou); if (s.adresse) { dd.appendChild(el('br')); dd.appendChild(document.createTextNode(s.adresse)); } d1.appendChild(dd); dl.appendChild(d1);
+    var d2 = el('div'); d2.appendChild(el('dt', null, 'Catégories')); var dd2 = el('dd'); dd2.appendChild(genres(s)); d2.appendChild(dd2); dl.appendChild(d2);
+    cote.appendChild(dl);
+    corps.appendChild(cote);
+    f.appendChild(corps);
+
+    var x = el('button', 'rond fermer'); x.type = 'button'; x.setAttribute('aria-label', 'Fermer');
+    x.appendChild(icone('i-croix'));
+    x.addEventListener('click', ferme);
+    f.appendChild(x);
+    voile.appendChild(f);
+    voile.addEventListener('click', function (e) { if (e.target === voile) ferme(); });
+    return voile;
+  }
+  function ouvre(li) {
+    if (fiche || enCours) return;
+    nomme(li, true);
+    var voile = construitFiche(li);
+    fiche = { li: li, voile: voile, focus: document.activeElement };
+    transition(function () {
+      nomme(li, false);
+      li.style.visibility = 'hidden';
+      document.body.appendChild(voile);
+      document.documentElement.style.overflow = 'hidden';
+    }).then(function () { if (fiche) voile.querySelector('.fermer').focus({ preventScroll: true }); });
+  }
+  function ferme() {
+    if (!fiche || enCours) return;
+    var f = fiche; fiche = null;
+    transition(function () {
+      f.voile.remove();
+      f.li.style.visibility = '';
+      nomme(f.li, true);
+      document.documentElement.style.overflow = '';
+    }).then(function () {
+      nomme(f.li, false);
+      if (f.focus && f.focus.focus && document.contains(f.focus)) f.focus.focus({ preventScroll: true });
+    });
+  }
+  document.addEventListener('keydown', function (e) {
+    if (!fiche) return;
+    if (e.key === 'Escape') ferme();
+    if (e.key === 'Tab') {
+      var f = fiche.voile.querySelectorAll('button, a[href], canvas');
+      var p = f[0], d = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === p) { e.preventDefault(); d.focus(); }
+      else if (!e.shiftKey && document.activeElement === d) { e.preventDefault(); p.focus(); }
+      else if (!fiche.voile.contains(document.activeElement)) { e.preventDefault(); p.focus(); }
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // Filtres
+  // ---------------------------------------------------------------------------
+  function bascule(btn, v) { btn.setAttribute('aria-pressed', v ? 'true' : 'false'); }
+  function tiroir(btn, id) {
+    btn.addEventListener('click', function () {
+      var t = document.getElementById(id), ouvrir = t.hidden;
+      document.querySelectorAll('.tiroir').forEach(function (x) { x.hidden = true; });
+      document.querySelectorAll('#f-quand, #f-cat').forEach(function (x) { x.setAttribute('aria-expanded', 'false'); });
+      t.hidden = !ouvrir;
+      btn.setAttribute('aria-expanded', ouvrir ? 'true' : 'false');
+    });
+  }
+  tiroir(document.getElementById('f-quand'), 't-quand');
+  tiroir(document.getElementById('f-cat'), 't-cat');
+
+  document.querySelectorAll('[data-moment]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      etat.moment = etat.moment === b.dataset.moment ? null : b.dataset.moment;
+      document.querySelectorAll('[data-moment]').forEach(function (x) { bascule(x, x.dataset.moment === etat.moment); });
+      rends();
+    });
+  });
+  [['f-gratuit', 'gratuit'], ['f-commu', 'commu'], ['f-nouveaux', 'nouveaux']].forEach(function (d) {
+    var b = document.getElementById(d[0]);
+    b.addEventListener('click', function () { etat[d[1]] = !etat[d[1]]; bascule(b, etat[d[1]]); rends(); });
+  });
+  document.querySelectorAll('[data-quand]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      etat.quand = etat.quand === b.dataset.quand ? null : b.dataset.quand;
+      document.querySelectorAll('[data-quand]').forEach(function (x) { bascule(x, x.dataset.quand === etat.quand); });
+      rends();
+    });
+  });
+
+  var tCat = document.getElementById('t-cat'), legende = document.getElementById('legende');
+  FAMILLES.forEach(function (f) {
+    var bloc = el('div', 'famille');
+    bloc.appendChild(el('h3', null, f.nom));
+    var row = el('div');
+    f.cats.forEach(function (c) {
+      var b = el('button', 'puce cat');
+      b.type = 'button'; b.setAttribute('aria-pressed', 'false'); b.dataset.cat = c[0];
+      b.style.setProperty('--c1', C[c[1]]); b.style.setProperty('--c2', C[c[2]]);
+      if (c[1] === 'violet') b.style.setProperty('--sur', '#FFFFFF');
+      b.appendChild(el('span', 'pastille'));
+      b.appendChild(document.createTextNode(c[0]));
+      b.appendChild(el('span', 'n'));
+      b.addEventListener('click', function () {
+        if (etat.cats[c[0]]) delete etat.cats[c[0]]; else etat.cats[c[0]] = 1;
+        bascule(b, !!etat.cats[c[0]]);
+        rends();
+      });
+      row.appendChild(b);
+      var l = el('span', 'puce');
+      l.style.cssText = 'height:auto;padding:0;border:0;cursor:default;--c1:' + C[c[1]] + ';--c2:' + C[c[2]];
+      l.appendChild(el('span', 'pastille'));
+      l.appendChild(document.createTextNode(c[0] + ' · ' + c[1] + ' et ' + c[2]));
+      legende.appendChild(l);
+    });
+    bloc.appendChild(row);
+    tCat.appendChild(bloc);
+  });
+  function compteCats() {
+    var jours = joursAffiches();
+    tCat.querySelectorAll('[data-cat]').forEach(function (b) {
+      var n = SORTIES.filter(function (s) { return jours.indexOf(s.j) >= 0 && s.cats.indexOf(b.dataset.cat) >= 0; }).length;
+      b.querySelector('.n').textContent = n;
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Fin de liste
+  // ---------------------------------------------------------------------------
+  document.getElementById('plus-loin').addEventListener('click', function () {
+    etat.plusLoin = true;
+    if (etat.quand === 'auj') { etat.quand = null; document.querySelectorAll('[data-quand]').forEach(function (x) { bascule(x, false); }); }
+    rends();
+    var d = document.getElementById('jour-dem');
+    if (d) d.scrollIntoView({ behavior: reduit ? 'auto' : 'smooth', block: 'start' });
+  });
+  var alerte = document.getElementById('alerte');
+  var oeil = GigotButton.create({ fond: 'jaune', face: 'rose', flanc: 'violet', taille: 54, label: 'Me prévenir des nouvelles sorties à Rouen' });
+  alerte.appendChild(oeil);
+  oeil.addEventListener('change', function (e) {
+    document.getElementById('alerte-detail').textContent = e.detail.checked
+      ? 'C’est noté : l’œil est ouvert sur Rouen (maquette : aucune alerte n’est créée).'
+      : 'Une alerte quand une sortie arrive à Rouen';
+  });
+  alerte.addEventListener('click', function (e) { if (!e.target.closest('.gigot-btn')) oeil.click(); });
+
+  // ---------------------------------------------------------------------------
+  // Clair / sombre : suit le système, le bouton impose l'autre mode et s'en souvient
+  // ---------------------------------------------------------------------------
+  var racine = document.documentElement, btnTheme = document.getElementById('theme');
+  var systeme = window.matchMedia('(prefers-color-scheme: light)');
+  function effectif() { return racine.dataset.theme || (systeme.matches ? 'light' : 'dark'); }
+  function majTheme() {
+    var clair = effectif() === 'light';
+    racine.dataset.effectif = clair ? 'light' : 'dark';
+    btnTheme.setAttribute('aria-label', clair ? 'Passer en mode sombre' : 'Passer en mode clair');
+    btnTheme.setAttribute('data-tip', clair ? 'Mode sombre' : 'Mode clair');
+  }
+  try { var t = localStorage.getItem('gigot-theme'); if (t === 'light' || t === 'dark') racine.dataset.theme = t; } catch (e) {}
+  btnTheme.addEventListener('click', function () {
+    var vers = effectif() === 'light' ? 'dark' : 'light';
+    var change = function () { racine.dataset.theme = vers; majTheme(); };
+    if (document.startViewTransition && !reduit && !fiche) document.startViewTransition(change); else change();
+    try { localStorage.setItem('gigot-theme', vers); } catch (e) {}
+  });
+  systeme.addEventListener('change', majTheme);
+  new MutationObserver(majTheme).observe(racine, { attributes: true, attributeFilter: ['data-theme'] });
+  majTheme();
+
+  rends();
+  compte();
+})();
+</script>
+</body>
+</html>
