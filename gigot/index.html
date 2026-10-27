@@ -69,6 +69,13 @@
   .planche img { width: 100%; height: auto; display: block; border-radius: 14px; border: 1px solid var(--filet); }
   .planche figcaption { font-size: 13px; color: var(--doux); }
 
+  /* logo animé, fond transparent : posé sur quelques fonds */
+  .anime { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+  .anime figure { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+  .anime div { border-radius: 14px; border: 1px solid var(--filet); padding: 24px 20px; }
+  .anime img { width: 100%; height: auto; display: block; }
+  .anime figcaption { font-size: 13px; color: var(--doux); }
+
   /* bouton */
   .scene { display: flex; flex-wrap: wrap; align-items: center; gap: 28px 48px; }
   .scene dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; flex: 1 1 280px; min-width: 0; }
@@ -102,7 +109,7 @@
   <a class="retour" href="../">← Bac à sable</a>
 
   <header>
-    <img src="logo/gigot-logo-rose-anime.svg" alt="gigot — l'app pour gigoter" width="600" height="600">
+    <img src="logo/gigot-logo-rose.svg" alt="gigot — l'app pour gigoter" width="600" height="600">
     <p>Identité visuelle de gigot.app, l'agenda culturel pour gigoter : pop art, couleurs flash
     cernées de noir épais, dans l'esprit de Keith Haring.</p>
   </header>
@@ -121,10 +128,11 @@
     L'ombre, les arcs et la tagline sont blancs sur fond noir ou violet, noirs sinon.</p>
     <div class="planche" id="logos"></div>
     <h3 class="etiquette">Animé</h3>
-    <p class="chapo">Les lettres, la face et le flanc passent d'une couleur à l'autre, dans l'ordre des teintes :
-    rose, orange, jaune, vert, cyan, violet, blanc, sans jamais prendre celle du fond. Les trois parties
-    parcourent le même cycle, décalées : elles ne se rejoignent jamais. En mouvement réduit, le logo reste fixe.</p>
-    <div class="planche" id="logos-anime"></div>
+    <p class="chapo">Le mot seul, sur fond transparent : les lettres, la face et le flanc du O passent en fondu
+    continu d'une couleur flash à la suivante, dans l'ordre des teintes (rose, orange, jaune, vert, cyan, violet).
+    Les trois parties sont décalées de deux couleurs : elles ne se rejoignent jamais. Ombre et arcs restent noirs,
+    donc à poser sur un fond clair ou flash. En mouvement réduit, le logo reste fixe.</p>
+    <div class="anime" id="logos-anime"></div>
   </section>
 
   <section aria-labelledby="t-picto">
@@ -188,7 +196,8 @@
     <h2 id="t-fichiers">Fichiers</h2>
     <dl class="fichiers">
       <dt><a href="tokens.css">tokens.css</a> · <a href="tokens.json">tokens.json</a></dt><dd>palette, police, variantes du logo</dd>
-      <dt>logo/gigot-logo-&lt;fond&gt;.svg</dt><dd>logo complet 600×600, couleurs dans le bloc <code>&lt;style&gt;</code> en tête ; <code>-anime.svg</code> : couleurs en cycle</dd>
+      <dt>logo/gigot-logo-&lt;fond&gt;.svg</dt><dd>logo complet 600×600, couleurs dans le bloc <code>&lt;style&gt;</code> en tête</dd>
+      <dt>logo/gigot-logo-anime.svg</dt><dd>le mot seul, fond transparent, couleurs en fondu continu</dd>
       <dt>picto/gigot-picto-&lt;fond&gt;.svg</dt><dd>pictogramme 160×160</dd>
       <dt><a href="bouton/gigot-button.js">bouton/gigot-button.js</a> · <a href="bouton/gigot-button.css">.css</a></dt><dd>bouton sans framework : <code>GigotButton.create({ fond, face, flanc })</code></dd>
       <dt>bouton/react/GigotButton.tsx</dt><dd>composant React / Next.js (contrôlé ou non)</dd>
@@ -215,18 +224,24 @@
     palette.appendChild(d);
   });
 
-  function planche(id, dossier, prefixe, suffixe) {
+  function planche(id, dossier, prefixe) {
     var el = document.getElementById(id);
     ORDRE.forEach(function (nom) {
       var f = document.createElement('figure');
-      f.innerHTML = '<img src="' + dossier + '/' + prefixe + nom + (suffixe || '') + '.svg" alt="' +
+      f.innerHTML = '<img src="' + dossier + '/' + prefixe + nom + '.svg" alt="' +
         (prefixe.indexOf('logo') > -1 ? 'Logo gigot' : 'Pictogramme gigot') + ' sur fond ' + nom + '" loading="lazy">' +
         '<figcaption>fond ' + nom + '</figcaption>';
       el.appendChild(f);
     });
   }
   planche('logos', 'logo', 'gigot-logo-');
-  planche('logos-anime', 'logo', 'gigot-logo-', '-anime');
+  var anime = document.getElementById('logos-anime');
+  ['blanc', 'rose', 'jaune', 'cyan'].forEach(function (nom) {
+    var f = document.createElement('figure');
+    f.innerHTML = '<div style="background:' + C[nom] + '"><img src="logo/gigot-logo-anime.svg" alt="Logo gigot animé sur fond ' + nom + '" width="508" height="190" loading="lazy"></div>' +
+      '<figcaption>fond ' + nom + '</figcaption>';
+    anime.appendChild(f);
+  });
   planche('pictos', 'picto', 'gigot-picto-');
 
   var VERSIONS = [

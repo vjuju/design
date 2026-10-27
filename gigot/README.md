@@ -11,7 +11,7 @@ pop art, couleurs flash cernées de noir épais, dans l'esprit de Keith Haring.
 | --- | --- |
 | `tokens.css`, `tokens.json` | palette, police, règles et variantes du logo |
 | `logo/gigot-logo-<fond>.svg` | logo complet « gigot » + tagline « L'APP POUR GIGOTER », 600×600, texte vectorisé |
-| `logo/gigot-logo-<fond>-anime.svg` | le même, lettres, face et flanc du O en cycle de couleurs |
+| `logo/gigot-logo-anime.svg` | le mot « gigot » seul, fond transparent, lettres, face et flanc du O en cycle de couleurs |
 | `picto/gigot-picto-<fond>.svg` | pictogramme seul (le O, son flanc, ses deux arcs), 160×160 |
 | `bouton/gigot-button.js` + `.css` | bouton-case à cocher animé, sans framework |
 | `bouton/react/GigotButton.tsx` + `.module.css` | le même bouton en composant React / Next.js |
@@ -44,10 +44,12 @@ Police : [Titan One](https://fonts.google.com/specimen/Titan+One) (Rodrigo Fuenz
 - Ombre portée, arcs et tagline : blancs sur fond noir ou violet, noirs sur tous les autres fonds.
 - Contours des lettres et du O, rond central : toujours `#111111`.
 
-Logo animé (`-anime.svg`) : les trois parties colorées passent d'une couleur à l'autre dans l'ordre des
-teintes (rose, orange, jaune, vert, cyan, violet, blanc, sans la couleur du fond), 2 s par couleur dont
-0,7 s posée. Chacune part de sa couleur fixe et elles avancent ensemble : jamais deux parties de la même
-couleur. Animation CSS dans le SVG, rien à charger ; `prefers-reduced-motion` affiche la version fixe.
+Logo animé (`gigot-logo-anime.svg`) : le mot seul, sans tagline, sur fond transparent. Les trois parties
+colorées passent d'une couleur flash à la suivante dans l'ordre des teintes (rose, orange, jaune, vert,
+cyan, violet), en fondu continu de 4 s, sans pause. Elles partent à deux couleurs d'écart (lettres jaunes,
+face cyan, flanc rose) et avancent ensemble : jamais deux parties de la même couleur. Ombre et arcs
+restent noirs : à poser sur un fond clair ou flash. Animation CSS dans le SVG ; `prefers-reduced-motion`
+le laisse sur ses couleurs de départ.
 
 Toutes les couleurs d'un SVG sont dans le bloc `<style>` en tête :
 
