@@ -3,23 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Sphère organique</title>
+<title>Reskif</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Une sphère qui respire : bruit de Perlin 4D dans le vertex shader, deux lumières colorées et un liseré de Fresnel. D'après l'Organic Sphere de Bruno Simon.">
+<meta name="description" content="Le virtuel au service du réel. Reskif est un réseau de kif rassemblant financeur·ses, éclaireur·ses, expert·es et porteur·ses de projets.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=Fraunces:ital,opsz,wght@1,9..144,300;1,9..144,500&display=swap">
 <style>
-  /* Plein cadre : la sphère occupe l'écran, le texte reste dans les coins. Un seul univers, sombre. */
+  /* Plein cadre : la sphère au centre, le titre posé dessus, le texte révélé à l'intérieur. Un seul univers, nuit. */
   :root {
-    --night: #07080c;
-    --ink: #eef0f6;
-    --muted: #8b90a3;
-    --line: rgba(238, 240, 246, .14);
-    --chip: rgba(238, 240, 246, .06);
-    --accent: #ff7a3d;
-    --display: "Instrument Serif", "Iowan Old Style", Georgia, serif;
-    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --night: #010101;
+    --ink: #ffffff;
+    --muted: rgba(255, 255, 255, .62);
+    --line: rgba(255, 255, 255, .22);
+    --warm: #ff6a2b;
+    --cold: #4d8dff;
+    --display: "Syne", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --text: "Fraunces", "Iowan Old Style", Georgia, serif;
     color-scheme: dark;
   }
   * { box-sizing: border-box; }
@@ -29,444 +29,640 @@
     overflow: hidden;
     background: var(--night);
     color: var(--ink);
-    font: 13px/1.5 var(--mono);
+    font: 14px/1.5 var(--display);
     -webkit-font-smoothing: antialiased;
   }
-  canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
-  canvas#scene:active { cursor: grabbing; }
+  ::selection { background: #ffffff22; }
 
-  .card {
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: manipulation; cursor: pointer; outline: none; }
+  body.inside #scene { cursor: default; }
+
+  .title {
     position: fixed;
-    left: max(16px, env(safe-area-inset-left, 0px));
-    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-    max-width: min(420px, calc(100% - 32px));
-    display: flex; flex-direction: column; gap: 12px;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px));
     pointer-events: none;
+    text-align: center;
   }
-  .card > * { pointer-events: auto; }
-  h1 {
+  .title h1 {
     margin: 0;
-    font: 400 clamp(40px, 7vw, 72px)/.9 var(--display);
+    font: 800 clamp(30px, 8.4vmin, 92px)/.95 var(--display);
     letter-spacing: -.01em;
+    text-transform: uppercase;
+    text-wrap: balance;
+    max-width: 14ch;
+    text-shadow: 0 0 10px rgba(0, 0, 0, .7);
+    will-change: opacity, transform;
+  }
+
+  .reveal {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding-inline: max(20px, env(safe-area-inset-left, 0px)) max(20px, env(safe-area-inset-right, 0px));
+    pointer-events: none;
+    opacity: 0;
+  }
+  body.inside .reveal { pointer-events: auto; }
+  .reveal-inner { display: flex; flex-direction: column; align-items: center; gap: 32px; max-width: 30ch; text-align: center; }
+  .reveal p {
+    margin: 0;
+    font: 300 italic clamp(24px, 4.4vmin, 44px)/1.22 var(--text);
     text-wrap: balance;
   }
-  h1 em { color: var(--accent); }
-  .card p { margin: 0; color: var(--muted); max-width: 46ch; }
-  .card a { color: var(--ink); text-decoration-color: var(--line); text-underline-offset: 3px; }
-  .card a:hover { text-decoration-color: var(--accent); }
-
-  .presets { display: flex; flex-wrap: wrap; gap: 8px; }
-  .presets button {
-    font: 500 12px/1 var(--mono);
-    letter-spacing: .08em;
+  .reveal strong {
+    display: block;
+    margin-bottom: .35em;
+    font: 800 clamp(48px, 12vmin, 128px)/.9 var(--display);
+    font-style: normal;
+    letter-spacing: -.02em;
+    text-transform: uppercase;
+  }
+  .reveal .role { font-weight: 500; white-space: nowrap; }
+  .reveal .role:nth-of-type(odd) { color: #ffb08a; }
+  .reveal .role:nth-of-type(even) { color: #9cc0ff; }
+  .back {
+    font: 500 12px/1 var(--display);
+    letter-spacing: .14em;
     text-transform: uppercase;
     color: var(--ink);
-    background: var(--chip);
+    background: transparent;
     border: 1px solid var(--line);
     border-radius: 999px;
-    padding: 9px 14px;
+    padding: 12px 18px;
     cursor: pointer;
     transition: border-color .2s, background .2s;
   }
-  .presets button:hover { border-color: var(--muted); }
-  .presets button[aria-pressed="true"] { border-color: var(--accent); background: rgba(255, 122, 61, .12); }
-  .presets button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .back:hover { border-color: var(--ink); background: rgba(255, 255, 255, .06); }
+  .back:focus-visible { outline: 2px solid var(--warm); outline-offset: 3px; }
 
-  .hint { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
-
-  .lil-gui.root {
+  .hint {
     position: fixed;
-    top: calc(16px + env(safe-area-inset-top, 0px));
+    left: max(16px, env(safe-area-inset-left, 0px));
+    bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    font-size: 11px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    transition: opacity .6s;
+    pointer-events: none;
+  }
+  body.away .hint { opacity: 0; }
+  .credits {
+    position: fixed;
     right: max(16px, env(safe-area-inset-right, 0px));
+    bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    font-size: 11px;
+    color: var(--muted);
+    text-align: right;
   }
-  body .lil-gui {
-    --font-family: var(--mono);
-    --background-color: rgba(10, 11, 16, .82);
-    --title-background-color: rgba(20, 22, 30, .9);
-    --widget-color: rgba(238, 240, 246, .1);
-    --hover-color: rgba(238, 240, 246, .16);
-    --focus-color: rgba(238, 240, 246, .22);
-    --number-color: var(--accent);
-    --string-color: var(--accent);
-    backdrop-filter: blur(8px);
-  }
-  @media (max-width: 640px) {
-    .lil-gui.root { width: min(260px, calc(100% - 32px)) !important; }
-    .card p.long { display: none; }
+  .credits a { color: inherit; text-underline-offset: 2px; }
+  .credits a:hover { color: var(--ink); }
+  @media (max-width: 560px) {
+    .hint { bottom: calc(44px + env(safe-area-inset-bottom, 0px)); }
   }
   .fallback { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--muted); }
 </style>
 </head>
 <body>
-<canvas id="scene" aria-label="Sphère organique animée en 3D. Glisser pour tourner autour, cliquer pour la faire vibrer."></canvas>
+<canvas id="scene" tabindex="0" aria-label="Sphère organique. Survoler son centre l'accélère, s'en éloigner la ralentit. Cliquer ou appuyer sur Entrée pour entrer dedans."></canvas>
 
-<div class="card">
-  <h1>Sphère <em>organique</em></h1>
-  <p class="long">Une boule qui respire : un bruit de Perlin à quatre dimensions déforme chaque sommet,
-  deux lumières colorées et un liseré de Fresnel la sculptent. D'après
-  l'<a href="https://organic-sphere.bruno-simon.com/" target="_blank" rel="noopener">Organic Sphere de Bruno Simon</a>,
-  réécrite ici de zéro.</p>
-  <div class="presets" role="group" aria-label="Ambiances">
-    <button type="button" id="p-braise" data-preset="braise" aria-pressed="true">Braise</button>
-    <button type="button" id="p-lagon" data-preset="lagon">Lagon</button>
-    <button type="button" id="p-aurore" data-preset="aurore">Aurore</button>
-    <button type="button" id="p-mousse" data-preset="mousse">Mousse</button>
+<div class="title" aria-hidden="false"><h1 id="title">Le virtuel au service du réel</h1></div>
+
+<div class="reveal" id="reveal" aria-hidden="true">
+  <div class="reveal-inner">
+    <p><strong>Reskif</strong>est un réseau de kif rassemblant
+      <span class="role">financeur·ses</span>, <span class="role">éclaireur·ses</span>,
+      <span class="role">expert·es</span> et <span class="role">porteur·ses de projets</span>.</p>
+    <button type="button" class="back" id="back" tabindex="-1">Ressortir de la sphère</button>
   </div>
-  <span class="hint">Glisser : tourner · Molette : zoom · Clic : pulsation</span>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/lil-gui@0.19.2/dist/lil-gui.umd.min.js"></script>
+<span class="hint" id="hint">Survolez le cœur · Cliquez pour entrer</span>
+<div class="credits">Organic Sphere par <a href="https://bruno-simon.com" target="_blank" rel="noopener">Bruno Simon</a>
+  (<a href="https://github.com/brunosimon/organic-sphere" target="_blank" rel="noopener">code source</a>)</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/postprocessing/UnrealBloomPass.js"></script>
 <script>
 (function () {
-  if (!window.THREE) {
+  if (!window.THREE || !THREE.EffectComposer || !THREE.UnrealBloomPass) {
     document.body.insertAdjacentHTML('beforeend', '<div class="fallback">Three.js n’a pas pu se charger. Vérifiez la connexion puis rechargez la page.</div>');
     return;
   }
 
-  // ---------- Bruit de Perlin 4D (Stefan Gustavson, domaine public) ----------
+  /* =====================================================================
+     Shaders : repris tels quels de brunosimon/organic-sphere
+     (src/Experience/shaders/sphere/vertex.glsl et fragment.glsl,
+     bruit perlin4d de Stefan Gustavson).
+     ===================================================================== */
   const perlin4d = `
-  vec4 permute(vec4 x){ return mod(((x*34.0)+1.0)*x, 289.0); }
-  vec4 taylorInvSqrt(vec4 r){ return 1.79284291400159 - 0.85373472095314 * r; }
-  vec4 fade(vec4 t){ return t*t*t*(t*(t*6.0-15.0)+10.0); }
-  float perlin4d(vec4 P){
-    vec4 Pi0 = floor(P); vec4 Pi1 = Pi0 + 1.0;
-    Pi0 = mod(Pi0, 289.0); Pi1 = mod(Pi1, 289.0);
-    vec4 Pf0 = fract(P); vec4 Pf1 = Pf0 - 1.0;
-    vec4 ix = vec4(Pi0.x, Pi1.x, Pi0.x, Pi1.x);
-    vec4 iy = vec4(Pi0.yy, Pi1.yy);
-    vec4 iz0 = vec4(Pi0.zzzz); vec4 iz1 = vec4(Pi1.zzzz);
-    vec4 iw0 = vec4(Pi0.wwww); vec4 iw1 = vec4(Pi1.wwww);
-    vec4 ixy = permute(permute(ix) + iy);
-    vec4 ixy0 = permute(ixy + iz0); vec4 ixy1 = permute(ixy + iz1);
-    vec4 ixy00 = permute(ixy0 + iw0); vec4 ixy01 = permute(ixy0 + iw1);
-    vec4 ixy10 = permute(ixy1 + iw0); vec4 ixy11 = permute(ixy1 + iw1);
-    vec4 gx00 = ixy00 / 7.0; vec4 gy00 = floor(gx00) / 7.0; vec4 gz00 = floor(gy00) / 6.0;
-    gx00 = fract(gx00) - 0.5; gy00 = fract(gy00) - 0.5; gz00 = fract(gz00) - 0.5;
-    vec4 gw00 = vec4(0.75) - abs(gx00) - abs(gy00) - abs(gz00);
-    vec4 sw00 = step(gw00, vec4(0.0));
-    gx00 -= sw00 * (step(0.0, gx00) - 0.5); gy00 -= sw00 * (step(0.0, gy00) - 0.5);
-    vec4 gx01 = ixy01 / 7.0; vec4 gy01 = floor(gx01) / 7.0; vec4 gz01 = floor(gy01) / 6.0;
-    gx01 = fract(gx01) - 0.5; gy01 = fract(gy01) - 0.5; gz01 = fract(gz01) - 0.5;
-    vec4 gw01 = vec4(0.75) - abs(gx01) - abs(gy01) - abs(gz01);
-    vec4 sw01 = step(gw01, vec4(0.0));
-    gx01 -= sw01 * (step(0.0, gx01) - 0.5); gy01 -= sw01 * (step(0.0, gy01) - 0.5);
-    vec4 gx10 = ixy10 / 7.0; vec4 gy10 = floor(gx10) / 7.0; vec4 gz10 = floor(gy10) / 6.0;
-    gx10 = fract(gx10) - 0.5; gy10 = fract(gy10) - 0.5; gz10 = fract(gz10) - 0.5;
-    vec4 gw10 = vec4(0.75) - abs(gx10) - abs(gy10) - abs(gz10);
-    vec4 sw10 = step(gw10, vec4(0.0));
-    gx10 -= sw10 * (step(0.0, gx10) - 0.5); gy10 -= sw10 * (step(0.0, gy10) - 0.5);
-    vec4 gx11 = ixy11 / 7.0; vec4 gy11 = floor(gx11) / 7.0; vec4 gz11 = floor(gy11) / 6.0;
-    gx11 = fract(gx11) - 0.5; gy11 = fract(gy11) - 0.5; gz11 = fract(gz11) - 0.5;
-    vec4 gw11 = vec4(0.75) - abs(gx11) - abs(gy11) - abs(gz11);
-    vec4 sw11 = step(gw11, vec4(0.0));
-    gx11 -= sw11 * (step(0.0, gx11) - 0.5); gy11 -= sw11 * (step(0.0, gy11) - 0.5);
-    vec4 g0000 = vec4(gx00.x,gy00.x,gz00.x,gw00.x); vec4 g1000 = vec4(gx00.y,gy00.y,gz00.y,gw00.y);
-    vec4 g0100 = vec4(gx00.z,gy00.z,gz00.z,gw00.z); vec4 g1100 = vec4(gx00.w,gy00.w,gz00.w,gw00.w);
-    vec4 g0010 = vec4(gx10.x,gy10.x,gz10.x,gw10.x); vec4 g1010 = vec4(gx10.y,gy10.y,gz10.y,gw10.y);
-    vec4 g0110 = vec4(gx10.z,gy10.z,gz10.z,gw10.z); vec4 g1110 = vec4(gx10.w,gy10.w,gz10.w,gw10.w);
-    vec4 g0001 = vec4(gx01.x,gy01.x,gz01.x,gw01.x); vec4 g1001 = vec4(gx01.y,gy01.y,gz01.y,gw01.y);
-    vec4 g0101 = vec4(gx01.z,gy01.z,gz01.z,gw01.z); vec4 g1101 = vec4(gx01.w,gy01.w,gz01.w,gw01.w);
-    vec4 g0011 = vec4(gx11.x,gy11.x,gz11.x,gw11.x); vec4 g1011 = vec4(gx11.y,gy11.y,gz11.y,gw11.y);
-    vec4 g0111 = vec4(gx11.z,gy11.z,gz11.z,gw11.z); vec4 g1111 = vec4(gx11.w,gy11.w,gz11.w,gw11.w);
-    vec4 norm00 = taylorInvSqrt(vec4(dot(g0000,g0000), dot(g0100,g0100), dot(g1000,g1000), dot(g1100,g1100)));
-    g0000 *= norm00.x; g0100 *= norm00.y; g1000 *= norm00.z; g1100 *= norm00.w;
-    vec4 norm01 = taylorInvSqrt(vec4(dot(g0001,g0001), dot(g0101,g0101), dot(g1001,g1001), dot(g1101,g1101)));
-    g0001 *= norm01.x; g0101 *= norm01.y; g1001 *= norm01.z; g1101 *= norm01.w;
-    vec4 norm10 = taylorInvSqrt(vec4(dot(g0010,g0010), dot(g0110,g0110), dot(g1010,g1010), dot(g1110,g1110)));
-    g0010 *= norm10.x; g0110 *= norm10.y; g1010 *= norm10.z; g1110 *= norm10.w;
-    vec4 norm11 = taylorInvSqrt(vec4(dot(g0011,g0011), dot(g0111,g0111), dot(g1011,g1011), dot(g1111,g1111)));
-    g0011 *= norm11.x; g0111 *= norm11.y; g1011 *= norm11.z; g1111 *= norm11.w;
-    float n0000 = dot(g0000, Pf0);
-    float n1000 = dot(g1000, vec4(Pf1.x, Pf0.yzw));
-    float n0100 = dot(g0100, vec4(Pf0.x, Pf1.y, Pf0.zw));
-    float n1100 = dot(g1100, vec4(Pf1.xy, Pf0.zw));
-    float n0010 = dot(g0010, vec4(Pf0.xy, Pf1.z, Pf0.w));
-    float n1010 = dot(g1010, vec4(Pf1.x, Pf0.y, Pf1.z, Pf0.w));
-    float n0110 = dot(g0110, vec4(Pf0.x, Pf1.yz, Pf0.w));
-    float n1110 = dot(g1110, vec4(Pf1.xyz, Pf0.w));
-    float n0001 = dot(g0001, vec4(Pf0.xyz, Pf1.w));
-    float n1001 = dot(g1001, vec4(Pf1.x, Pf0.yz, Pf1.w));
-    float n0101 = dot(g0101, vec4(Pf0.x, Pf1.y, Pf0.z, Pf1.w));
-    float n1101 = dot(g1101, vec4(Pf1.xy, Pf0.z, Pf1.w));
-    float n0011 = dot(g0011, vec4(Pf0.xy, Pf1.zw));
-    float n1011 = dot(g1011, vec4(Pf1.x, Pf0.y, Pf1.zw));
-    float n0111 = dot(g0111, vec4(Pf0.x, Pf1.yzw));
-    float n1111 = dot(g1111, Pf1);
-    vec4 fade_xyzw = fade(Pf0);
-    vec4 n_0w = mix(vec4(n0000, n1000, n0100, n1100), vec4(n0001, n1001, n0101, n1101), fade_xyzw.w);
-    vec4 n_1w = mix(vec4(n0010, n1010, n0110, n1110), vec4(n0011, n1011, n0111, n1111), fade_xyzw.w);
-    vec4 n_zw = mix(n_0w, n_1w, fade_xyzw.z);
-    vec2 n_yzw = mix(n_zw.xy, n_zw.zw, fade_xyzw.y);
-    return 2.2 * mix(n_yzw.x, n_yzw.y, fade_xyzw.x);
-  }`;
+//	Classic Perlin 3D Noise 
+//	by Stefan Gustavson
+//
+vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
+vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
+vec4 fade(vec4 t) {return t*t*t*(t*(t*6.0-15.0)+10.0);}
+
+float perlin4d(vec4 P){
+  vec4 Pi0 = floor(P); // Integer part for indexing
+  vec4 Pi1 = Pi0 + 1.0; // Integer part + 1
+  Pi0 = mod(Pi0, 289.0);
+  Pi1 = mod(Pi1, 289.0);
+  vec4 Pf0 = fract(P); // Fractional part for interpolation
+  vec4 Pf1 = Pf0 - 1.0; // Fractional part - 1.0
+  vec4 ix = vec4(Pi0.x, Pi1.x, Pi0.x, Pi1.x);
+  vec4 iy = vec4(Pi0.yy, Pi1.yy);
+  vec4 iz0 = vec4(Pi0.zzzz);
+  vec4 iz1 = vec4(Pi1.zzzz);
+  vec4 iw0 = vec4(Pi0.wwww);
+  vec4 iw1 = vec4(Pi1.wwww);
+
+  vec4 ixy = permute(permute(ix) + iy);
+  vec4 ixy0 = permute(ixy + iz0);
+  vec4 ixy1 = permute(ixy + iz1);
+  vec4 ixy00 = permute(ixy0 + iw0);
+  vec4 ixy01 = permute(ixy0 + iw1);
+  vec4 ixy10 = permute(ixy1 + iw0);
+  vec4 ixy11 = permute(ixy1 + iw1);
+
+  vec4 gx00 = ixy00 / 7.0;
+  vec4 gy00 = floor(gx00) / 7.0;
+  vec4 gz00 = floor(gy00) / 6.0;
+  gx00 = fract(gx00) - 0.5;
+  gy00 = fract(gy00) - 0.5;
+  gz00 = fract(gz00) - 0.5;
+  vec4 gw00 = vec4(0.75) - abs(gx00) - abs(gy00) - abs(gz00);
+  vec4 sw00 = step(gw00, vec4(0.0));
+  gx00 -= sw00 * (step(0.0, gx00) - 0.5);
+  gy00 -= sw00 * (step(0.0, gy00) - 0.5);
+
+  vec4 gx01 = ixy01 / 7.0;
+  vec4 gy01 = floor(gx01) / 7.0;
+  vec4 gz01 = floor(gy01) / 6.0;
+  gx01 = fract(gx01) - 0.5;
+  gy01 = fract(gy01) - 0.5;
+  gz01 = fract(gz01) - 0.5;
+  vec4 gw01 = vec4(0.75) - abs(gx01) - abs(gy01) - abs(gz01);
+  vec4 sw01 = step(gw01, vec4(0.0));
+  gx01 -= sw01 * (step(0.0, gx01) - 0.5);
+  gy01 -= sw01 * (step(0.0, gy01) - 0.5);
+
+  vec4 gx10 = ixy10 / 7.0;
+  vec4 gy10 = floor(gx10) / 7.0;
+  vec4 gz10 = floor(gy10) / 6.0;
+  gx10 = fract(gx10) - 0.5;
+  gy10 = fract(gy10) - 0.5;
+  gz10 = fract(gz10) - 0.5;
+  vec4 gw10 = vec4(0.75) - abs(gx10) - abs(gy10) - abs(gz10);
+  vec4 sw10 = step(gw10, vec4(0.0));
+  gx10 -= sw10 * (step(0.0, gx10) - 0.5);
+  gy10 -= sw10 * (step(0.0, gy10) - 0.5);
+
+  vec4 gx11 = ixy11 / 7.0;
+  vec4 gy11 = floor(gx11) / 7.0;
+  vec4 gz11 = floor(gy11) / 6.0;
+  gx11 = fract(gx11) - 0.5;
+  gy11 = fract(gy11) - 0.5;
+  gz11 = fract(gz11) - 0.5;
+  vec4 gw11 = vec4(0.75) - abs(gx11) - abs(gy11) - abs(gz11);
+  vec4 sw11 = step(gw11, vec4(0.0));
+  gx11 -= sw11 * (step(0.0, gx11) - 0.5);
+  gy11 -= sw11 * (step(0.0, gy11) - 0.5);
+
+  vec4 g0000 = vec4(gx00.x,gy00.x,gz00.x,gw00.x);
+  vec4 g1000 = vec4(gx00.y,gy00.y,gz00.y,gw00.y);
+  vec4 g0100 = vec4(gx00.z,gy00.z,gz00.z,gw00.z);
+  vec4 g1100 = vec4(gx00.w,gy00.w,gz00.w,gw00.w);
+  vec4 g0010 = vec4(gx10.x,gy10.x,gz10.x,gw10.x);
+  vec4 g1010 = vec4(gx10.y,gy10.y,gz10.y,gw10.y);
+  vec4 g0110 = vec4(gx10.z,gy10.z,gz10.z,gw10.z);
+  vec4 g1110 = vec4(gx10.w,gy10.w,gz10.w,gw10.w);
+  vec4 g0001 = vec4(gx01.x,gy01.x,gz01.x,gw01.x);
+  vec4 g1001 = vec4(gx01.y,gy01.y,gz01.y,gw01.y);
+  vec4 g0101 = vec4(gx01.z,gy01.z,gz01.z,gw01.z);
+  vec4 g1101 = vec4(gx01.w,gy01.w,gz01.w,gw01.w);
+  vec4 g0011 = vec4(gx11.x,gy11.x,gz11.x,gw11.x);
+  vec4 g1011 = vec4(gx11.y,gy11.y,gz11.y,gw11.y);
+  vec4 g0111 = vec4(gx11.z,gy11.z,gz11.z,gw11.z);
+  vec4 g1111 = vec4(gx11.w,gy11.w,gz11.w,gw11.w);
+
+  vec4 norm00 = taylorInvSqrt(vec4(dot(g0000, g0000), dot(g0100, g0100), dot(g1000, g1000), dot(g1100, g1100)));
+  g0000 *= norm00.x;
+  g0100 *= norm00.y;
+  g1000 *= norm00.z;
+  g1100 *= norm00.w;
+
+  vec4 norm01 = taylorInvSqrt(vec4(dot(g0001, g0001), dot(g0101, g0101), dot(g1001, g1001), dot(g1101, g1101)));
+  g0001 *= norm01.x;
+  g0101 *= norm01.y;
+  g1001 *= norm01.z;
+  g1101 *= norm01.w;
+
+  vec4 norm10 = taylorInvSqrt(vec4(dot(g0010, g0010), dot(g0110, g0110), dot(g1010, g1010), dot(g1110, g1110)));
+  g0010 *= norm10.x;
+  g0110 *= norm10.y;
+  g1010 *= norm10.z;
+  g1110 *= norm10.w;
+
+  vec4 norm11 = taylorInvSqrt(vec4(dot(g0011, g0011), dot(g0111, g0111), dot(g1011, g1011), dot(g1111, g1111)));
+  g0011 *= norm11.x;
+  g0111 *= norm11.y;
+  g1011 *= norm11.z;
+  g1111 *= norm11.w;
+
+  float n0000 = dot(g0000, Pf0);
+  float n1000 = dot(g1000, vec4(Pf1.x, Pf0.yzw));
+  float n0100 = dot(g0100, vec4(Pf0.x, Pf1.y, Pf0.zw));
+  float n1100 = dot(g1100, vec4(Pf1.xy, Pf0.zw));
+  float n0010 = dot(g0010, vec4(Pf0.xy, Pf1.z, Pf0.w));
+  float n1010 = dot(g1010, vec4(Pf1.x, Pf0.y, Pf1.z, Pf0.w));
+  float n0110 = dot(g0110, vec4(Pf0.x, Pf1.yz, Pf0.w));
+  float n1110 = dot(g1110, vec4(Pf1.xyz, Pf0.w));
+  float n0001 = dot(g0001, vec4(Pf0.xyz, Pf1.w));
+  float n1001 = dot(g1001, vec4(Pf1.x, Pf0.yz, Pf1.w));
+  float n0101 = dot(g0101, vec4(Pf0.x, Pf1.y, Pf0.z, Pf1.w));
+  float n1101 = dot(g1101, vec4(Pf1.xy, Pf0.z, Pf1.w));
+  float n0011 = dot(g0011, vec4(Pf0.xy, Pf1.zw));
+  float n1011 = dot(g1011, vec4(Pf1.x, Pf0.y, Pf1.zw));
+  float n0111 = dot(g0111, vec4(Pf0.x, Pf1.yzw));
+  float n1111 = dot(g1111, Pf1);
+
+  vec4 fade_xyzw = fade(Pf0);
+  vec4 n_0w = mix(vec4(n0000, n1000, n0100, n1100), vec4(n0001, n1001, n0101, n1101), fade_xyzw.w);
+  vec4 n_1w = mix(vec4(n0010, n1010, n0110, n1110), vec4(n0011, n1011, n0111, n1111), fade_xyzw.w);
+  vec4 n_zw = mix(n_0w, n_1w, fade_xyzw.z);
+  vec2 n_yzw = mix(n_zw.xy, n_zw.zw, fade_xyzw.y);
+  float n_xyzw = mix(n_yzw.x, n_yzw.y, fade_xyzw.x);
+  return 2.2 * n_xyzw;
+}
+`;
 
   const vertexShader = `
-  uniform float uTime;
-  uniform float uDistortionFrequency;
-  uniform float uDistortionStrength;
-  uniform float uDisplacementFrequency;
-  uniform float uDisplacementStrength;
-  uniform float uPulse;
-  varying vec3 vNormal;
-  varying vec3 vViewPosition;
-  varying float vPerlin;
-  ${perlin4d}
+#define M_PI 3.1415926535897932384626433832795
 
-  // Déformation d'un point de la sphère unité : on tord l'espace (distorsion),
-  // puis on pousse le point le long de sa normale (déplacement).
-  vec3 displace(vec3 p, out float strength){
-    vec3 warped = p + perlin4d(vec4(p * uDistortionFrequency, uTime)) * uDistortionStrength;
-    strength = perlin4d(vec4(warped * uDisplacementFrequency, uTime + 17.0));
-    return p * (1.0 + strength * (uDisplacementStrength + uPulse));
-  }
+uniform vec3 uLightAColor;
+uniform vec3 uLightAPosition;
+uniform float uLightAIntensity;
+uniform vec3 uLightBColor;
+uniform vec3 uLightBPosition;
+uniform float uLightBIntensity;
 
-  void main(){
-    vec3 p = normalize(position);
-    vec3 helper = abs(p.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
-    vec3 t = normalize(cross(p, helper));
-    vec3 b = cross(p, t);
-    float eps = 0.01;
-    float s, sA, sB;
-    vec3 d  = displace(p, s);
-    vec3 dA = displace(normalize(p + t * eps), sA);
-    vec3 dB = displace(normalize(p + b * eps), sB);
-    vec3 n = normalize(cross(dA - d, dB - d));
+uniform vec2 uSubdivision;
 
-    vec4 mv = modelViewMatrix * vec4(d, 1.0);
-    vViewPosition = mv.xyz;
-    vNormal = normalize(normalMatrix * n);
-    vPerlin = s;
-    gl_Position = projectionMatrix * mv;
-  }`;
+uniform vec3 uOffset;
+
+uniform float uDistortionFrequency;
+uniform float uDistortionStrength;
+uniform float uDisplacementFrequency;
+uniform float uDisplacementStrength;
+
+uniform float uFresnelOffset;
+uniform float uFresnelMultiplier;
+uniform float uFresnelPower;
+
+uniform float uTime;
+
+varying vec3 vColor;
+
+${perlin4d}
+
+vec3 getDisplacedPosition(vec3 _position)
+{
+    vec3 distoredPosition = _position;
+    distoredPosition += perlin4d(vec4(distoredPosition * uDistortionFrequency + uOffset, uTime)) * uDistortionStrength;
+
+    float perlinStrength = perlin4d(vec4(distoredPosition * uDisplacementFrequency + uOffset, uTime));
+
+    vec3 displacedPosition = _position;
+    displacedPosition += normalize(_position) * perlinStrength * uDisplacementStrength;
+
+    return displacedPosition;
+}
+
+void main()
+{
+    // Position
+    vec3 displacedPosition = getDisplacedPosition(position);
+    vec4 viewPosition = viewMatrix * vec4(displacedPosition, 1.0);
+    gl_Position = projectionMatrix * viewPosition;
+
+    // Bi tangents
+    float distanceA = (M_PI * 2.0) / uSubdivision.x;
+    float distanceB = M_PI / uSubdivision.x;
+
+    vec3 biTangent = cross(normal, tangent.xyz);
+
+    vec3 positionA = position + tangent.xyz * distanceA;
+    vec3 displacedPositionA = getDisplacedPosition(positionA);
+
+    vec3 positionB = position + biTangent.xyz * distanceB;
+    vec3 displacedPositionB = getDisplacedPosition(positionB);
+
+    vec3 computedNormal = cross(displacedPositionA - displacedPosition.xyz, displacedPositionB - displacedPosition.xyz);
+    computedNormal = normalize(computedNormal);
+
+    // Fresnel
+    vec3 viewDirection = normalize(displacedPosition.xyz - cameraPosition);
+    float fresnel = uFresnelOffset + (1.0 + dot(viewDirection, computedNormal)) * uFresnelMultiplier;
+    fresnel = pow(max(0.0, fresnel), uFresnelPower);
+
+    // Color
+    float lightAIntensity = max(0.0, - dot(computedNormal.xyz, normalize(- uLightAPosition))) * uLightAIntensity;
+    float lightBIntensity = max(0.0, - dot(computedNormal.xyz, normalize(- uLightBPosition))) * uLightBIntensity;
+
+    vec3 color = vec3(0.0);
+    color = mix(color, uLightAColor, lightAIntensity * fresnel);
+    color = mix(color, uLightBColor, lightBIntensity * fresnel);
+    color = mix(color, vec3(1.0), clamp(pow(max(0.0, fresnel - 0.8), 3.0), 0.0, 1.0));
+
+    // Varying
+    vColor = color;
+}`;
 
   const fragmentShader = `
-  uniform float uTime;
-  uniform vec3 uBase;
-  uniform vec3 uLightAColor;
-  uniform vec3 uLightBColor;
-  uniform vec3 uLightADir;
-  uniform vec3 uLightBDir;
-  uniform float uLightAIntensity;
-  uniform float uLightBIntensity;
-  uniform float uFresnelStrength;
-  uniform float uFresnelPower;
-  uniform float uIridescence;
-  uniform float uSpecular;
-  varying vec3 vNormal;
-  varying vec3 vViewPosition;
-  varying float vPerlin;
+varying vec3 vColor;
 
-  void main(){
-    vec3 n = normalize(vNormal);
-    if (!gl_FrontFacing) n = -n;
-    vec3 v = normalize(-vViewPosition);
-    vec3 la = normalize(uLightADir);
-    vec3 lb = normalize(uLightBDir);
+void main()
+{
+    gl_FragColor = vec4(vColor, 1.0);
+}`;
 
-    float a = pow(max(dot(n, la), 0.0), 2.2);
-    float b = pow(max(dot(n, lb), 0.0), 2.2);
-    float fresnel = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), uFresnelPower);
+  const bloomCompositeShader = `
+varying vec2 vUv;
+uniform sampler2D blurTexture1;
+uniform sampler2D blurTexture2;
+uniform sampler2D blurTexture3;
+uniform sampler2D blurTexture4;
+uniform sampler2D blurTexture5;
+uniform sampler2D dirtTexture;
+uniform float bloomStrength;
+uniform float bloomRadius;
+uniform float bloomFactors[NUM_MIPS];
+uniform vec3 bloomTintColors[NUM_MIPS];
+uniform vec3 uTintColor;
+uniform float uTintStrength;
 
-    vec3 color = uBase;
-    color += uLightAColor * a * uLightAIntensity;
-    color += uLightBColor * b * uLightBIntensity;
+float lerpBloomFactor(const in float factor) {
+    float mirrorFactor = 1.2 - factor;
+    return mix(factor, mirrorFactor, bloomRadius);
+}
 
-    // Reflets nacrés : une palette cosinus pilotée par le relief et l'angle de vue.
-    vec3 nacre = 0.5 + 0.5 * cos(6.28318 * (vec3(0.0, 0.33, 0.67) + vPerlin * 0.6 + fresnel * 0.9 + uTime * 0.04));
-    color = mix(color, color * nacre * 1.8, uIridescence);
+void main() {
+    vec4 color = bloomStrength * ( lerpBloomFactor(bloomFactors[0]) * vec4(bloomTintColors[0], 1.0) * texture2D(blurTexture1, vUv) +
+        lerpBloomFactor(bloomFactors[1]) * vec4(bloomTintColors[1], 1.0) * texture2D(blurTexture2, vUv) +
+        lerpBloomFactor(bloomFactors[2]) * vec4(bloomTintColors[2], 1.0) * texture2D(blurTexture3, vUv) +
+        lerpBloomFactor(bloomFactors[3]) * vec4(bloomTintColors[3], 1.0) * texture2D(blurTexture4, vUv) +
+        lerpBloomFactor(bloomFactors[4]) * vec4(bloomTintColors[4], 1.0) * texture2D(blurTexture5, vUv) );
 
-    // Liseré de lumière sur le bord.
-    color += mix(uLightAColor, uLightBColor, 0.5 + 0.5 * vPerlin) * fresnel * uFresnelStrength;
+    color.rgb = mix(color.rgb, uTintColor, uTintStrength);
+    gl_FragColor = color;
+}`;
 
-    // Petits éclats spéculaires.
-    float spec = pow(max(dot(n, normalize(la + v)), 0.0), 60.0) + pow(max(dot(n, normalize(lb + v)), 0.0), 60.0);
-    color += spec * uSpecular;
-
-    // Creux plus sombres, bosses plus chaudes.
-    color *= 0.75 + 0.35 * smoothstep(-0.6, 0.6, vPerlin);
-
-    color = 1.0 - exp(-color * 0.95);           // tone mapping doux
-    color = pow(color, vec3(1.0 / 2.2));        // gamma
-    gl_FragColor = vec4(color, 1.0);
-  }`;
-
-  // ---------- Ambiances ----------
-  const presets = {
-    braise: { base: '#0d0505', lightA: '#ff3e00', lightB: '#0063ff', background: '#07080c',
-      distortionFrequency: 1.5, distortionStrength: 0.65, displacementFrequency: 2.12, displacementStrength: 0.12,
-      timeFrequency: 0.15, fresnelStrength: 1.1, fresnelPower: 2.4, iridescence: 0.0 },
-    lagon: { base: '#020a0d', lightA: '#00e0c6', lightB: '#2b4bff', background: '#040a10',
-      distortionFrequency: 1.1, distortionStrength: 0.9, displacementFrequency: 1.6, displacementStrength: 0.22,
-      timeFrequency: 0.1, fresnelStrength: 1.3, fresnelPower: 2.0, iridescence: 0.25 },
-    aurore: { base: '#09040e', lightA: '#ff5fa2', lightB: '#7cffb2', background: '#0a0710',
-      distortionFrequency: 2.2, distortionStrength: 0.45, displacementFrequency: 3.0, displacementStrength: 0.1,
-      timeFrequency: 0.22, fresnelStrength: 1.0, fresnelPower: 2.8, iridescence: 0.7 },
-    mousse: { base: '#050803', lightA: '#c9e265', lightB: '#2f7a4a', background: '#060906',
-      distortionFrequency: 0.8, distortionStrength: 1.2, displacementFrequency: 4.2, displacementStrength: 0.08,
-      timeFrequency: 0.06, fresnelStrength: 0.8, fresnelPower: 3.0, iridescence: 0.1 },
-  };
-
-  const params = Object.assign({ detail: 128, autoRotate: true, specular: 0.35,
-    lightAIntensity: 1.1, lightBIntensity: 0.9 }, presets.braise);
-
-  // ---------- Scène ----------
+  /* =====================================================================
+     Renderer + bloom (Renderer.js)
+     ===================================================================== */
   const canvas = document.getElementById('scene');
+  const config = { pixelRatio: Math.min(Math.max(window.devicePixelRatio, 1), 2), width: innerWidth, height: innerHeight };
+  const coarse = window.matchMedia('(pointer: coarse)').matches;
+
   let renderer;
   try {
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    renderer = new THREE.WebGLRenderer({ canvas, alpha: false, antialias: true });
   } catch (e) {
     document.body.insertAdjacentHTML('beforeend', '<div class="fallback">WebGL n’est pas disponible dans ce navigateur, la sphère ne peut pas s’afficher.</div>');
     return;
   }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.setClearColor(params.background);
+  renderer.setClearColor('#010101', 1);
+  renderer.setPixelRatio(config.pixelRatio);
+  renderer.setSize(config.width, config.height, false);
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
-  camera.position.set(0, 0, 6);
 
-  const controls = new THREE.OrbitControls(camera, canvas);
-  controls.enableDamping = true;
-  controls.enablePan = false;
-  controls.minDistance = 3;
-  controls.maxDistance = 12;
-  controls.autoRotateSpeed = 0.6;
+  // Camera.js : fov 25, position (0, 0, 7)
+  const camera = new THREE.PerspectiveCamera(25, config.width / config.height, 0.01, 15);
+  scene.add(camera);
 
-  const uniforms = {
-    uTime: { value: 0 },
-    uDistortionFrequency: { value: params.distortionFrequency },
-    uDistortionStrength: { value: params.distortionStrength },
-    uDisplacementFrequency: { value: params.displacementFrequency },
-    uDisplacementStrength: { value: params.displacementStrength },
-    uPulse: { value: 0 },
-    uBase: { value: new THREE.Color(params.base) },
-    uLightAColor: { value: new THREE.Color(params.lightA) },
-    uLightBColor: { value: new THREE.Color(params.lightB) },
-    uLightADir: { value: new THREE.Vector3(1.0, 1.0, 0.6) },
-    uLightBDir: { value: new THREE.Vector3(-1.0, -0.8, 0.4) },
-    uLightAIntensity: { value: params.lightAIntensity },
-    uLightBIntensity: { value: params.lightBIntensity },
-    uFresnelStrength: { value: params.fresnelStrength },
-    uFresnelPower: { value: params.fresnelPower },
-    uIridescence: { value: params.iridescence },
-    uSpecular: { value: params.specular },
+  const RenderTargetClass = config.pixelRatio >= 2 || !THREE.WebGLMultisampleRenderTarget ? THREE.WebGLRenderTarget : THREE.WebGLMultisampleRenderTarget;
+  const renderTarget = new RenderTargetClass(config.width, config.height, {
+    generateMipmaps: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+    format: THREE.RGBFormat, encoding: THREE.sRGBEncoding
+  });
+  const composer = new THREE.EffectComposer(renderer, renderTarget);
+  composer.setSize(config.width, config.height);
+  composer.setPixelRatio(config.pixelRatio);
+  composer.addPass(new THREE.RenderPass(scene, camera));
+
+  const bloom = new THREE.UnrealBloomPass(new THREE.Vector2(config.width, config.height), 0.8, 0.315, 0);
+  bloom.compositeMaterial.uniforms.uTintColor = { value: new THREE.Color('#7f00ff') };
+  bloom.compositeMaterial.uniforms.uTintStrength = { value: 0.15 };
+  bloom.compositeMaterial.fragmentShader = bloomCompositeShader;
+  bloom.compositeMaterial.needsUpdate = true;
+  composer.addPass(bloom);
+
+  /* =====================================================================
+     Sphère (Sphere.js), sans micro : les « variations » suivent le pointeur.
+     ===================================================================== */
+  const subdivisions = coarse ? 256 : 512;
+  const geometry = new THREE.SphereGeometry(1, subdivisions, subdivisions);
+  geometry.computeTangents();
+
+  const lights = {
+    a: { intensity: 1.85, color: new THREE.Color('#ff3e00'), spherical: new THREE.Spherical(1, 0.615, 2.049) },
+    b: { intensity: 1.4, color: new THREE.Color('#0063ff'), spherical: new THREE.Spherical(1, 2.561, -1.844) },
   };
 
-  const material = new THREE.ShaderMaterial({ vertexShader, fragmentShader, uniforms });
-  let geometry = new THREE.SphereGeometry(1.4, params.detail * 2, params.detail);
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      uLightAColor: { value: lights.a.color },
+      uLightAPosition: { value: new THREE.Vector3().setFromSpherical(lights.a.spherical) },
+      uLightAIntensity: { value: lights.a.intensity },
+      uLightBColor: { value: lights.b.color },
+      uLightBPosition: { value: new THREE.Vector3().setFromSpherical(lights.b.spherical) },
+      uLightBIntensity: { value: lights.b.intensity },
+      uSubdivision: { value: new THREE.Vector2(geometry.parameters.widthSegments, geometry.parameters.heightSegments) },
+      uOffset: { value: new THREE.Vector3() },
+      uDistortionFrequency: { value: 1.5 },
+      uDistortionStrength: { value: 0.65 },
+      uDisplacementFrequency: { value: 2.120 },
+      uDisplacementStrength: { value: 0.152 },
+      uFresnelOffset: { value: -1.609 },
+      uFresnelMultiplier: { value: 3.587 },
+      uFresnelPower: { value: 1.793 },
+      uTime: { value: 0 },
+    },
+    defines: { USE_TANGENT: '' },
+    vertexShader, fragmentShader,
+  });
   const mesh = new THREE.Mesh(geometry, material);
   scene.add(mesh);
 
-  function setDetail(n) {
-    mesh.geometry.dispose();
-    mesh.geometry = new THREE.SphereGeometry(1.4, n * 2, n);
+  // Mêmes variations et mêmes amortis que l'original ; seule la cible change.
+  // speed : 1 au repos, > 1 près du cœur, < 1 loin de la sphère.
+  let speed = 1, agitation = 0;
+  const variations = {
+    volume:      { current: 0.152, up: 0.03,  down: 0.002, target: () => 0.152 + agitation * 0.06 },
+    lowLevel:    { current: 0.0003, up: 0.005, down: 0.002, target: () => 0.0003 * speed },
+    mediumLevel: { current: 3.587, up: 0.008, down: 0.004, target: () => 3.587 + agitation * 0.6 },
+    highLevel:   { current: 0.65,  up: 0.02,  down: 0.001, target: () => 0.65 + agitation * 0.5 },
+  };
+
+  const offset = { spherical: new THREE.Spherical(1, Math.random() * Math.PI, Math.random() * Math.PI * 2), direction: new THREE.Vector3() };
+  let elapsedTime = 0;
+
+  function updateSphere(delta) {
+    for (const name in variations) {
+      const v = variations[name];
+      const target = v.target();
+      const easing = target > v.current ? v.up : v.down;
+      v.current += (target - v.current) * Math.min(easing * delta, 1);
+    }
+    const timeFrequency = variations.lowLevel.current;
+    elapsedTime = delta * timeFrequency;
+
+    material.uniforms.uDisplacementStrength.value = variations.volume.current;
+    material.uniforms.uDistortionStrength.value = variations.highLevel.current;
+    material.uniforms.uFresnelMultiplier.value = variations.mediumLevel.current;
+
+    const offsetTime = elapsedTime * 0.3;
+    offset.spherical.phi = ((Math.sin(offsetTime * 0.001) * Math.sin(offsetTime * 0.00321)) * 0.5 + 0.5) * Math.PI;
+    offset.spherical.theta = ((Math.sin(offsetTime * 0.0001) * Math.sin(offsetTime * 0.000321)) * 0.5 + 0.5) * Math.PI * 2;
+    offset.direction.setFromSpherical(offset.spherical);
+    offset.direction.multiplyScalar(timeFrequency * 2);
+    material.uniforms.uOffset.value.add(offset.direction);
+
+    material.uniforms.uTime.value += elapsedTime;
   }
 
-  // ---------- Interface ----------
-  const syncers = [];
-  function applyUniforms() {
-    uniforms.uBase.value.set(params.base);
-    uniforms.uLightAColor.value.set(params.lightA);
-    uniforms.uLightBColor.value.set(params.lightB);
-    renderer.setClearColor(params.background);
-    ['distortionFrequency', 'distortionStrength', 'displacementFrequency', 'displacementStrength',
-     'fresnelStrength', 'fresnelPower', 'iridescence', 'specular', 'lightAIntensity', 'lightBIntensity']
-      .forEach(k => { uniforms['u' + k[0].toUpperCase() + k.slice(1)].value = params[k]; });
-  }
-
-  let gui = null;
-  if (window.lil) {
-    gui = new lil.GUI({ title: 'Réglages' });
-    const fShape = gui.addFolder('Forme');
-    fShape.add(params, 'distortionFrequency', 0, 5, 0.01).name('Distorsion · fréquence');
-    fShape.add(params, 'distortionStrength', 0, 3, 0.01).name('Distorsion · force');
-    fShape.add(params, 'displacementFrequency', 0, 8, 0.01).name('Relief · fréquence');
-    fShape.add(params, 'displacementStrength', 0, 0.6, 0.001).name('Relief · force');
-    fShape.add(params, 'timeFrequency', 0, 1, 0.001).name('Vitesse');
-    fShape.add(params, 'detail', 32, 256, 1).name('Finesse du maillage').onFinishChange(setDetail);
-    const fLight = gui.addFolder('Lumière');
-    fLight.addColor(params, 'base').name('Teinte de fond');
-    fLight.addColor(params, 'lightA').name('Lumière A');
-    fLight.add(params, 'lightAIntensity', 0, 4, 0.01).name('Intensité A');
-    fLight.addColor(params, 'lightB').name('Lumière B');
-    fLight.add(params, 'lightBIntensity', 0, 4, 0.01).name('Intensité B');
-    fLight.add(params, 'fresnelStrength', 0, 3, 0.01).name('Liseré · force');
-    fLight.add(params, 'fresnelPower', 0.5, 6, 0.01).name('Liseré · finesse');
-    fLight.add(params, 'iridescence', 0, 1, 0.01).name('Nacre');
-    fLight.add(params, 'specular', 0, 1.5, 0.01).name('Éclats');
-    fLight.addColor(params, 'background').name('Arrière-plan');
-    gui.add(params, 'autoRotate').name('Rotation auto');
-    gui.onChange(applyUniforms);
-    if (window.innerWidth < 640) gui.close();
-  }
-
-  // Transition douce d'une ambiance à l'autre.
-  let tween = null;
-  const numericKeys = ['distortionFrequency', 'distortionStrength', 'displacementFrequency', 'displacementStrength',
-    'timeFrequency', 'fresnelStrength', 'fresnelPower', 'iridescence'];
-  const colorKeys = ['base', 'lightA', 'lightB', 'background'];
-  function goTo(name) {
-    const target = presets[name];
-    const from = {};
-    numericKeys.forEach(k => from[k] = params[k]);
-    colorKeys.forEach(k => from[k] = new THREE.Color(params[k]));
-    tween = { from, target, start: performance.now(), duration: 1200 };
-    document.querySelectorAll('[data-preset]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.preset === name)));
-  }
-  document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => goTo(b.dataset.preset)));
-  const tmpColor = new THREE.Color();
-  function stepTween(now) {
-    if (!tween) return;
-    let k = Math.min((now - tween.start) / tween.duration, 1);
-    const e = k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
-    numericKeys.forEach(key => params[key] = tween.from[key] + (tween.target[key] - tween.from[key]) * e);
-    colorKeys.forEach(key => { tmpColor.copy(tween.from[key]).lerp(new THREE.Color(tween.target[key]), e); params[key] = '#' + tmpColor.getHexString(); });
-    applyUniforms();
-    if (gui) gui.controllersRecursive().forEach(c => c.updateDisplay());
-    if (k === 1) tween = null;
-  }
-
-  // ---------- Pulsation au clic (ressort amorti) ----------
-  let pulse = 0, pulseVel = 0, downAt = null;
-  canvas.addEventListener('pointerdown', e => { downAt = { x: e.clientX, y: e.clientY }; });
-  canvas.addEventListener('pointerup', e => {
-    if (downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 6) pulseVel += 3.2;
-    downAt = null;
-  });
-
-  // ---------- Boucle ----------
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let time = 0, last = performance.now();
-
+  /* =====================================================================
+     Cadrage : la sphère tient toujours dans l'écran.
+     ===================================================================== */
+  const halfFov = THREE.MathUtils.degToRad(25 / 2);
+  let restZ = 7;
   function resize() {
-    const w = window.innerWidth, h = window.innerHeight;
-    renderer.setSize(w, h, false);
-    camera.aspect = w / h;
-    camera.position.z = camera.aspect < 0.8 ? 8 : 6;
+    config.width = innerWidth; config.height = innerHeight;
+    camera.aspect = config.width / config.height;
+    // À l'horizontale : 7 comme l'original. À la verticale : on recule pour garder la sphère entière.
+    restZ = camera.aspect >= 1 ? 7 : Math.max(7, 1.45 / (Math.tan(halfFov) * camera.aspect) + 0.2);
     camera.updateProjectionMatrix();
+    renderer.setSize(config.width, config.height, false);
+    composer.setSize(config.width, config.height);
+    bloom.setSize(config.width, config.height);
   }
-  window.addEventListener('resize', resize);
+  addEventListener('resize', resize);
   resize();
 
-  function frame(now) {
-    const dt = Math.min((now - last) / 1000, 0.05);
-    last = now;
-    stepTween(now);
-    time += dt * params.timeFrequency * (reduceMotion ? 0.35 : 1) * 4;
-    uniforms.uTime.value = time;
-
-    pulseVel += (-pulse * 60 - pulseVel * 7) * dt;
-    pulse += pulseVel * dt;
-    uniforms.uPulse.value = pulse * 0.25;
-
-    controls.autoRotate = params.autoRotate && !reduceMotion;
-    controls.update();
-    renderer.render(scene, camera);
-    requestAnimationFrame(frame);
+  // Rayon apparent de la sphère, en pixels, vu depuis la position de repos.
+  function sphereScreenRadius() {
+    return (1 / (restZ * Math.tan(halfFov))) * (config.height / 2);
   }
-  requestAnimationFrame(frame);
+
+  /* =====================================================================
+     Survol : vers le cœur ça accélère, hors de la sphère ça ralentit.
+     ===================================================================== */
+  let pointer = null;
+  addEventListener('pointermove', e => { if (e.pointerType !== 'touch') pointer = { x: e.clientX, y: e.clientY }; });
+  document.addEventListener('pointerleave', () => { pointer = null; });
+  addEventListener('blur', () => { pointer = null; });
+
+  const smoothstep = (a, b, x) => { const t = Math.min(Math.max((x - a) / (b - a), 0), 1); return t * t * (3 - 2 * t); };
+
+  function hoverSpeed() {
+    if (!pointer || state !== 'outside') return { speed: 1, agitation: 0 };
+    const d = Math.hypot(pointer.x - config.width / 2, pointer.y - config.height / 2) / sphereScreenRadius();
+    if (d < 1) {
+      const k = Math.pow(1 - d, 1.4);             // 0 au bord, 1 au cœur
+      return { speed: 1 + k * 7, agitation: k };
+    }
+    return { speed: 1 - smoothstep(1, 2.4, d) * 0.85, agitation: 0 };  // jusqu'à 15 % de la vitesse
+  }
+
+  /* =====================================================================
+     Clic / tap : plongée dans la sphère, puis le texte.
+     ===================================================================== */
+  const titleEl = document.getElementById('title');
+  const revealEl = document.getElementById('reveal');
+  const backBtn = document.getElementById('back');
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let state = 'outside';         // outside | diving | inside | surfacing
+  let dive = 0;                  // 0 dehors, 1 au centre
+  const DIVE_MS = reduceMotion ? 900 : 2600;
+  const easeInOut = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+  function enter() {
+    if (state === 'outside' || state === 'surfacing') { state = 'diving'; document.body.classList.add('away'); }
+  }
+  function leave() {
+    if (state === 'inside' || state === 'diving') {
+      state = 'surfacing';
+      document.body.classList.remove('inside');
+      revealEl.setAttribute('aria-hidden', 'true');
+      backBtn.tabIndex = -1;
+      canvas.focus({ preventScroll: true });
+    }
+  }
+  canvas.addEventListener('click', () => { state === 'inside' ? leave() : enter(); });
+  canvas.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); state === 'inside' ? leave() : enter(); }
+  });
+  backBtn.addEventListener('click', leave);
+  addEventListener('keydown', e => { if (e.key === 'Escape') leave(); });
+
+  function updateDive(delta) {
+    if (state === 'diving') {
+      dive = Math.min(dive + delta / DIVE_MS, 1);
+      if (dive === 1) {
+        state = 'inside';
+        document.body.classList.add('inside');
+        revealEl.setAttribute('aria-hidden', 'false');
+        backBtn.tabIndex = 0;
+      }
+    } else if (state === 'surfacing') {
+      dive = Math.max(dive - delta / (DIVE_MS * 0.8), 0);
+      if (dive === 0) { state = 'outside'; document.body.classList.remove('away'); }
+    }
+    const e = easeInOut(dive);
+    // La caméra traverse la surface (rayon ≈ 1) puis rejoint le centre.
+    camera.position.set(0, 0, THREE.MathUtils.lerp(restZ, 0, e));
+    camera.fov = THREE.MathUtils.lerp(25, 75, smoothstep(0.35, 1, e));
+    camera.updateProjectionMatrix();
+    camera.lookAt(0, 0, 0);
+
+    titleEl.style.opacity = String(1 - smoothstep(0, 0.35, e));
+    titleEl.style.transform = `scale(${1 + e * 0.6})`;
+    revealEl.style.opacity = String(smoothstep(0.82, 1, e));
+  }
+
+  /* =====================================================================
+     Boucle (Time.js : delta en millisecondes)
+     ===================================================================== */
+  let last = Date.now();
+  function tick() {
+    const now = Date.now();
+    const delta = Math.min(now - last, 60);
+    last = now;
+
+    const h = hoverSpeed();
+    // Pendant la plongée, la sphère s'emballe.
+    const diveBoost = state === 'diving' ? 4 : 0;
+    speed = h.speed + diveBoost;
+    agitation = Math.max(h.agitation, diveBoost ? 0.8 : 0);
+
+    updateSphere(delta);
+    updateDive(delta);
+    composer.render();
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
 })();
 </script>
 </body>
