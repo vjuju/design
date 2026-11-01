@@ -10,14 +10,16 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=Fraunces:ital,opsz,wght@1,9..144,300;1,9..144,500&display=swap">
 <style>
-  /* Plein cadre : la sphère au centre, le titre posé dessus, le texte révélé à l'intérieur. Un seul univers, nuit. */
+  /* Trois panneaux plein écran, un seul canvas derrière. On passe de l'un à l'autre par une animation 3D :
+     plongée dans la sphère, puis croissance d'un arbre. Un seul univers, nuit. */
   :root {
     --night: #010101;
     --ink: #ffffff;
     --muted: rgba(255, 255, 255, .62);
     --line: rgba(255, 255, 255, .22);
-    --warm: #ff6a2b;
-    --cold: #4d8dff;
+    --glass: rgba(10, 4, 24, .55);
+    --warm: #ffb08a;
+    --cold: #9cc0ff;
     --display: "Syne", "Helvetica Neue", Helvetica, Arial, sans-serif;
     --text: "Fraunces", "Iowan Old Style", Georgia, serif;
     color-scheme: dark;
@@ -27,6 +29,7 @@
   body {
     margin: 0;
     overflow: hidden;
+    overscroll-behavior: none;
     background: var(--night);
     color: var(--ink);
     font: 14px/1.5 var(--display);
@@ -34,19 +37,26 @@
   }
   ::selection { background: #ffffff22; }
 
-  #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: manipulation; cursor: pointer; outline: none; }
-  body.inside #scene { cursor: default; }
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+  body[data-panel="0"] #scene, body[data-panel="1"] #scene { cursor: pointer; }
 
-  .title {
+  .panel {
     position: fixed;
     inset: 0;
     display: grid;
     place-items: center;
-    padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px));
+    padding-block: calc(24px + env(safe-area-inset-top, 0px)) calc(56px + env(safe-area-inset-bottom, 0px));
+    padding-left: max(20px, env(safe-area-inset-left, 0px));
+    padding-right: max(56px, env(safe-area-inset-right, 0px));
     pointer-events: none;
     text-align: center;
+    opacity: 0;
+    will-change: opacity, transform;
   }
-  .title h1 {
+  .panel.live { pointer-events: auto; }
+  #p0 { padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+
+  #p0 h1 {
     margin: 0;
     font: 800 clamp(30px, 8.4vmin, 92px)/.95 var(--display);
     letter-spacing: -.01em;
@@ -54,26 +64,15 @@
     text-wrap: balance;
     max-width: 14ch;
     text-shadow: 0 0 10px rgba(0, 0, 0, .7);
-    will-change: opacity, transform;
   }
 
-  .reveal {
-    position: fixed;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    padding-inline: max(20px, env(safe-area-inset-left, 0px)) max(20px, env(safe-area-inset-right, 0px));
-    pointer-events: none;
-    opacity: 0;
-  }
-  body.inside .reveal { pointer-events: auto; }
-  .reveal-inner { display: flex; flex-direction: column; align-items: center; gap: 32px; max-width: 30ch; text-align: center; }
-  .reveal p {
+  #p1 p {
     margin: 0;
+    max-width: 30ch;
     font: 300 italic clamp(24px, 4.4vmin, 44px)/1.22 var(--text);
     text-wrap: balance;
   }
-  .reveal strong {
+  #p1 strong {
     display: block;
     margin-bottom: .35em;
     font: 800 clamp(48px, 12vmin, 128px)/.9 var(--display);
@@ -81,69 +80,142 @@
     letter-spacing: -.02em;
     text-transform: uppercase;
   }
-  .reveal .role { font-weight: 500; white-space: nowrap; }
-  .reveal .role:nth-of-type(odd) { color: #ffb08a; }
-  .reveal .role:nth-of-type(even) { color: #9cc0ff; }
-  .back {
-    font: 500 12px/1 var(--display);
-    letter-spacing: .14em;
-    text-transform: uppercase;
-    color: var(--ink);
-    background: transparent;
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    padding: 12px 18px;
-    cursor: pointer;
-    transition: border-color .2s, background .2s;
-  }
-  .back:hover { border-color: var(--ink); background: rgba(255, 255, 255, .06); }
-  .back:focus-visible { outline: 2px solid var(--warm); outline-offset: 3px; }
+  .role { font-weight: 500; white-space: nowrap; }
+  .role.w { color: var(--warm); }
+  .role.c { color: var(--cold); }
 
-  .hint {
+  #p2 { align-items: stretch; }
+  .choose { display: flex; flex-direction: column; justify-content: space-between; gap: 24px; width: min(880px, 100%); }
+  .choose h2 {
+    margin: 0;
+    font: 800 clamp(28px, 6vmin, 64px)/1 var(--display);
+    text-transform: uppercase;
+    letter-spacing: -.01em;
+    text-shadow: 0 0 14px rgba(0, 0, 0, .8);
+  }
+  .choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .choice {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+    min-width: 0;
+    padding: 18px 20px;
+    text-align: left;
+    color: var(--ink);
+    background: var(--glass);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    cursor: pointer;
+    transition: border-color .25s, background .25s, transform .25s;
+  }
+  .choice b { font: 700 clamp(17px, 2.4vmin, 22px)/1.15 var(--display); }
+  .choice span { font: 300 italic 15px/1.35 var(--text); color: var(--muted); }
+  .choice:hover { transform: translateY(-2px); border-color: rgba(255, 255, 255, .5); }
+  .choice.w:hover, .choice.w[aria-pressed="true"] { border-color: var(--warm); background: rgba(255, 106, 43, .14); }
+  .choice.c:hover, .choice.c[aria-pressed="true"] { border-color: var(--cold); background: rgba(0, 99, 255, .16); }
+  .choice:focus-visible, .nav button:focus-visible, .next:focus-visible { outline: 2px solid var(--warm); outline-offset: 3px; }
+  .status { margin: 0; min-height: 1.5em; font: 300 italic 16px/1.4 var(--text); color: var(--muted); }
+
+  .nav {
     position: fixed;
-    left: max(16px, env(safe-area-inset-left, 0px));
-    bottom: calc(18px + env(safe-area-inset-bottom, 0px));
-    font-size: 11px;
+    right: max(16px, env(safe-area-inset-right, 0px));
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .nav button {
+    width: 28px; height: 28px; padding: 0;
+    display: grid; place-items: center;
+    background: none; border: 0; cursor: pointer;
+  }
+  .nav button::before {
+    content: ""; width: 8px; height: 8px; border-radius: 50%;
+    border: 1px solid var(--muted);
+    transition: background .3s, border-color .3s, transform .3s;
+  }
+  .nav button[aria-current="step"]::before { background: var(--ink); border-color: var(--ink); transform: scale(1.25); }
+
+  .next {
+    position: fixed;
+    left: 50%;
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 8px 12px;
+    font: 500 11px/1 var(--display);
     letter-spacing: .14em;
     text-transform: uppercase;
     color: var(--muted);
-    transition: opacity .6s;
-    pointer-events: none;
+    background: none; border: 0; cursor: pointer;
+    transition: opacity .5s, color .2s;
   }
-  body.away .hint { opacity: 0; }
+  .next:hover { color: var(--ink); }
+  .next svg { animation: nudge 2.2s ease-in-out infinite; }
+  @keyframes nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
+  body[data-panel="2"] .next, body.moving .next { opacity: 0; pointer-events: none; }
+
   .credits {
     position: fixed;
     right: max(16px, env(safe-area-inset-right, 0px));
-    bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
     font-size: 11px;
     color: var(--muted);
     text-align: right;
   }
   .credits a { color: inherit; text-underline-offset: 2px; }
   .credits a:hover { color: var(--ink); }
-  @media (max-width: 560px) {
-    .hint { bottom: calc(44px + env(safe-area-inset-bottom, 0px)); }
+
+  @media (max-width: 640px) {
+    .choices { grid-template-columns: 1fr; gap: 8px; }
+    .choice { padding: 12px 16px; border-radius: 14px; }
+    .choice span { font-size: 13px; }
+    .credits { display: none; }
   }
+  @media (prefers-reduced-motion: reduce) { .next svg { animation: none; } }
   .fallback { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--muted); }
 </style>
 </head>
-<body>
-<canvas id="scene" tabindex="0" aria-label="Sphère organique. Survoler son centre l'accélère, s'en éloigner la ralentit. Cliquer ou appuyer sur Entrée pour entrer dedans."></canvas>
+<body data-panel="0">
+<canvas id="scene" tabindex="0" aria-label="Animation 3D. Sur le premier panneau, survoler le centre de la sphère l'accélère, s'en éloigner la ralentit."></canvas>
 
-<div class="title" aria-hidden="false"><h1 id="title">Le virtuel au service du réel</h1></div>
+<section class="panel" id="p0" aria-label="Accueil">
+  <h1>Le virtuel au service du réel</h1>
+</section>
 
-<div class="reveal" id="reveal" aria-hidden="true">
-  <div class="reveal-inner">
-    <p><strong>Reskif</strong>est un réseau de kif rassemblant
-      <span class="role">financeur·ses</span>, <span class="role">éclaireur·ses</span>,
-      <span class="role">expert·es</span> et <span class="role">porteur·ses de projets</span>.</p>
-    <button type="button" class="back" id="back" tabindex="-1">Ressortir de la sphère</button>
+<section class="panel" id="p1" aria-label="Le réseau" aria-hidden="true">
+  <p><strong>Reskif</strong>est un réseau de kif rassemblant
+    <span class="role w">financeur·ses</span>, <span class="role c">éclaireur·ses</span>,
+    <span class="role w">expert·es</span> et <span class="role c">porteur·ses de projets</span>.</p>
+</section>
+
+<section class="panel" id="p2" aria-label="Rejoindre" aria-hidden="true">
+  <div class="choose">
+    <h2>Et vous, qui <span style="white-space:nowrap">êtes-vous&nbsp;?</span></h2>
+    <div>
+      <div class="choices">
+        <button type="button" class="choice w" id="c-financeur" data-label="financeur·se" aria-pressed="false" tabindex="-1"><b>Je suis financeur·se</b><span>Je fais pousser des projets qui ont du sens.</span></button>
+        <button type="button" class="choice c" id="c-eclaireur" data-label="éclaireur·se" aria-pressed="false" tabindex="-1"><b>Je suis éclaireur·se</b><span>J'ouvre la voie et je partage l'élan.</span></button>
+        <button type="button" class="choice w" id="c-expert" data-label="expert·e" aria-pressed="false" tabindex="-1"><b>Je suis expert·e</b><span>J'apporte mon savoir-faire là où il compte.</span></button>
+        <button type="button" class="choice c" id="c-porteur" data-label="porteur·se de projet" aria-pressed="false" tabindex="-1"><b>Je porte un projet</b><span>Je cherche des allié·es pour le faire grandir.</span></button>
+      </div>
+      <p class="status" id="status" aria-live="polite"></p>
+    </div>
   </div>
-</div>
+</section>
 
-<span class="hint" id="hint">Survolez le cœur · Cliquez pour entrer</span>
-<div class="credits">Organic Sphere par <a href="https://bruno-simon.com" target="_blank" rel="noopener">Bruno Simon</a>
-  (<a href="https://github.com/brunosimon/organic-sphere" target="_blank" rel="noopener">code source</a>)</div>
+<nav class="nav" aria-label="Panneaux">
+  <button type="button" data-go="0" aria-label="Le virtuel au service du réel" aria-current="step"></button>
+  <button type="button" data-go="1" aria-label="Le réseau"></button>
+  <button type="button" data-go="2" aria-label="Qui êtes-vous ?"></button>
+</nav>
+
+<button type="button" class="next" id="next">
+  <span id="next-label">Survolez le cœur · Défilez pour entrer</span>
+  <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 5l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+</button>
+
+<div class="credits">Sphère : <a href="https://github.com/brunosimon/organic-sphere" target="_blank" rel="noopener">Organic Sphere</a>
+  de <a href="https://bruno-simon.com" target="_blank" rel="noopener">Bruno Simon</a> · Arbre d'après les croissances procédurales de Marius Ballot</div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/shaders/CopyShader.js"></script>
@@ -428,17 +500,18 @@ void main() {
 }`;
 
   /* =====================================================================
-     Renderer + bloom (Renderer.js)
+     Renderer + bloom (Renderer.js de Bruno Simon)
      ===================================================================== */
   const canvas = document.getElementById('scene');
   const config = { pixelRatio: Math.min(Math.max(window.devicePixelRatio, 1), 2), width: innerWidth, height: innerHeight };
-  const coarse = window.matchMedia('(pointer: coarse)').matches;
+  const coarse = matchMedia('(pointer: coarse)').matches;
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   let renderer;
   try {
     renderer = new THREE.WebGLRenderer({ canvas, alpha: false, antialias: true });
   } catch (e) {
-    document.body.insertAdjacentHTML('beforeend', '<div class="fallback">WebGL n’est pas disponible dans ce navigateur, la sphère ne peut pas s’afficher.</div>');
+    document.body.insertAdjacentHTML('beforeend', '<div class="fallback">WebGL n’est pas disponible dans ce navigateur, l’animation ne peut pas s’afficher.</div>');
     return;
   }
   renderer.setClearColor('#010101', 1);
@@ -446,9 +519,7 @@ void main() {
   renderer.setSize(config.width, config.height, false);
 
   const scene = new THREE.Scene();
-
-  // Camera.js : fov 25, position (0, 0, 7)
-  const camera = new THREE.PerspectiveCamera(25, config.width / config.height, 0.01, 15);
+  const camera = new THREE.PerspectiveCamera(25, config.width / config.height, 0.01, 80);
   scene.add(camera);
 
   const RenderTargetClass = config.pixelRatio >= 2 || !THREE.WebGLMultisampleRenderTarget ? THREE.WebGLRenderTarget : THREE.WebGLMultisampleRenderTarget;
@@ -502,21 +573,17 @@ void main() {
     defines: { USE_TANGENT: '' },
     vertexShader, fragmentShader,
   });
-  const mesh = new THREE.Mesh(geometry, material);
-  scene.add(mesh);
+  const sphere = new THREE.Mesh(geometry, material);
+  scene.add(sphere);
 
-  // Mêmes variations et mêmes amortis que l'original ; seule la cible change.
-  // speed : 1 au repos, > 1 près du cœur, < 1 loin de la sphère.
   let speed = 1, agitation = 0;
   const variations = {
-    volume:      { current: 0.152, up: 0.03,  down: 0.002, target: () => 0.152 + agitation * 0.06 },
+    volume:      { current: 0.152,  up: 0.03,  down: 0.002, target: () => 0.152 + agitation * 0.06 },
     lowLevel:    { current: 0.0003, up: 0.005, down: 0.002, target: () => 0.0003 * speed },
-    mediumLevel: { current: 3.587, up: 0.008, down: 0.004, target: () => 3.587 + agitation * 0.6 },
-    highLevel:   { current: 0.65,  up: 0.02,  down: 0.001, target: () => 0.65 + agitation * 0.5 },
+    mediumLevel: { current: 3.587,  up: 0.008, down: 0.004, target: () => 3.587 + agitation * 0.6 },
+    highLevel:   { current: 0.65,   up: 0.02,  down: 0.001, target: () => 0.65 + agitation * 0.5 },
   };
-
   const offset = { spherical: new THREE.Spherical(1, Math.random() * Math.PI, Math.random() * Math.PI * 2), direction: new THREE.Vector3() };
-  let elapsedTime = 0;
 
   function updateSphere(delta) {
     for (const name in variations) {
@@ -526,7 +593,7 @@ void main() {
       v.current += (target - v.current) * Math.min(easing * delta, 1);
     }
     const timeFrequency = variations.lowLevel.current;
-    elapsedTime = delta * timeFrequency;
+    const elapsedTime = delta * timeFrequency;
 
     material.uniforms.uDisplacementStrength.value = variations.volume.current;
     material.uniforms.uDistortionStrength.value = variations.highLevel.current;
@@ -538,20 +605,267 @@ void main() {
     offset.direction.setFromSpherical(offset.spherical);
     offset.direction.multiplyScalar(timeFrequency * 2);
     material.uniforms.uOffset.value.add(offset.direction);
-
     material.uniforms.uTime.value += elapsedTime;
   }
 
   /* =====================================================================
-     Cadrage : la sphère tient toujours dans l'écran.
+     Arbre à croissance procédurale, dans les tons de la sphère.
+     Chaque sommet porte l'instant où la croissance l'atteint (aGrow) ;
+     le shader ne montre que ce qui a déjà poussé, avec un front blanc incandescent.
+     ===================================================================== */
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  function buildTree(seed) {
+    const rnd = mulberry32(seed);
+    const MAX_DEPTH = 6;
+    const branches = [];
+    const buds = [];
+    const up = new THREE.Vector3(0, 1, 0);
+
+    function perpendicular(d) {
+      const ref = Math.abs(d.y) < 0.9 ? up : new THREE.Vector3(1, 0, 0);
+      return new THREE.Vector3().crossVectors(d, ref).normalize();
+    }
+
+    function grow(start, dir, length, radius, depth, t0) {
+      if (branches.length > 1400) return;
+      const n = Math.max(4, Math.round(length * 9));
+      const step = length / n;
+      const pts = [], times = [], radii = [];
+      const p = start.clone();
+      const d = dir.clone().normalize();
+      const slow = 1 + depth * 0.12;          // les rameaux fins poussent un peu moins vite
+      const terminal = depth === MAX_DEPTH;
+      for (let i = 0; i <= n; i++) {
+        pts.push(p.clone());
+        times.push(t0 + i * step * slow);
+        const u = i / n;
+        radii.push(radius * (terminal ? 1 - 0.85 * u : 1 - 0.3 * u));
+        d.x += (rnd() - 0.5) * 0.22;
+        d.z += (rnd() - 0.5) * 0.22;
+        d.y += (rnd() - 0.5) * 0.12 + (depth < 2 ? 0.05 : 0.015);   // tropisme vers la lumière
+        d.normalize();
+        p.addScaledVector(d, step);
+      }
+      branches.push({ pts, times, radii, depth });
+
+      if (terminal) {
+        buds.push({ p: pts[n], t: times[n] + 0.08 });
+        return;
+      }
+      const kids = depth === 0 ? 3 : (rnd() < 0.45 ? 3 : 2);
+      for (let k = 0; k < kids; k++) {
+        const last = k === kids - 1;
+        const i = last ? n : Math.min(n - 1, Math.floor(n * (0.45 + 0.5 * rnd())));
+        const a = pts[Math.max(i - 1, 0)], b = pts[i];
+        const pd = new THREE.Vector3().subVectors(b, a).normalize();
+        const phi = k * 2.39996 + rnd() * 1.2 + depth;               // angle d'or
+        const tilt = last ? 0.15 + rnd() * 0.2 : 0.45 + rnd() * 0.45;
+        const perp = perpendicular(pd).applyAxisAngle(pd, phi);
+        const nd = pd.clone().multiplyScalar(Math.cos(tilt)).addScaledVector(perp, Math.sin(tilt)).normalize();
+        grow(b, nd, length * (0.66 + rnd() * 0.14), radii[i] * (last ? 0.82 : 0.66), depth + 1, times[i]);
+      }
+    }
+
+    grow(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 1, 0), 1.6, 0.12, 0, 0);
+
+    // Normalisation du temps et de la hauteur.
+    let maxT = 0, maxY = 0, maxR = 0;
+    for (const br of branches) for (let i = 0; i < br.pts.length; i++) {
+      maxT = Math.max(maxT, br.times[i]); maxY = Math.max(maxY, br.pts[i].y);
+      maxR = Math.max(maxR, Math.hypot(br.pts[i].x, br.pts[i].z));
+    }
+    for (const b of buds) maxT = Math.max(maxT, b.t);
+
+    // Tubes : 6 côtés par anneau.
+    const SIDES = 6;
+    const pos = [], nor = [], rad = [], grw = [], hgt = [], dep = [], idx = [];
+    let base = 0;
+    const T = new THREE.Vector3(), N = new THREE.Vector3(), B = new THREE.Vector3(), ring = new THREE.Vector3();
+    for (const br of branches) {
+      const m = br.pts.length;
+      for (let i = 0; i < m; i++) {
+        T.subVectors(br.pts[Math.min(i + 1, m - 1)], br.pts[Math.max(i - 1, 0)]).normalize();
+        N.copy(perpendicular(T)); B.crossVectors(T, N);
+        for (let j = 0; j < SIDES; j++) {
+          const ang = j / SIDES * Math.PI * 2;
+          ring.copy(N).multiplyScalar(Math.cos(ang)).addScaledVector(B, Math.sin(ang));
+          pos.push(br.pts[i].x, br.pts[i].y, br.pts[i].z);
+          nor.push(ring.x, ring.y, ring.z);
+          rad.push(br.radii[i]);
+          grw.push(br.times[i] / maxT);
+          hgt.push(br.pts[i].y / maxY);
+          dep.push(br.depth / MAX_DEPTH);
+        }
+      }
+      for (let i = 0; i < m - 1; i++) for (let j = 0; j < SIDES; j++) {
+        const a = base + i * SIDES + j, b = base + i * SIDES + (j + 1) % SIDES;
+        const c = a + SIDES, d = b + SIDES;
+        idx.push(a, c, b, b, c, d);
+      }
+      base += m * SIDES;
+    }
+    const tubes = new THREE.BufferGeometry();
+    tubes.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    tubes.setAttribute('aNormal', new THREE.Float32BufferAttribute(nor, 3));
+    tubes.setAttribute('aRadius', new THREE.Float32BufferAttribute(rad, 1));
+    tubes.setAttribute('aGrow', new THREE.Float32BufferAttribute(grw, 1));
+    tubes.setAttribute('aHeight', new THREE.Float32BufferAttribute(hgt, 1));
+    tubes.setAttribute('aDepth', new THREE.Float32BufferAttribute(dep, 1));
+    tubes.setIndex(idx);
+
+    // Bourgeons lumineux au bout des rameaux.
+    const bp = [], bg = [], bh = [], bs = [];
+    for (const b of buds) { bp.push(b.p.x, b.p.y, b.p.z); bg.push(b.t / maxT); bh.push(b.p.y / maxY); bs.push(rnd()); }
+    const budsGeo = new THREE.BufferGeometry();
+    budsGeo.setAttribute('position', new THREE.Float32BufferAttribute(bp, 3));
+    budsGeo.setAttribute('aGrow', new THREE.Float32BufferAttribute(bg, 1));
+    budsGeo.setAttribute('aHeight', new THREE.Float32BufferAttribute(bh, 1));
+    budsGeo.setAttribute('aSeed', new THREE.Float32BufferAttribute(bs, 1));
+
+    return { tubes, buds: budsGeo, maxY, maxR };
+  }
+
+  const treeShared = `
+    uniform float uGrow;
+    uniform float uTime;
+    uniform float uMaxY;
+    vec3 sway(vec3 c, float h) {
+      float s = h * h * 0.07;
+      c.x += sin(uTime * 0.8 + c.y * 1.3) * s;
+      c.z += cos(uTime * 0.6 + c.y * 1.1) * s;
+      return c;
+    }`;
+
+  const treeVertex = `
+    attribute vec3 aNormal;
+    attribute float aRadius;
+    attribute float aGrow;
+    attribute float aHeight;
+    attribute float aDepth;
+    ${treeShared}
+    varying vec3 vNormal;
+    varying vec3 vView;
+    varying float vGrow;
+    varying float vHeight;
+    varying float vDepth;
+    varying float vHot;
+    void main() {
+      float since = uGrow - aGrow;
+      float taper = smoothstep(0.0, 0.035, since);       // la pointe s'affine sur le front de croissance
+      vec3 c = sway(position, aHeight);
+      vec3 p = c + aNormal * aRadius * taper;
+      vec4 mv = modelViewMatrix * vec4(p, 1.0);
+      vView = -mv.xyz;
+      vNormal = normalize(normalMatrix * aNormal);
+      vGrow = aGrow;
+      vHeight = aHeight;
+      vDepth = aDepth;
+      vHot = exp(-max(since, 0.0) * 45.0);
+      gl_Position = projectionMatrix * mv;
+    }`;
+
+  const treeFragment = `
+    uniform float uGrow;
+    uniform vec3 uColorA;
+    uniform vec3 uColorB;
+    varying vec3 vNormal;
+    varying vec3 vView;
+    varying float vGrow;
+    varying float vHeight;
+    varying float vDepth;
+    varying float vHot;
+    void main() {
+      if (vGrow > uGrow) discard;
+      vec3 n = normalize(vNormal);
+      vec3 v = normalize(vView);
+      float fresnel = pow(1.0 - abs(dot(n, v)), 2.0);
+      float la = max(dot(n, normalize(vec3(0.8, 0.9, 0.4))), 0.0);
+      float lb = max(dot(n, normalize(vec3(-0.9, -0.6, 0.3))), 0.0);
+      // Tronc braise, cime bleue, comme les deux lumières de la sphère.
+      float k = smoothstep(0.05, 0.95, vHeight * 0.75 + vDepth * 0.45);
+      vec3 base = mix(uColorA, uColorB, k);
+      vec3 color = base * (0.06 + la * 0.55 + fresnel * 1.5);
+      color += uColorA * la * 0.35 * (1.0 - k);
+      color += uColorB * lb * 0.5;
+      color = mix(color, vec3(1.0), clamp(pow(max(0.0, fresnel - 0.55), 2.0) * 3.0, 0.0, 1.0));
+      color += vec3(1.0, 0.92, 0.85) * vHot * 1.6;
+      gl_FragColor = vec4(color, 1.0);
+    }`;
+
+  const budVertex = `
+    attribute float aGrow;
+    attribute float aHeight;
+    attribute float aSeed;
+    ${treeShared}
+    uniform float uPixelRatio;
+    varying float vAlpha;
+    varying float vSeed;
+    void main() {
+      float on = smoothstep(aGrow, aGrow + 0.05, uGrow);
+      vec3 c = sway(position, aHeight);
+      vec4 mv = modelViewMatrix * vec4(c, 1.0);
+      float twinkle = 0.75 + 0.25 * sin(uTime * (1.5 + aSeed * 2.0) + aSeed * 40.0);
+      gl_PointSize = (0.10 + aSeed * 0.08) * on * twinkle * uPixelRatio * 900.0 / -mv.z;
+      vAlpha = on;
+      vSeed = aSeed;
+      gl_Position = projectionMatrix * mv;
+    }`;
+
+  const budFragment = `
+    uniform vec3 uColorA;
+    uniform vec3 uColorB;
+    varying float vAlpha;
+    varying float vSeed;
+    void main() {
+      float d = length(gl_PointCoord - 0.5);
+      float glow = smoothstep(0.5, 0.0, d);
+      glow *= glow;
+      vec3 col = vSeed < 0.33 ? uColorA : (vSeed < 0.8 ? uColorB : vec3(1.0));
+      gl_FragColor = vec4(mix(col, vec3(1.0), glow * 0.6) * glow * vAlpha, 1.0);
+    }`;
+
+  const treeData = buildTree(20261101);
+  const treeUniforms = {
+    uGrow: { value: 0 },
+    uTime: { value: 0 },
+    uMaxY: { value: treeData.maxY },
+    uColorA: { value: new THREE.Color('#ff3e00') },
+    uColorB: { value: new THREE.Color('#0063ff') },
+    uPixelRatio: { value: config.pixelRatio },
+  };
+  const tree = new THREE.Group();
+  tree.position.set(100, 0, 0);          // loin de la sphère : on bascule de caméra dans le noir
+  tree.add(new THREE.Mesh(treeData.tubes, new THREE.ShaderMaterial({
+    uniforms: treeUniforms, vertexShader: treeVertex, fragmentShader: treeFragment, side: THREE.DoubleSide,
+  })));
+  tree.add(new THREE.Points(treeData.buds, new THREE.ShaderMaterial({
+    uniforms: treeUniforms, vertexShader: budVertex, fragmentShader: budFragment,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  })));
+  tree.visible = false;
+  scene.add(tree);
+
+  /* =====================================================================
+     Cadrage
      ===================================================================== */
   const halfFov = THREE.MathUtils.degToRad(25 / 2);
-  let restZ = 7;
+  const TREE_FOV = 40;
+  let restZ = 7, treeDist = 10;
   function resize() {
     config.width = innerWidth; config.height = innerHeight;
     camera.aspect = config.width / config.height;
-    // À l'horizontale : 7 comme l'original. À la verticale : on recule pour garder la sphère entière.
     restZ = camera.aspect >= 1 ? 7 : Math.max(7, 1.45 / (Math.tan(halfFov) * camera.aspect) + 0.2);
+    const t = Math.tan(THREE.MathUtils.degToRad(TREE_FOV / 2));
+    const halfH = treeData.maxY * 0.5, halfW = treeData.maxR * 0.95;
+    treeDist = Math.max(halfH / t, halfW / (t * camera.aspect)) + treeData.maxR * 0.5;
     camera.updateProjectionMatrix();
     renderer.setSize(config.width, config.height, false);
     composer.setSize(config.width, config.height);
@@ -560,90 +874,139 @@ void main() {
   addEventListener('resize', resize);
   resize();
 
-  // Rayon apparent de la sphère, en pixels, vu depuis la position de repos.
-  function sphereScreenRadius() {
-    return (1 / (restZ * Math.tan(halfFov))) * (config.height / 2);
-  }
+  const smoothstep = (a, b, x) => { const t = Math.min(Math.max((x - a) / (b - a), 0), 1); return t * t * (3 - 2 * t); };
+  const easeInOut = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const clamp01 = x => Math.min(Math.max(x, 0), 1);
 
   /* =====================================================================
-     Survol : vers le cœur ça accélère, hors de la sphère ça ralentit.
+     Panneaux : P va de 0 à 2 ; chaque intervalle est une animation.
+     0 → 1 : plongée dans la sphère.  1 → 2 : croissance de l'arbre.
+     ===================================================================== */
+  const DURATIONS = reduceMotion ? [900, 1200] : [2600, 4600];
+  let P = 0, target = 0, arrivedAt = 0;
+  const panels = [0, 1, 2].map(i => document.getElementById('p' + i));
+  const navButtons = [...document.querySelectorAll('.nav button')];
+  const nextLabel = document.getElementById('next-label');
+  const LABELS = ['Survolez le cœur · Défilez pour entrer', 'Défilez pour continuer', ''];
+  let shown = -1;
+
+  function setPanel(i) {
+    if (i === shown) return;
+    shown = i;
+    document.body.dataset.panel = String(i);
+    panels.forEach((el, k) => {
+      el.classList.toggle('live', k === i);
+      el.setAttribute('aria-hidden', String(k !== i));
+    });
+    document.querySelectorAll('.choice').forEach(b => b.tabIndex = i === 2 ? 0 : -1);
+    navButtons.forEach((b, k) => k === i ? b.setAttribute('aria-current', 'step') : b.removeAttribute('aria-current'));
+    if (LABELS[i]) nextLabel.textContent = LABELS[i];
+  }
+
+  function go(dir) {
+    const now = performance.now();
+    const moving = P !== target;
+    const motion = Math.sign(target - P);
+    if (moving && dir === motion) return;                    // déjà en route dans ce sens
+    if (!moving && now - arrivedAt < 650) return;            // inertie du trackpad
+    goTo(target + dir);
+  }
+  function goTo(i) { target = Math.min(Math.max(i, 0), 2); }
+
+  addEventListener('wheel', e => {
+    if (Math.abs(e.deltaY) < 6) return;
+    e.preventDefault();
+    go(Math.sign(e.deltaY));
+  }, { passive: false });
+
+  let touchY = null;
+  addEventListener('touchstart', e => { touchY = e.touches[0].clientY; }, { passive: true });
+  addEventListener('touchend', e => {
+    if (touchY === null) return;
+    const dy = touchY - e.changedTouches[0].clientY;
+    touchY = null;
+    if (Math.abs(dy) > 40) go(Math.sign(dy));
+  }, { passive: true });
+
+  canvas.addEventListener('click', () => { if (target < 2 && P === target) go(1); });
+  addEventListener('keydown', e => {
+    const onButton = e.target.closest && e.target.closest('button');
+    if (['ArrowDown', 'PageDown'].includes(e.key) || (e.key === ' ' && !onButton) || (e.key === 'Enter' && e.target === canvas)) { e.preventDefault(); go(1); }
+    if (['ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); go(-1); }
+  });
+  document.getElementById('next').addEventListener('click', () => go(1));
+  navButtons.forEach(b => b.addEventListener('click', () => goTo(Number(b.dataset.go))));
+
+  const status = document.getElementById('status');
+  document.querySelectorAll('.choice').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.choice').forEach(o => o.setAttribute('aria-pressed', String(o === btn)));
+    status.textContent = `Le parcours ${btn.dataset.label} arrive bientôt.`;
+  }));
+
+  /* =====================================================================
+     Survol de la sphère (panneau 1 seulement)
      ===================================================================== */
   let pointer = null;
   addEventListener('pointermove', e => { if (e.pointerType !== 'touch') pointer = { x: e.clientX, y: e.clientY }; });
   document.addEventListener('pointerleave', () => { pointer = null; });
   addEventListener('blur', () => { pointer = null; });
 
-  const smoothstep = (a, b, x) => { const t = Math.min(Math.max((x - a) / (b - a), 0), 1); return t * t * (3 - 2 * t); };
-
   function hoverSpeed() {
-    if (!pointer || state !== 'outside') return { speed: 1, agitation: 0 };
-    const d = Math.hypot(pointer.x - config.width / 2, pointer.y - config.height / 2) / sphereScreenRadius();
+    if (!pointer || P > 0.001) return { speed: 1, agitation: 0 };
+    const r = (1 / (restZ * Math.tan(halfFov))) * (config.height / 2);
+    const d = Math.hypot(pointer.x - config.width / 2, pointer.y - config.height / 2) / r;
     if (d < 1) {
-      const k = Math.pow(1 - d, 1.4);             // 0 au bord, 1 au cœur
+      const k = Math.pow(1 - d, 1.4);
       return { speed: 1 + k * 7, agitation: k };
     }
-    return { speed: 1 - smoothstep(1, 2.4, d) * 0.85, agitation: 0 };  // jusqu'à 15 % de la vitesse
+    return { speed: 1 - smoothstep(1, 2.4, d) * 0.85, agitation: 0 };
   }
 
   /* =====================================================================
-     Clic / tap : plongée dans la sphère, puis le texte.
+     Mise en scène à partir de P
      ===================================================================== */
-  const titleEl = document.getElementById('title');
-  const revealEl = document.getElementById('reveal');
-  const backBtn = document.getElementById('back');
-  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const treeTarget = new THREE.Vector3();
+  function stage(time) {
+    const dive = easeInOut(clamp01(P));
+    const growT = clamp01(P - 1);
+    const grow = 1 - Math.pow(1 - growT, 1.7);             // démarre vite, se pose en douceur
 
-  let state = 'outside';         // outside | diving | inside | surfacing
-  let dive = 0;                  // 0 dehors, 1 au centre
-  const DIVE_MS = reduceMotion ? 900 : 2600;
-  const easeInOut = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-
-  function enter() {
-    if (state === 'outside' || state === 'surfacing') { state = 'diving'; document.body.classList.add('away'); }
-  }
-  function leave() {
-    if (state === 'inside' || state === 'diving') {
-      state = 'surfacing';
-      document.body.classList.remove('inside');
-      revealEl.setAttribute('aria-hidden', 'true');
-      backBtn.tabIndex = -1;
-      canvas.focus({ preventScroll: true });
+    if (P <= 1) {
+      // Plongée : la caméra traverse la surface puis rejoint le centre.
+      sphere.visible = true;
+      tree.visible = false;
+      camera.fov = THREE.MathUtils.lerp(25, 75, smoothstep(0.35, 1, dive));
+      camera.position.set(0, 0, THREE.MathUtils.lerp(restZ, 0, dive));
+      camera.lookAt(0, 0, 0);
+    } else {
+      // Dans le noir, on bascule sur l'arbre.
+      sphere.visible = false;
+      tree.visible = true;
+      camera.fov = TREE_FOV;
+      const dist = treeDist * THREE.MathUtils.lerp(0.55, 1, smoothstep(0, 1, growT));
+      const lookY = treeData.maxY * THREE.MathUtils.lerp(0.12, 0.5, smoothstep(0, 1, growT));
+      const orbit = time * 0.00004 + growT * 0.9;
+      treeTarget.set(tree.position.x, lookY, 0);
+      camera.position.set(tree.position.x + Math.sin(orbit) * dist, lookY + treeData.maxY * 0.06, Math.cos(orbit) * dist);
+      camera.lookAt(treeTarget);
     }
-  }
-  canvas.addEventListener('click', () => { state === 'inside' ? leave() : enter(); });
-  canvas.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); state === 'inside' ? leave() : enter(); }
-  });
-  backBtn.addEventListener('click', leave);
-  addEventListener('keydown', e => { if (e.key === 'Escape') leave(); });
-
-  function updateDive(delta) {
-    if (state === 'diving') {
-      dive = Math.min(dive + delta / DIVE_MS, 1);
-      if (dive === 1) {
-        state = 'inside';
-        document.body.classList.add('inside');
-        revealEl.setAttribute('aria-hidden', 'false');
-        backBtn.tabIndex = 0;
-      }
-    } else if (state === 'surfacing') {
-      dive = Math.max(dive - delta / (DIVE_MS * 0.8), 0);
-      if (dive === 0) { state = 'outside'; document.body.classList.remove('away'); }
-    }
-    const e = easeInOut(dive);
-    // La caméra traverse la surface (rayon ≈ 1) puis rejoint le centre.
-    camera.position.set(0, 0, THREE.MathUtils.lerp(restZ, 0, e));
-    camera.fov = THREE.MathUtils.lerp(25, 75, smoothstep(0.35, 1, e));
     camera.updateProjectionMatrix();
-    camera.lookAt(0, 0, 0);
+    treeUniforms.uGrow.value = grow * 1.06;
 
-    titleEl.style.opacity = String(1 - smoothstep(0, 0.35, e));
-    titleEl.style.transform = `scale(${1 + e * 0.6})`;
-    revealEl.style.opacity = String(smoothstep(0.82, 1, e));
+    // Textes
+    panels[0].style.opacity = String(1 - smoothstep(0, 0.35, dive));
+    panels[0].style.transform = `scale(${1 + dive * 0.6})`;
+    panels[1].style.opacity = String(P <= 1 ? smoothstep(0.82, 1, dive) : 1 - smoothstep(0, 0.12, growT));
+    panels[1].style.transform = `translateY(${-smoothstep(0, 0.12, growT) * 30}px)`;
+    panels[2].style.opacity = String(smoothstep(0.7, 1, growT));
+    panels[2].style.transform = `translateY(${(1 - smoothstep(0.7, 1, growT)) * 24}px)`;
+
+    document.body.classList.toggle('moving', P !== target);
+    setPanel(P === target ? target : (P < 0.5 ? 0 : P < 1.5 ? 1 : 2));
   }
 
   /* =====================================================================
-     Boucle (Time.js : delta en millisecondes)
+     Boucle (delta en millisecondes, comme Time.js)
      ===================================================================== */
   let last = Date.now();
   function tick() {
@@ -651,17 +1014,26 @@ void main() {
     const delta = Math.min(now - last, 60);
     last = now;
 
-    const h = hoverSpeed();
-    // Pendant la plongée, la sphère s'emballe.
-    const diveBoost = state === 'diving' ? 4 : 0;
-    speed = h.speed + diveBoost;
-    agitation = Math.max(h.agitation, diveBoost ? 0.8 : 0);
+    if (P !== target) {
+      const dir = Math.sign(target - P);
+      const seg = dir > 0 ? Math.floor(P) : Math.ceil(P) - 1;
+      const dur = DURATIONS[Math.min(Math.max(seg, 0), 1)] * (dir < 0 ? 0.65 : 1);
+      P += dir * delta / dur;
+      if ((dir > 0 && P >= target) || (dir < 0 && P <= target)) { P = target; arrivedAt = performance.now(); }
+    }
 
-    updateSphere(delta);
-    updateDive(delta);
+    const h = hoverSpeed();
+    const diving = P > 0 && P < 1 && target > P;
+    speed = h.speed + (diving ? 4 : 0);
+    agitation = Math.max(h.agitation, diving ? 0.8 : 0);
+    if (P < 1) updateSphere(delta);
+    treeUniforms.uTime.value += delta / 1000;
+
+    stage(now);
     composer.render();
     requestAnimationFrame(tick);
   }
+  setPanel(0);
   requestAnimationFrame(tick);
 })();
 </script>
