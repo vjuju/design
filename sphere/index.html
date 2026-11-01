@@ -858,14 +858,16 @@ void main() {
      ===================================================================== */
   const halfFov = THREE.MathUtils.degToRad(25 / 2);
   const TREE_FOV = 40;
+  const treeTan = Math.tan(THREE.MathUtils.degToRad(TREE_FOV / 2));
   let restZ = 7, treeDist = 10;
   function resize() {
     config.width = innerWidth; config.height = innerHeight;
     camera.aspect = config.width / config.height;
     restZ = camera.aspect >= 1 ? 7 : Math.max(7, 1.45 / (Math.tan(halfFov) * camera.aspect) + 0.2);
-    const t = Math.tan(THREE.MathUtils.degToRad(TREE_FOV / 2));
-    const halfH = treeData.maxY * 0.5, halfW = treeData.maxR * 0.95;
-    treeDist = Math.max(halfH / t, halfW / (t * camera.aspect)) + treeData.maxR * 0.5;
+    // Caméra à l'horizontale, base du tronc calée juste sous le bas de la fenêtre :
+    // la hauteur visible (2 · dist · tan) doit contenir tout l'arbre.
+    const halfH = treeData.maxY * 0.56, halfW = treeData.maxR * 0.95;
+    treeDist = Math.max(halfH / treeTan, halfW / (treeTan * camera.aspect));
     camera.updateProjectionMatrix();
     renderer.setSize(config.width, config.height, false);
     composer.setSize(config.width, config.height);
@@ -984,10 +986,11 @@ void main() {
       tree.visible = true;
       camera.fov = TREE_FOV;
       const dist = treeDist * THREE.MathUtils.lerp(0.55, 1, smoothstep(0, 1, growT));
-      const lookY = treeData.maxY * THREE.MathUtils.lerp(0.12, 0.5, smoothstep(0, 1, growT));
+      // Le bas de l'image passe à 2 % de la hauteur de l'arbre : la base reste juste sous la fenêtre.
+      const lookY = dist * treeTan + treeData.maxY * 0.02;
       const orbit = time * 0.00004 + growT * 0.9;
       treeTarget.set(tree.position.x, lookY, 0);
-      camera.position.set(tree.position.x + Math.sin(orbit) * dist, lookY + treeData.maxY * 0.06, Math.cos(orbit) * dist);
+      camera.position.set(tree.position.x + Math.sin(orbit) * dist, lookY, Math.cos(orbit) * dist);
       camera.lookAt(treeTarget);
     }
     camera.updateProjectionMatrix();
