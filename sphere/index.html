@@ -191,7 +191,7 @@
   /* Pictogrammes des quatre éléments */
   .picto { flex: none; width: 48px; height: 48px; overflow: visible; filter: drop-shadow(0 0 6px rgba(255, 106, 43, .35)); transition: opacity .3s; }
   .picto-air, .picto-eau { filter: drop-shadow(0 0 6px rgba(77, 141, 255, .45)); }
-  .picto.away { opacity: 0; }
+  .picto.away { opacity: 0; transform: scale(1.35); filter: blur(4px); transition: opacity .22s ease-out, transform .22s ease-out, filter .22s ease-out; }
   .picto * { transform-box: fill-box; }
   .picto-feu .f1 { transform-origin: 50% 100%; animation: flicker 1.3s ease-in-out infinite alternate; }
   .picto-feu .f2 { transform-origin: 50% 100%; animation: flicker 0.9s ease-in-out infinite alternate-reverse; opacity: .9; }
@@ -230,8 +230,6 @@
     100% { transform: translate(calc(var(--dx) * .6), calc(var(--dy) * .6)) rotate(calc(var(--r) * .5)); opacity: 0; }
   }
 
-  .morph { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
-  .morph .picto { position: fixed; margin: 0; }
   @media (prefers-reduced-motion: reduce) { .picto *, .picto .motes { animation: none !important; } }
 
   .credits {
@@ -258,7 +256,6 @@
 </head>
 <body data-panel="0">
 <canvas id="scene" tabindex="0" aria-label="Animation 3D. Sur le premier panneau, survoler le centre de la sphère l'accélère, s'en éloigner la ralentit."></canvas>
-<div class="morph" id="morph" aria-hidden="true"></div>
 
 <section class="panel" id="p0" aria-label="Accueil">
   <h1>Le virtuel au service du réel</h1>
@@ -1091,12 +1088,23 @@ void main() {
     varying vec2 vUv;
     void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
 
+  // Point de l'écran (px) projeté sur le plan qui passe par `through` face à la caméra.
+  function screenToPlane(cam, sx, sy, through) {
+    cam.updateMatrixWorld();
+    const o = new THREE.Vector3().setFromMatrixPosition(cam.matrixWorld);
+    const d = new THREE.Vector3(sx / config.width * 2 - 1, -(sy / config.height) * 2 + 1, 0.5).unproject(cam).sub(o).normalize();
+    const n = cam.getWorldDirection(new THREE.Vector3());
+    const tt = through.clone().sub(o).dot(n) / d.dot(n);
+    return o.addScaledVector(d, tt);
+  }
+
   /* ---------- FEU : financeur·se ---------- */
   const fire = (function () {
     const sceneF = new THREE.Scene();
     const cam = new THREE.Camera();
     const uniforms = {
       uTime: { value: 0 }, uHeight: { value: 0 }, uAspect: { value: 1 },
+      uOrigin: { value: new THREE.Vector2(0.5, 0.2) }, uIgnite: { value: 0 },
       uColorA: { value: COLOR_A }, uColorB: { value: COLOR_B },
     };
     const flames = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
@@ -1105,6 +1113,8 @@ void main() {
         uniform float uTime;
         uniform float uHeight;
         uniform float uAspect;
+        uniform vec2 uOrigin;
+        uniform float uIgnite;
         uniform vec3 uColorA;
         uniform vec3 uColorB;
         varying vec2 vUv;
@@ -1127,7 +1137,12 @@ void main() {
           float n = fbm(p * vec2(2.2, 1.4) + q * 1.6 + vec2(0.0, -t * 1.9));
           float y = vUv.y / max(uHeight, 0.001);
           float f = n * 1.45 - y * 0.95 + 0.1;
-          f = clamp(f, 0.0, 1.0);
+          // Le feu prend là où était le pictogramme, puis se propage.
+          vec2 o = vec2((uOrigin.x - 0.5) * uAspect, uOrigin.y);
+          vec2 dp = p - o;
+          dp.y = dp.y > 0.0 ? dp.y * 0.55 : dp.y * 1.8;         // la flamme monte plus qu'elle ne descend
+          float fi = n * 1.45 - length(dp) / max(uIgnite, 0.001) * 0.95 + 0.25;
+          f = clamp(max(f, fi * step(0.0005, uIgnite)), 0.0, 1.0);
           // Bord froid aux couleurs de la sphère, cœur incandescent.
           vec3 c = vec3(0.0);
           c = mix(c, vec3(0.16, 0.0, 0.42), smoothstep(0.02, 0.16, f));
@@ -1183,11 +1198,15 @@ void main() {
 
     return {
       scene: sceneF, camera: cam, bloom: 0.7, intro: 3200,
+      enter(origin) { uniforms.uOrigin.value.set(origin.x / config.width, 1 - origin.y / config.height); },
       resize(aspect) { uniforms.uAspect.value = aspect; },
       update(delta, k) {
         uniforms.uTime.value += delta / 1000;
         // Les flammes montent, embrasent tout l'écran, puis se posent dans la moitié basse.
-        const h = k < 0.45 ? easeOutCubic(k / 0.45) * 1.45 : THREE.MathUtils.lerp(1.45, 0.52, easeInOut((k - 0.45) / 0.55));
+        // Une flamme naît à l'emplacement du pictogramme, embrase l'écran, puis se pose dans la moitié basse.
+        const ignite = k < 0.4 ? Math.pow(k / 0.4, 1.6) * 1.8 : THREE.MathUtils.lerp(1.8, 0, easeInOut((k - 0.4) / 0.5));
+        uniforms.uIgnite.value = Math.max(ignite, 0) + (k < 0.4 ? 0.025 : 0);
+        const h = k < 0.25 ? 0 : k < 0.45 ? easeOutCubic((k - 0.25) / 0.2) * 1.45 : THREE.MathUtils.lerp(1.45, 0.52, easeInOut((k - 0.45) / 0.55));
         uniforms.uHeight.value = h;
       },
     };
@@ -1363,6 +1382,7 @@ uniform float curlSize;
 uniform float attraction;
 uniform float initAnimation;
 uniform vec3 mouse3d;
+uniform vec3 uStart;
 ${spiritNoise}
 ${spiritCurl}
 void main() {
@@ -1370,10 +1390,10 @@ void main() {
     vec2 uv = gl_FragCoord.xy / resolution.xy;
 
     vec4 positionInfo = texture2D( texturePosition, uv );
-    vec3 position = mix(vec3(0.0, -200.0, 0.0), positionInfo.xyz, smoothstep(0.0, 0.3, initAnimation));
+    vec3 position = mix(uStart, positionInfo.xyz, smoothstep(0.0, 0.3, initAnimation));
     float life = positionInfo.a - dieSpeed;
 
-    vec3 followPosition = mix(vec3(0.0, -(1.0 - initAnimation) * 200.0, 0.0), mouse3d, smoothstep(0.2, 0.7, initAnimation));
+    vec3 followPosition = mix(uStart, mouse3d, smoothstep(0.2, 0.7, initAnimation));
 
     if(life < 0.0) {
         positionInfo = texture2D( textureDefaultPosition, uv );
@@ -1466,6 +1486,7 @@ void main() {
         mouse3d: { value: mouse3d },
         speed: { value: 1 }, dieSpeed: { value: 0 }, radius: { value: 0 }, curlSize: { value: 0 },
         attraction: { value: 0 }, time: { value: 0 }, initAnimation: { value: 0 },
+        uStart: { value: new THREE.Vector3(0, -200, 0) },
       });
       const error = gpu.init();
       if (error) { failed = true; console.warn(error); return; }
@@ -1473,18 +1494,29 @@ void main() {
     }
 
     const ray = new THREE.Ray();
+    function placeCamera(k) {
+      const dist = THREE.MathUtils.lerp(1000, 450, easeOutCubic(k)) * (cam.aspect < 1 ? 1.5 / Math.max(cam.aspect, 0.5) : 1);
+      cam.position.set(300, 60, 300).normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), orbit).multiplyScalar(dist);
+      cam.lookAt(0, 0, 0);
+      cam.updateMatrixWorld();
+    }
     return {
       scene: sceneA, camera: cam, bloom: 0.6, intro: 4500,
-      enter() { init(); },
+      enter(origin) {
+        init();
+        if (!ok) return;
+        // Le souffle part du bouton : on vise ce point depuis la caméra de départ.
+        placeCamera(0);
+        const start = screenToPlane(cam, origin.x, origin.y, new THREE.Vector3());
+        posVar.material.uniforms.uStart.value.copy(start);
+        mouse3d.copy(start);
+      },
       resize(aspect) { cam.aspect = aspect; cam.updateProjectionMatrix(); },
       update(delta, k) {
         if (!ok) return;
         // Caméra de The Spirit : elle se rapproche pendant l'apparition.
         orbit += delta * 0.00004;
-        const dist = THREE.MathUtils.lerp(1000, 450, easeOutCubic(k)) * (cam.aspect < 1 ? 1.5 / Math.max(cam.aspect, 0.5) : 1);
-        cam.position.set(300, 60, 300).normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), orbit).multiplyScalar(dist);
-        cam.lookAt(0, 0, 0);
-        cam.updateMatrixWorld();
+        placeCamera(k);
 
         // Le souffle suit la souris (ou le doigt) ; sinon il dessine sa boucle.
         const u = posVar.material.uniforms;
@@ -1562,38 +1594,38 @@ void main() {
     sceneE.add(mc);
 
     const N = 11;
+    const rest = new THREE.Vector3(), start = new THREE.Vector3();
     const drops = Array.from({ length: N }, (_, i) => ({ delay: (i / N) * 0.55 + Math.random() * 0.05, side: Math.random() }));
     let t = 0;
     return {
       scene: sceneE, camera: cam, bloom: 0.5, intro: 3600,
       // Où se tient la masse liquide à l'écran (pour y faire grandir le pictogramme).
-      focus() {
-        cam.updateMatrixWorld();
-        const v = mc.position.clone().project(cam);
-        return { x: (v.x + 1) / 2 * config.width, y: (1 - v.y) / 2 * config.height, w: config.height * 0.6, h: config.height * 0.6 };
-      },
+      enter(origin) { start.copy(screenToPlane(cam, origin.x, origin.y, rest)); },
       resize(aspect) {
         cam.aspect = aspect;
         cam.position.z = aspect < 1 ? 4 / Math.max(aspect, 0.55) : 4;
-        mc.position.set(aspect >= 1 ? Math.min(0.9, 0.42 * aspect) : 0, aspect >= 1 ? 0.1 : 0.55, 0);
+        rest.set(aspect >= 1 ? Math.min(0.9, 0.42 * aspect) : 0, aspect >= 1 ? 0.1 : 0.55, 0);
         cam.updateProjectionMatrix();
       },
       update(delta, k) {
         t += delta / 1000;
         uniforms.uTime.value = t;
         mc.rotation.y += delta * 0.00008;
+        // Une goutte part du pictogramme et grossit en rejoignant sa place.
+        const travel = easeInOut(clamp01(k / 0.55));
+        mc.position.lerpVectors(start, rest, travel);
+        mc.scale.setScalar(THREE.MathUtils.lerp(0.35, 1.25, easeOutCubic(clamp01(k / 0.6))));
         mc.reset();
         const strength = 1.2 / ((Math.sqrt(N) - 1) / 4 + 1);
         for (let i = 0; i < N; i++) {
-          // Chaque goutte tombe à son tour puis rejoint la masse liquide.
-          const fall = clamp01((k - drops[i].delay) / 0.4);
+          // Les gouttes sortent une à une du cœur et prennent leur orbite.
+          const fall = i === 0 ? 1 : clamp01((k - drops[i].delay * 0.8) / 0.4);
           if (fall <= 0) continue;
           const e = 1 - Math.pow(1 - fall, 2);
           const x = Math.sin(i + 1.26 * t * (1.03 + 0.5 * Math.cos(0.21 * i))) * 0.22 + 0.5;
           const yRest = Math.cos(i + 1.12 * t * Math.cos(1.22 + 0.1424 * i)) * 0.2 + 0.5;
           const z = Math.cos(i + 1.32 * t * 0.1 * Math.sin(0.92 + 0.53 * i)) * 0.22 + 0.5;
-          const y = THREE.MathUtils.lerp(1.15, yRest, e);
-          mc.addBall(x, y, z, strength * (0.4 + 0.6 * e), 12);
+          mc.addBall(THREE.MathUtils.lerp(0.5, x, e), THREE.MathUtils.lerp(0.5, yRest, e), THREE.MathUtils.lerp(0.5, z, e), strength * (0.5 + 0.5 * e), 12);
         }
       },
     };
@@ -1604,12 +1636,13 @@ void main() {
     const sceneT = new THREE.Scene();
     const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 50);
     const uniforms = {
-      uAssemble: { value: 0 }, uFade: { value: 0 },
+      uAssemble: { value: 0 }, uFade: { value: 0 }, uStart: { value: new THREE.Vector3() },
       uColorA: { value: COLOR_A }, uColorB: { value: COLOR_B },
     };
     const group = new THREE.Group();
     sceneT.add(group);
     let ready = false, failed = false, t = 0;
+    const startWorld = new THREE.Vector3();
 
     const mat = new THREE.ShaderMaterial({
       uniforms, side: THREE.DoubleSide,
@@ -1619,6 +1652,7 @@ void main() {
         attribute vec3 aAxis;
         attribute vec2 aParams;   // angle, retard
         uniform float uAssemble;
+        uniform vec3 uStart;
         varying vec3 vNormal;
         varying vec3 vView;
         varying float vFlash;
@@ -1634,7 +1668,9 @@ void main() {
           float p = clamp((uAssemble - start) / 0.38, 0.0, 1.0);
           float e = 1.0 - pow(1.0 - p, 3.0);
           mat3 R = rotation(aAxis, aParams.x * (1.0 - e));
-          vec3 pos = aCenter + R * (position - aCenter) + aOffset * (1.0 - e);
+          // Départ : tous les éclats sortent du pictogramme, en gerbe.
+          vec3 from = uStart + aOffset * 0.35 * smoothstep(0.0, 0.25, uAssemble + 0.05);
+          vec3 pos = aCenter + R * (position - aCenter) + (from - aCenter) * (1.0 - e);
           vec4 mv = modelViewMatrix * vec4(pos, 1.0);
           vView = -mv.xyz;
           vNormal = normalize(normalMatrix * (R * normal));
@@ -1665,7 +1701,7 @@ void main() {
           col += vec3(1.0) * pow(fres, 1.5) * 0.22;
           col += uColorA * vFlash * 1.4;                 // l'éclat s'embrase en trouvant sa place
           if (!gl_FrontFacing) col *= 0.3;               // l'intérieur des éclats
-          col *= mix(0.45, 1.0, vPlaced) * uFade;
+          col *= mix(0.6, 1.0, vPlaced) * uFade;
           gl_FragColor = vec4(col, 1.0);
         }`,
     });
@@ -1757,12 +1793,7 @@ void main() {
 
     return {
       scene: sceneT, camera: cam, bloom: 0.45, intro: 4400,
-      focus() {
-        cam.updateMatrixWorld();
-        const v = group.position.clone().project(cam);
-        return { x: (v.x + 1) / 2 * config.width, y: (1 - v.y) / 2 * config.height, w: config.height * 0.85, h: config.height * 0.85 };
-      },
-      get ready() { return ready || failed; },
+      enter(origin) { startWorld.copy(screenToPlane(cam, origin.x, origin.y, group.position)); },
       resize(aspect) {
         cam.aspect = aspect;
         const z = 1.25 / Math.tan(THREE.MathUtils.degToRad(15)) * 1.35;
@@ -1775,8 +1806,10 @@ void main() {
       update(delta, k) {
         t += delta / 1000;
         uniforms.uAssemble.value = k;
-        uniforms.uFade.value = smoothstep(0, 0.12, k);
+        uniforms.uFade.value = smoothstep(0, 0.04, k);
         group.rotation.y = Math.sin(t * 0.25) * 0.45 + (1 - easeOutCubic(k)) * 1.2;
+        group.updateMatrixWorld();
+        uniforms.uStart.value.copy(group.worldToLocal(startWorld.clone()));
       },
     };
   })();
@@ -1790,7 +1823,7 @@ void main() {
      0 → 1 : l'arbre se rétracte dans le sol.  1 → 2 : entrée de l'élément.
      ===================================================================== */
   const DURATIONS = reduceMotion ? [900, 1200] : [2600, 4600];
-  const RETRACT_MS = reduceMotion ? 500 : 900;
+  const RETRACT_MS = reduceMotion ? 300 : 380;   // court : l'effet doit partir presque tout de suite du pictogramme
   let P = 0, target = 0, arrivedAt = 0;
   let branch = null, B = 0, BT = 0, pendingGo = null;
   const views = { 0: 'p0', 1: 'p1', 2: 'p2', feu: 'b-feu', air: 'b-air', eau: 'b-eau', terre: 'b-terre' };
@@ -1817,43 +1850,21 @@ void main() {
     if (LABELS[idx]) nextLabel.textContent = LABELS[idx];
   }
 
-  /* Le pictogramme quitte son bouton et grandit jusqu'à devenir l'effet. */
-  const morph = document.getElementById('morph');
-  function morphTarget(key) {
-    const W = config.width, H = config.height, s = Math.min(W, H);
-    if (key === 'feu') return { x: 0, y: H * 0.28, w: W, h: H * 0.72 };          // les flammes montent du bas
-    if (key === 'air') return { x: (W - s * 0.7) / 2, y: (H - s * 0.7) / 2, w: s * 0.7, h: s * 0.7 };
-    const f = branches[key].focus();
-    return { x: f.x - f.w / 2, y: f.y - f.h / 2, w: f.w, h: f.h };
-  }
-  function launchMorph(btn, key) {
-    const icon = btn.querySelector('.picto');
-    if (!icon) return;
-    icon.classList.add('away');
-    if (reduceMotion) return;
+  /* Le pictogramme s'éteint sur place ; l'effet 3D naît à son emplacement. */
+  function pictoOrigin(btn) {
+    const icon = btn && btn.querySelector('.picto');
+    if (!icon) return { x: config.width / 2, y: config.height * 0.7 };
     const r = icon.getBoundingClientRect();
-    const clone = icon.cloneNode(true);
-    clone.classList.remove('away');
-    clone.classList.add('flying');
-    if (key === 'feu') clone.setAttribute('preserveAspectRatio', 'none');
-    morph.replaceChildren(clone);
-    const to = morphTarget(key);
-    const total = RETRACT_MS + branches[key].intro * 0.3;
-    const at = RETRACT_MS / total;
-    const box = (x, y, w, h) => ({ left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px' });
-    clone.animate([
-      Object.assign(box(r.left, r.top, r.width, r.height), { opacity: 1, filter: 'blur(0px)' }),
-      Object.assign(box(to.x, to.y, to.w, to.h), { opacity: 1, filter: 'blur(1px)', offset: at }),
-      Object.assign(box(to.x - to.w * 0.06, to.y - to.h * 0.06, to.w * 1.12, to.h * 1.12), { opacity: 0, filter: 'blur(18px)' }),
-    ], { duration: total, easing: 'cubic-bezier(.55, 0, .25, 1)', fill: 'forwards' }).onfinish = () => clone.remove();
+    icon.classList.add('away');
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
   }
 
   function openBranch(key, btn) {
     if (branch || P !== 2 || target !== 2) return;
-    if (btn) launchMorph(btn, key);
+    const origin = pictoOrigin(btn);
     branch = key;
     BT = 2;
-    if (branches[key].enter) branches[key].enter();
+    if (branches[key].enter) branches[key].enter(origin);
   }
   function closeBranch(then) {
     if (!branch) return;
