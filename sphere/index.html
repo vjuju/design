@@ -624,7 +624,19 @@ void main() {
 
   function buildTree(seed) {
     const rnd = mulberry32(seed);
-    const MAX_DEPTH = 6;
+    // Le caractère de l'arbre, tiré au sort à chaque plantation.
+    const g = {
+      depth: rnd() < 0.6 ? 6 : 5,
+      trunk: 1.3 + rnd() * 0.7,          // longueur du tronc
+      curl: 0.12 + rnd() * 0.22,         // branches droites ou tortueuses
+      tropism: rnd() * 0.05,             // attirance vers le haut
+      spread: 0.7 + rnd() * 0.7,         // ouverture des fourches
+      ratio: 0.62 + rnd() * 0.1,         // longueur des branches filles
+      bushy: 0.25 + rnd() * 0.45,        // probabilité d'une troisième branche
+      lean: (rnd() - 0.5) * 0.45,        // inclinaison du tronc
+      leanAz: rnd() * Math.PI * 2,
+    };
+    const MAX_DEPTH = g.depth;
     const branches = [];
     const buds = [];
     const up = new THREE.Vector3(0, 1, 0);
@@ -648,9 +660,9 @@ void main() {
         times.push(t0 + i * step * slow);
         const u = i / n;
         radii.push(radius * (terminal ? 1 - 0.85 * u : 1 - 0.3 * u));
-        d.x += (rnd() - 0.5) * 0.22;
-        d.z += (rnd() - 0.5) * 0.22;
-        d.y += (rnd() - 0.5) * 0.12 + (depth < 2 ? 0.05 : 0.015);   // tropisme vers la lumière
+        d.x += (rnd() - 0.5) * g.curl;
+        d.z += (rnd() - 0.5) * g.curl;
+        d.y += (rnd() - 0.5) * g.curl * 0.55 + (depth < 2 ? 0.035 + g.tropism : g.tropism * 0.4);   // tropisme vers la lumière
         d.normalize();
         p.addScaledVector(d, step);
       }
@@ -660,21 +672,22 @@ void main() {
         buds.push({ p: pts[n], t: times[n] + 0.08 });
         return;
       }
-      const kids = depth === 0 ? 3 : (rnd() < 0.45 ? 3 : 2);
+      const kids = depth === 0 ? (rnd() < 0.5 ? 3 : 2) : (rnd() < g.bushy ? 3 : 2);
       for (let k = 0; k < kids; k++) {
         const last = k === kids - 1;
         const i = last ? n : Math.min(n - 1, Math.floor(n * (0.45 + 0.5 * rnd())));
         const a = pts[Math.max(i - 1, 0)], b = pts[i];
         const pd = new THREE.Vector3().subVectors(b, a).normalize();
         const phi = k * 2.39996 + rnd() * 1.2 + depth;               // angle d'or
-        const tilt = last ? 0.15 + rnd() * 0.2 : 0.45 + rnd() * 0.45;
+        const tilt = (last ? 0.15 + rnd() * 0.2 : 0.45 + rnd() * 0.45) * g.spread;
         const perp = perpendicular(pd).applyAxisAngle(pd, phi);
         const nd = pd.clone().multiplyScalar(Math.cos(tilt)).addScaledVector(perp, Math.sin(tilt)).normalize();
-        grow(b, nd, length * (0.66 + rnd() * 0.14), radii[i] * (last ? 0.82 : 0.66), depth + 1, times[i]);
+        grow(b, nd, length * (g.ratio + rnd() * 0.12), radii[i] * (last ? 0.82 : 0.66), depth + 1, times[i]);
       }
     }
 
-    grow(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 1, 0), 1.6, 0.12, 0, 0);
+    const trunkDir = new THREE.Vector3(Math.sin(g.leanAz) * g.lean, 1, Math.cos(g.leanAz) * g.lean);
+    grow(new THREE.Vector3(0, 0, 0), trunkDir, g.trunk, 0.1 + rnd() * 0.04, 0, 0);
 
     // Normalisation du temps et de la hauteur.
     let maxT = 0, maxY = 0, maxR = 0;
@@ -832,7 +845,8 @@ void main() {
       gl_FragColor = vec4(mix(col, vec3(1.0), glow * 0.6) * glow * vAlpha, 1.0);
     }`;
 
-  const treeData = buildTree(20261101);
+  const newSeed = () => (Math.random() * 4294967296) >>> 0;
+  let treeData = buildTree(newSeed());
   const treeUniforms = {
     uGrow: { value: 0 },
     uTime: { value: 0 },
@@ -843,13 +857,25 @@ void main() {
   };
   const tree = new THREE.Group();
   tree.position.set(100, 0, 0);          // loin de la sphère : on bascule de caméra dans le noir
-  tree.add(new THREE.Mesh(treeData.tubes, new THREE.ShaderMaterial({
+  const tubesMesh = new THREE.Mesh(treeData.tubes, new THREE.ShaderMaterial({
     uniforms: treeUniforms, vertexShader: treeVertex, fragmentShader: treeFragment, side: THREE.DoubleSide,
-  })));
-  tree.add(new THREE.Points(treeData.buds, new THREE.ShaderMaterial({
+  }));
+  const budsPoints = new THREE.Points(treeData.buds, new THREE.ShaderMaterial({
     uniforms: treeUniforms, vertexShader: budVertex, fragmentShader: budFragment,
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-  })));
+  }));
+  tree.add(tubesMesh, budsPoints);
+
+  // Un nouvel arbre, une nouvelle forme.
+  function plantTree() {
+    tubesMesh.geometry.dispose();
+    budsPoints.geometry.dispose();
+    treeData = buildTree(newSeed());
+    tubesMesh.geometry = treeData.tubes;
+    budsPoints.geometry = treeData.buds;
+    treeUniforms.uMaxY.value = treeData.maxY;
+    frameTree();
+  }
   tree.visible = false;
   scene.add(tree);
 
@@ -860,14 +886,17 @@ void main() {
   const TREE_FOV = 40;
   const treeTan = Math.tan(THREE.MathUtils.degToRad(TREE_FOV / 2));
   let restZ = 7, treeDist = 10;
+  // Caméra à l'horizontale, base du tronc calée juste sous le bas de la fenêtre :
+  // la hauteur visible (2 · dist · tan) doit contenir tout l'arbre.
+  function frameTree() {
+    const halfH = treeData.maxY * 0.56, halfW = treeData.maxR * 0.95;
+    treeDist = Math.max(halfH / treeTan, halfW / (treeTan * config.width / config.height));
+  }
   function resize() {
     config.width = innerWidth; config.height = innerHeight;
     camera.aspect = config.width / config.height;
     restZ = camera.aspect >= 1 ? 7 : Math.max(7, 1.45 / (Math.tan(halfFov) * camera.aspect) + 0.2);
-    // Caméra à l'horizontale, base du tronc calée juste sous le bas de la fenêtre :
-    // la hauteur visible (2 · dist · tan) doit contenir tout l'arbre.
-    const halfH = treeData.maxY * 0.56, halfW = treeData.maxR * 0.95;
-    treeDist = Math.max(halfH / treeTan, halfW / (treeTan * camera.aspect));
+    frameTree();
     camera.updateProjectionMatrix();
     renderer.setSize(config.width, config.height, false);
     composer.setSize(config.width, config.height);
@@ -968,15 +997,18 @@ void main() {
      Mise en scène à partir de P
      ===================================================================== */
   const treeTarget = new THREE.Vector3();
+  let treeUsed = false;
   function stage(time) {
     const dive = easeInOut(clamp01(P));
-    const growT = clamp01(P - 1);
+    const panelT = clamp01(P - 1);
+    const growT = panelT;
     const grow = 1 - Math.pow(1 - growT, 1.7);             // démarre vite, se pose en douceur
 
     if (P <= 1) {
       // Plongée : la caméra traverse la surface puis rejoint le centre.
       sphere.visible = true;
       tree.visible = false;
+      if (treeUsed) { plantTree(); treeUsed = false; }   // la prochaine fois, un autre arbre
       camera.fov = THREE.MathUtils.lerp(25, 75, smoothstep(0.35, 1, dive));
       camera.position.set(0, 0, THREE.MathUtils.lerp(restZ, 0, dive));
       camera.lookAt(0, 0, 0);
@@ -984,6 +1016,7 @@ void main() {
       // Dans le noir, on bascule sur l'arbre.
       sphere.visible = false;
       tree.visible = true;
+      treeUsed = true;
       camera.fov = TREE_FOV;
       const dist = treeDist * THREE.MathUtils.lerp(0.55, 1, smoothstep(0, 1, growT));
       // Le bas de l'image passe à 2 % de la hauteur de l'arbre : la base reste juste sous la fenêtre.
@@ -999,10 +1032,10 @@ void main() {
     // Textes
     panels[0].style.opacity = String(1 - smoothstep(0, 0.35, dive));
     panels[0].style.transform = `scale(${1 + dive * 0.6})`;
-    panels[1].style.opacity = String(P <= 1 ? smoothstep(0.82, 1, dive) : 1 - smoothstep(0, 0.12, growT));
-    panels[1].style.transform = `translateY(${-smoothstep(0, 0.12, growT) * 30}px)`;
-    panels[2].style.opacity = String(smoothstep(0.7, 1, growT));
-    panels[2].style.transform = `translateY(${(1 - smoothstep(0.7, 1, growT)) * 24}px)`;
+    panels[1].style.opacity = String(P <= 1 ? smoothstep(0.82, 1, dive) : 1 - smoothstep(0, 0.12, panelT));
+    panels[1].style.transform = `translateY(${-smoothstep(0, 0.12, panelT) * 30}px)`;
+    panels[2].style.opacity = String(smoothstep(0.7, 1, panelT));
+    panels[2].style.transform = `translateY(${(1 - smoothstep(0.7, 1, panelT)) * 24}px)`;
 
     document.body.classList.toggle('moving', P !== target);
     setPanel(P === target ? target : (P < 0.5 ? 0 : P < 1.5 ? 1 : 2));
