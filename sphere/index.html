@@ -95,7 +95,7 @@
   }
   .choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .choice {
-    display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+    display: flex; flex-direction: row; align-items: center; gap: 16px;
     min-width: 0;
     padding: 18px 20px;
     text-align: left;
@@ -109,7 +109,8 @@
     transition: border-color .25s, background .25s, transform .25s;
   }
   .choice b { font: 700 clamp(17px, 2.4vmin, 22px)/1.15 var(--display); }
-  .choice span { font: 300 italic 15px/1.35 var(--text); color: var(--muted); }
+  .choice-text { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+  .choice .d { font: 300 italic 15px/1.35 var(--text); color: var(--muted); }
   .choice:hover { transform: translateY(-2px); border-color: rgba(255, 255, 255, .5); }
   .choice.w:hover, .choice.w[aria-pressed="true"] { border-color: var(--warm); background: rgba(255, 106, 43, .14); }
   .choice.c:hover, .choice.c[aria-pressed="true"] { border-color: var(--cold); background: rgba(0, 99, 255, .16); }
@@ -187,6 +188,52 @@
   }
   .back:hover { border-color: var(--ink); }
   .back:focus-visible { outline: 2px solid var(--warm); outline-offset: 3px; }
+  /* Pictogrammes des quatre éléments */
+  .picto { flex: none; width: 48px; height: 48px; overflow: visible; filter: drop-shadow(0 0 6px rgba(255, 106, 43, .35)); transition: opacity .3s; }
+  .picto-air, .picto-eau { filter: drop-shadow(0 0 6px rgba(77, 141, 255, .45)); }
+  .picto.away { opacity: 0; }
+  .picto * { transform-box: fill-box; }
+  .picto-feu .f1 { transform-origin: 50% 100%; animation: flicker 1.3s ease-in-out infinite alternate; }
+  .picto-feu .f2 { transform-origin: 50% 100%; animation: flicker 0.9s ease-in-out infinite alternate-reverse; opacity: .9; }
+  .picto-feu .em { animation: ember 1.8s ease-in infinite; }
+  .picto-feu .em2 { animation-delay: .6s; }
+  .picto-feu .em3 { animation-delay: 1.2s; }
+  @keyframes flicker {
+    0% { transform: scale(1, 1) skewX(0deg); }
+    50% { transform: scale(.94, 1.07) skewX(-4deg); }
+    100% { transform: scale(1.04, .95) skewX(4deg); }
+  }
+  @keyframes ember { 0% { transform: translateY(6px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate(3px, -14px); opacity: 0; } }
+
+  .picto-air .swirl path { stroke-dasharray: 26 8; animation: gust 1.6s linear infinite; }
+  .picto-air .w2 { animation-duration: 1.2s !important; }
+  .picto-air .w3 { stroke-dasharray: 5 4; animation-duration: 0.9s !important; }
+  .picto-air .swirl { transform-origin: 50% 50%; transform-box: view-box; animation: sway 3s ease-in-out infinite; }
+  .picto-air .motes { transform-origin: 50% 50%; transform-box: view-box; animation: spin 6s linear infinite; }
+  @keyframes gust { to { stroke-dashoffset: -34; } }
+  @keyframes sway { 0%, 100% { transform: translateX(-1.5px); } 50% { transform: translateX(1.5px); } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .picto-eau .d0 { transform-origin: 50% 50%; animation: wobble 2.6s ease-in-out infinite; }
+  .picto-eau .d1 { animation: drip 2.2s cubic-bezier(.5, 0, .9, .5) infinite; }
+  .picto-eau .d2 { animation: orbit 3.4s ease-in-out infinite; }
+  .picto-eau .d3 { animation: orbit 2.8s ease-in-out infinite reverse; }
+  .picto-eau .shine { animation: wobble 2.6s ease-in-out infinite; transform-origin: 50% 50%; }
+  @keyframes wobble { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.08, .93); } }
+  @keyframes drip { 0% { transform: translateY(-6px); } 70% { transform: translateY(16px); } 100% { transform: translateY(18px); opacity: 0; } }
+  @keyframes orbit { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-7px, -4px); } }
+
+  .picto-terre .s { transform-origin: 50% 50%; animation: assemble 3.6s cubic-bezier(.3, 0, .2, 1) infinite; animation-delay: calc(var(--i) * 90ms); }
+  @keyframes assemble {
+    0% { transform: translate(var(--dx), var(--dy)) rotate(var(--r)); opacity: 0; }
+    35%, 82% { transform: none; opacity: 1; }
+    100% { transform: translate(calc(var(--dx) * .6), calc(var(--dy) * .6)) rotate(calc(var(--r) * .5)); opacity: 0; }
+  }
+
+  .morph { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+  .morph .picto { position: fixed; margin: 0; }
+  @media (prefers-reduced-motion: reduce) { .picto *, .picto .motes { animation: none !important; } }
+
   .credits {
     position: fixed;
     right: max(16px, env(safe-area-inset-right, 0px));
@@ -201,7 +248,8 @@
   @media (max-width: 640px) {
     .choices { grid-template-columns: 1fr; gap: 8px; }
     .choice { padding: 12px 16px; border-radius: 14px; }
-    .choice span { font-size: 13px; }
+    .choice .d { font-size: 13px; }
+    .choice .picto { width: 40px; height: 40px; }
     .credits { display: none; }
   }
   @media (prefers-reduced-motion: reduce) { .next svg { animation: none; } }
@@ -210,6 +258,7 @@
 </head>
 <body data-panel="0">
 <canvas id="scene" tabindex="0" aria-label="Animation 3D. Sur le premier panneau, survoler le centre de la sphère l'accélère, s'en éloigner la ralentit."></canvas>
+<div class="morph" id="morph" aria-hidden="true"></div>
 
 <section class="panel" id="p0" aria-label="Accueil">
   <h1>Le virtuel au service du réel</h1>
@@ -226,10 +275,53 @@
     <h2>Et vous, qui <span style="white-space:nowrap">êtes-vous&nbsp;?</span></h2>
     <div>
       <div class="choices">
-        <button type="button" class="choice w" id="c-financeur" data-branch="feu" tabindex="-1"><b>Je suis financeur·se</b><span>Je fais pousser des projets qui ont du sens.</span></button>
-        <button type="button" class="choice c" id="c-eclaireur" data-branch="air" tabindex="-1"><b>Je suis éclaireur·se</b><span>J'ouvre la voie et je partage l'élan.</span></button>
-        <button type="button" class="choice w" id="c-expert" data-branch="eau" tabindex="-1"><b>Je suis expert·e</b><span>J'apporte mon savoir-faire là où il compte.</span></button>
-        <button type="button" class="choice c" id="c-porteur" data-branch="terre" tabindex="-1"><b>Je porte un projet</b><span>Je cherche des allié·es pour le faire grandir.</span></button>
+        <button type="button" class="choice w" id="c-financeur" data-branch="feu" tabindex="-1">
+          <svg class="picto picto-feu" viewBox="0 0 48 48" aria-hidden="true">
+            <defs><linearGradient id="g-feu" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#fff3d6"/><stop offset=".3" stop-color="#ffb347"/><stop offset=".62" stop-color="#ff3e00"/><stop offset="1" stop-color="#5b1cff"/></linearGradient></defs>
+            <path class="f1" d="M24 46c-9 0-15-6-15-14 0-7 5-11 7-17 1 4 3 6 5 7 0-6 3-12 8-17 0 7 4 11 7 15 2 3 3 6 3 10 0 9-6 16-15 16z" fill="url(#g-feu)"/>
+            <path class="f2" d="M24 46c-5 0-8-3-8-8 0-4 3-6 4-10 1 2 2 3 3 3 0-3 2-6 4-8 0 4 2 6 3 8 1 2 2 4 2 6 0 5-3 9-8 9z" fill="#fff3d6"/>
+            <circle class="em" cx="13" cy="24" r="1.3" fill="#ffb347"/><circle class="em em2" cx="35" cy="20" r="1.1" fill="#ff7a3d"/><circle class="em em3" cx="28" cy="10" r=".9" fill="#fff3d6"/>
+          </svg>
+          <span class="choice-text"><b>Je suis financeur·se</b><span class="d">Je fais pousser des projets qui ont du sens.</span></span>
+        </button>
+        <button type="button" class="choice c" id="c-eclaireur" data-branch="air" tabindex="-1">
+          <svg class="picto picto-air" viewBox="0 0 48 48" aria-hidden="true">
+            <g class="swirl" fill="none" stroke-linecap="round" stroke-width="3">
+              <path class="w1" d="M5 19h23a6 6 0 1 0-6-6" stroke="#e6eeff"/>
+              <path class="w2" d="M5 27h31a6 6 0 1 1-6 6" stroke="#4d8dff"/>
+              <path class="w3" d="M9 35h11" stroke="#9cc0ff"/>
+            </g>
+            <g class="motes"><circle cx="40" cy="12" r="1.6" fill="#e6eeff"/><circle cx="8" cy="40" r="1.2" fill="#4d8dff"/><circle cx="42" cy="38" r="1" fill="#ff7a3d"/><circle cx="14" cy="8" r="1" fill="#9cc0ff"/></g>
+          </svg>
+          <span class="choice-text"><b>Je suis éclaireur·se</b><span class="d">J'ouvre la voie et je partage l'élan.</span></span>
+        </button>
+        <button type="button" class="choice w" id="c-expert" data-branch="eau" tabindex="-1">
+          <svg class="picto picto-eau" viewBox="0 0 48 48" aria-hidden="true">
+            <defs>
+              <filter id="goo" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur in="SourceGraphic" stdDeviation="2.2" result="b"/><feColorMatrix in="b" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -8"/></filter>
+              <radialGradient id="g-eau" cx=".35" cy=".3" r=".85"><stop offset="0" stop-color="#cfe0ff"/><stop offset=".35" stop-color="#4d6dff"/><stop offset="1" stop-color="#1c0a8a"/></radialGradient>
+            </defs>
+            <g filter="url(#goo)" fill="url(#g-eau)">
+              <circle class="d0" cx="24" cy="31" r="11"/><circle class="d1" cx="24" cy="9" r="4.5"/><circle class="d2" cx="33" cy="31" r="5"/><circle class="d3" cx="15" cy="33" r="4"/>
+            </g>
+            <ellipse class="shine" cx="20" cy="26" rx="3" ry="1.8" fill="#ffffff" opacity=".85"/>
+          </svg>
+          <span class="choice-text"><b>Je suis expert·e</b><span class="d">J'apporte mon savoir-faire là où il compte.</span></span>
+        </button>
+        <button type="button" class="choice c" id="c-porteur" data-branch="terre" tabindex="-1">
+          <svg class="picto picto-terre" viewBox="0 0 48 48" aria-hidden="true">
+            <polygon class="s" style="--dx:-14px;--dy:-10px;--r:-80deg;--i:6" points="16,11 24,4 24,16" fill="#efe9df"/>
+            <polygon class="s" style="--dx:14px;--dy:-12px;--r:70deg;--i:7" points="24,4 32,11 24,16" fill="#ff8a5c"/>
+            <polygon class="s" style="--dx:-16px;--dy:2px;--r:110deg;--i:4" points="16,11 24,16 16,21" fill="#d6cfc4"/>
+            <polygon class="s" style="--dx:16px;--dy:0px;--r:-120deg;--i:5" points="32,11 32,21 24,16" fill="#ff6a2b"/>
+            <polygon class="s" style="--dx:-12px;--dy:8px;--r:60deg;--i:2" points="16,21 24,16 24,27" fill="#8fa8ff"/>
+            <polygon class="s" style="--dx:12px;--dy:10px;--r:-70deg;--i:3" points="24,16 32,21 24,27" fill="#e2dbd0"/>
+            <polygon class="s" style="--dx:0px;--dy:14px;--r:90deg;--i:1" points="20,26 28,26 29,33 19,33" fill="#c9c2b8"/>
+            <polygon class="s" style="--dx:-16px;--dy:14px;--r:-50deg;--i:0" points="7,45 19,33 24,35 24,45" fill="#4d6dff"/>
+            <polygon class="s" style="--dx:16px;--dy:14px;--r:50deg;--i:0" points="24,45 24,35 29,33 41,45" fill="#ff8a5c"/>
+          </svg>
+          <span class="choice-text"><b>Je porte un projet</b><span class="d">Je cherche des allié·es pour le faire grandir.</span></span>
+        </button>
       </div>
     </div>
   </div>
@@ -1474,6 +1566,12 @@ void main() {
     let t = 0;
     return {
       scene: sceneE, camera: cam, bloom: 0.5, intro: 3600,
+      // Où se tient la masse liquide à l'écran (pour y faire grandir le pictogramme).
+      focus() {
+        cam.updateMatrixWorld();
+        const v = mc.position.clone().project(cam);
+        return { x: (v.x + 1) / 2 * config.width, y: (1 - v.y) / 2 * config.height, w: config.height * 0.6, h: config.height * 0.6 };
+      },
       resize(aspect) {
         cam.aspect = aspect;
         cam.position.z = aspect < 1 ? 4 / Math.max(aspect, 0.55) : 4;
@@ -1659,6 +1757,11 @@ void main() {
 
     return {
       scene: sceneT, camera: cam, bloom: 0.45, intro: 4400,
+      focus() {
+        cam.updateMatrixWorld();
+        const v = group.position.clone().project(cam);
+        return { x: (v.x + 1) / 2 * config.width, y: (1 - v.y) / 2 * config.height, w: config.height * 0.85, h: config.height * 0.85 };
+      },
       get ready() { return ready || failed; },
       resize(aspect) {
         cam.aspect = aspect;
@@ -1714,8 +1817,40 @@ void main() {
     if (LABELS[idx]) nextLabel.textContent = LABELS[idx];
   }
 
-  function openBranch(key) {
+  /* Le pictogramme quitte son bouton et grandit jusqu'à devenir l'effet. */
+  const morph = document.getElementById('morph');
+  function morphTarget(key) {
+    const W = config.width, H = config.height, s = Math.min(W, H);
+    if (key === 'feu') return { x: 0, y: H * 0.28, w: W, h: H * 0.72 };          // les flammes montent du bas
+    if (key === 'air') return { x: (W - s * 0.7) / 2, y: (H - s * 0.7) / 2, w: s * 0.7, h: s * 0.7 };
+    const f = branches[key].focus();
+    return { x: f.x - f.w / 2, y: f.y - f.h / 2, w: f.w, h: f.h };
+  }
+  function launchMorph(btn, key) {
+    const icon = btn.querySelector('.picto');
+    if (!icon) return;
+    icon.classList.add('away');
+    if (reduceMotion) return;
+    const r = icon.getBoundingClientRect();
+    const clone = icon.cloneNode(true);
+    clone.classList.remove('away');
+    clone.classList.add('flying');
+    if (key === 'feu') clone.setAttribute('preserveAspectRatio', 'none');
+    morph.replaceChildren(clone);
+    const to = morphTarget(key);
+    const total = RETRACT_MS + branches[key].intro * 0.3;
+    const at = RETRACT_MS / total;
+    const box = (x, y, w, h) => ({ left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px' });
+    clone.animate([
+      Object.assign(box(r.left, r.top, r.width, r.height), { opacity: 1, filter: 'blur(0px)' }),
+      Object.assign(box(to.x, to.y, to.w, to.h), { opacity: 1, filter: 'blur(1px)', offset: at }),
+      Object.assign(box(to.x - to.w * 0.06, to.y - to.h * 0.06, to.w * 1.12, to.h * 1.12), { opacity: 0, filter: 'blur(18px)' }),
+    ], { duration: total, easing: 'cubic-bezier(.55, 0, .25, 1)', fill: 'forwards' }).onfinish = () => clone.remove();
+  }
+
+  function openBranch(key, btn) {
     if (branch || P !== 2 || target !== 2) return;
+    if (btn) launchMorph(btn, key);
     branch = key;
     BT = 2;
     if (branches[key].enter) branches[key].enter();
@@ -1767,7 +1902,7 @@ void main() {
   });
   document.getElementById('next').addEventListener('click', () => go(1));
   navButtons.forEach(b => b.addEventListener('click', () => goTo(Number(b.dataset.go))));
-  document.querySelectorAll('.choice').forEach(btn => btn.addEventListener('click', () => openBranch(btn.dataset.branch)));
+  document.querySelectorAll('.choice').forEach(btn => btn.addEventListener('click', () => openBranch(btn.dataset.branch, btn)));
   document.querySelectorAll('.back').forEach(btn => btn.addEventListener('click', () => closeBranch()));
 
   /* =====================================================================
@@ -1893,6 +2028,7 @@ void main() {
       }
       if (B === 0 && BT === 0) {
         branch = null;
+        document.querySelectorAll('.picto.away').forEach(el => el.classList.remove('away'));
         if (pendingGo !== null) { target = Math.min(Math.max(pendingGo, 0), 2); pendingGo = null; }
       }
     }
