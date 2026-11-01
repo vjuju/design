@@ -37,6 +37,7 @@
   }
   ::selection { background: #ffffff22; }
 
+  #fx { position: fixed; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
   #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
   body[data-panel="0"] #scene, body[data-panel="1"] #scene { cursor: pointer; }
 
@@ -323,6 +324,8 @@
     </div>
   </div>
 </section>
+
+<canvas id="fx" aria-hidden="true"></canvas>
 
 <section class="panel branch top" id="b-feu" aria-label="Financeur·se" aria-hidden="true">
   <div class="branch-text">
@@ -955,6 +958,7 @@ void main() {
 
   const treeFragment = `
     uniform float uGrow;
+    uniform float uFade;
     uniform vec3 uColorA;
     uniform vec3 uColorB;
     varying vec3 vNormal;
@@ -978,7 +982,7 @@ void main() {
       color += uColorB * lb * 0.5;
       color = mix(color, vec3(1.0), clamp(pow(max(0.0, fresnel - 0.55), 2.0) * 3.0, 0.0, 1.0));
       color += vec3(1.0, 0.92, 0.85) * vHot * 1.6;
-      gl_FragColor = vec4(color, 1.0);
+      gl_FragColor = vec4(color * uFade, 1.0);
     }`;
 
   const budVertex = `
@@ -1001,6 +1005,7 @@ void main() {
     }`;
 
   const budFragment = `
+    uniform float uFade;
     uniform vec3 uColorA;
     uniform vec3 uColorB;
     varying float vAlpha;
@@ -1010,7 +1015,7 @@ void main() {
       float glow = smoothstep(0.5, 0.0, d);
       glow *= glow;
       vec3 col = vSeed < 0.33 ? uColorA : (vSeed < 0.8 ? uColorB : vec3(1.0));
-      gl_FragColor = vec4(mix(col, vec3(1.0), glow * 0.6) * glow * vAlpha, 1.0);
+      gl_FragColor = vec4(mix(col, vec3(1.0), glow * 0.6) * glow * vAlpha * uFade, 1.0);
     }`;
 
   const newSeed = () => (Math.random() * 4294967296) >>> 0;
@@ -1022,6 +1027,7 @@ void main() {
     uColorA: { value: new THREE.Color('#ff3e00') },
     uColorB: { value: new THREE.Color('#0063ff') },
     uPixelRatio: { value: config.pixelRatio },
+    uFade: { value: 1 },
   };
   const tree = new THREE.Group();
   tree.position.set(100, 0, 0);          // loin de la sphère : on bascule de caméra dans le noir
@@ -1078,12 +1084,65 @@ void main() {
   const clamp01 = x => Math.min(Math.max(x, 0), 1);
 
   /* =====================================================================
-     Quatre profils, quatre éléments. Chaque univers a sa scène, sa caméra
-     et une animation d'entrée pilotée par k (0 → 1).
+     Quatre profils, quatre éléments.
+     Les effets sont dessinés sur un second canvas, transparent, posé
+     au-dessus de l'arbre et du panneau. Chaque effet reçoit B (0 → 2) :
+       0 → 1 : il naît au centre du pictogramme et grandit au premier plan
+               jusqu'à couvrir la fenêtre (l'arrière-plan reste visible) ;
+       1 → 2 : l'arrière-plan s'est effacé, l'effet prend sa forme finale.
      ===================================================================== */
+  const fxCanvas = document.getElementById('fx');
+  const fxRenderer = new THREE.WebGLRenderer({ canvas: fxCanvas, alpha: true, antialias: true, premultipliedAlpha: true });
+  fxRenderer.setClearColor(0x000000, 0);
+  fxRenderer.setPixelRatio(config.pixelRatio);
+  fxRenderer.setSize(config.width, config.height, false);
+  const fxComposer = new THREE.EffectComposer(fxRenderer);
+  fxComposer.setPixelRatio(config.pixelRatio);
+  fxComposer.setSize(config.width, config.height);
+  const fxRenderPass = new THREE.RenderPass(new THREE.Scene(), new THREE.Camera(), null, new THREE.Color(0x000000), 0);
+  fxComposer.addPass(fxRenderPass);
+  // On garde l'alpha de la scène avant le halo (le flou du bloom le rend opaque).
+  const fxSceneRT = new THREE.WebGLRenderTarget(config.width * config.pixelRatio, config.height * config.pixelRatio, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat });
+  const savePass = new THREE.ShaderPass({
+    uniforms: { tDiffuse: { value: null } },
+    vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `uniform sampler2D tDiffuse; varying vec2 vUv; void main() { gl_FragColor = texture2D(tDiffuse, vUv); }`,
+  });
+  savePass.needsSwap = false;
+  savePass.render = function (r, writeBuffer, readBuffer) {
+    this.uniforms.tDiffuse.value = readBuffer.texture;
+    r.setRenderTarget(fxSceneRT);
+    r.clear();
+    this.fsQuad.render(r);
+  };
+  fxComposer.addPass(savePass);
+  const fxBloom = new THREE.UnrealBloomPass(new THREE.Vector2(config.width, config.height), 0.6, 0.315, 0);
+  fxComposer.addPass(fxBloom);
+  // Le halo devient lui aussi opaque là où il brille : il se pose par-dessus le HTML.
+  fxComposer.addPass(new THREE.ShaderPass({
+    uniforms: { tDiffuse: { value: null }, tScene: { value: fxSceneRT.texture } },
+    vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `
+      uniform sampler2D tDiffuse;
+      uniform sampler2D tScene;
+      varying vec2 vUv;
+      void main() {
+        vec4 c = texture2D(tDiffuse, vUv);
+        float a = clamp(max(texture2D(tScene, vUv).a, max(c.r, max(c.g, c.b))), 0.0, 1.0);
+        gl_FragColor = vec4(min(c.rgb, vec3(a)), a);
+      }`,
+  }));
+  addEventListener('resize', () => {
+    fxRenderer.setSize(config.width, config.height, false);
+    fxComposer.setSize(config.width, config.height);
+    fxBloom.setSize(config.width, config.height);
+    fxSceneRT.setSize(config.width * config.pixelRatio, config.height * config.pixelRatio);
+  });
+
   const COLOR_A = new THREE.Color('#ff3e00');
   const COLOR_B = new THREE.Color('#0063ff');
   const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+  const easeInCubic = t => t * t * t;
   const fullscreenVertex = `
     varying vec2 vUv;
     void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
@@ -1108,7 +1167,7 @@ void main() {
       uColorA: { value: COLOR_A }, uColorB: { value: COLOR_B },
     };
     const flames = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
-      uniforms, vertexShader: fullscreenVertex, depthTest: false, depthWrite: false,
+      uniforms, vertexShader: fullscreenVertex, depthTest: false, depthWrite: false, transparent: true,
       fragmentShader: `
         uniform float uTime;
         uniform float uHeight;
@@ -1132,31 +1191,29 @@ void main() {
         void main() {
           vec2 p = vec2((vUv.x - 0.5) * uAspect, vUv.y);
           float t = uTime;
-          // Domaine déformé qui monte : les langues de flamme.
           vec2 q = vec2(fbm(p * 2.6 + vec2(0.0, -t * 1.2)), fbm(p * 2.6 + vec2(5.2, -t * 1.05)));
           float n = fbm(p * vec2(2.2, 1.4) + q * 1.6 + vec2(0.0, -t * 1.9));
-          float y = vUv.y / max(uHeight, 0.001);
-          float f = n * 1.45 - y * 0.95 + 0.1;
-          // Le feu prend là où était le pictogramme, puis se propage.
-          vec2 o = vec2((uOrigin.x - 0.5) * uAspect, uOrigin.y);
-          vec2 dp = p - o;
-          dp.y = dp.y > 0.0 ? dp.y * 0.55 : dp.y * 1.8;         // la flamme monte plus qu'elle ne descend
-          float fi = n * 1.45 - length(dp) / max(uIgnite, 0.001) * 0.95 + 0.25;
-          f = clamp(max(f, fi * step(0.0005, uIgnite)), 0.0, 1.0);
-          // Bord froid aux couleurs de la sphère, cœur incandescent.
+          // Flammes posées en bas de l'écran (forme finale).
+          float f = n * 1.45 - vUv.y / max(uHeight, 0.001) * 0.95 + 0.1;
+          f *= step(0.001, uHeight);
+          // Flamme née au centre du pictogramme, qui grandit jusqu'à tout couvrir.
+          vec2 dp = p - vec2((uOrigin.x - 0.5) * uAspect, uOrigin.y);
+          dp.y = dp.y > 0.0 ? dp.y * 0.6 : dp.y * 1.6;
+          float fi = n * 1.45 - length(dp) / max(uIgnite, 0.0001) * 0.95 + 0.3;
+          fi = min(fi, 0.3 + n * 0.38);              // brasier orangé, pas un écran blanc
+          f = clamp(max(f, fi * step(0.00001, uIgnite)), 0.0, 1.0);
           vec3 c = vec3(0.0);
           c = mix(c, vec3(0.16, 0.0, 0.42), smoothstep(0.02, 0.16, f));
           c = mix(c, uColorB * 0.9, smoothstep(0.14, 0.26, f) * 0.6);
           c = mix(c, uColorA, smoothstep(0.24, 0.45, f));
           c = mix(c, vec3(1.0, 0.62, 0.18), smoothstep(0.45, 0.68, f));
           c = mix(c, vec3(1.0, 0.95, 0.82), smoothstep(0.7, 0.95, f));
-          gl_FragColor = vec4(c, 1.0);
+          gl_FragColor = vec4(c, smoothstep(0.02, 0.2, f));
         }`,
     }));
     flames.frustumCulled = false;
     sceneF.add(flames);
 
-    // Braises qui s'envolent.
     const COUNT = 420;
     const seeds = new Float32Array(COUNT * 4);
     for (let i = 0; i < COUNT * 4; i++) seeds[i] = Math.random();
@@ -1190,24 +1247,28 @@ void main() {
           float d = length(gl_PointCoord - 0.5);
           float g = smoothstep(0.5, 0.0, d);
           vec3 c = mix(uColorA, vec3(1.0, 0.85, 0.5), vHot);
-          gl_FragColor = vec4(c * g * vAlpha, 1.0);
+          gl_FragColor = vec4(c * g * vAlpha, g * vAlpha);
         }`,
     }));
     embers.frustumCulled = false;
     sceneF.add(embers);
 
     return {
-      scene: sceneF, camera: cam, bloom: 0.7, intro: 3200,
+      scene: sceneF, camera: cam, bloom: 0.7, cover: 1300, intro: 2600,
       enter(origin) { uniforms.uOrigin.value.set(origin.x / config.width, 1 - origin.y / config.height); },
       resize(aspect) { uniforms.uAspect.value = aspect; },
-      update(delta, k) {
+      update(delta, B) {
         uniforms.uTime.value += delta / 1000;
-        // Les flammes montent, embrasent tout l'écran, puis se posent dans la moitié basse.
-        // Une flamme naît à l'emplacement du pictogramme, embrase l'écran, puis se pose dans la moitié basse.
-        const ignite = k < 0.4 ? Math.pow(k / 0.4, 1.6) * 1.8 : THREE.MathUtils.lerp(1.8, 0, easeInOut((k - 0.4) / 0.5));
-        uniforms.uIgnite.value = Math.max(ignite, 0) + (k < 0.4 ? 0.025 : 0);
-        const h = k < 0.25 ? 0 : k < 0.45 ? easeOutCubic((k - 0.25) / 0.2) * 1.45 : THREE.MathUtils.lerp(1.45, 0.52, easeInOut((k - 0.45) / 0.55));
-        uniforms.uHeight.value = h;
+        const c = clamp01(B), k = clamp01(B - 1);
+        if (B <= 1) {
+          // Une flamme au centre du picto, qui enfle jusqu'à recouvrir toute la fenêtre.
+          uniforms.uIgnite.value = 0.015 + easeInCubic(c) * 2.6;
+          uniforms.uHeight.value = 0;
+        } else {
+          // Le brasier se retire vers le bas et se pose dans la moitié basse.
+          uniforms.uIgnite.value = THREE.MathUtils.lerp(2.6, 0, easeInOut(clamp01(k / 0.7)));
+          uniforms.uHeight.value = THREE.MathUtils.lerp(1.6, 0.52, easeInOut(k));
+        }
       },
     };
   })();
@@ -1410,7 +1471,6 @@ void main() {
 
 }`;
 
-    // Settings de The Spirit : 65k particules (16k sur mobile).
     const amount = coarse ? [128, 128, 0.48] : [256, 256, 0.6];
     const W = amount[0], H = amount[1];
     const settings = { speed: 1, dieSpeed: 0.015, radius: amount[2], curlSize: 0.02, attraction: 1 };
@@ -1419,9 +1479,10 @@ void main() {
     const cam = new THREE.PerspectiveCamera(45, 1, 10, 3000);
     sceneA.add(cam);
 
-    let gpu = null, posVar = null, ok = false, failed = false;
+    let gpu = null, posVar = null, ok = false, failed = false, defTexture = null;
     const followPoint = new THREE.Vector3();
     const mouse3d = new THREE.Vector3();
+    const start = new THREE.Vector3(0, -200, 0);
     let followPointTime = 0, orbit = 0;
 
     const pos = new Float32Array(W * H * 3);
@@ -1430,6 +1491,10 @@ void main() {
     pg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     const particleUniforms = {
       texturePosition: { value: null },
+      textureDefaultPosition: { value: null },
+      uStart: { value: start },
+      uBurst: { value: 0 },      // nuage qui jaillit du picto
+      uSim: { value: 0 },        // 0 : nuage, 1 : simulation de The Spirit
       uPixelRatio: { value: config.pixelRatio },
       color1: { value: new THREE.Color('#e6eeff') },
       color2: { value: COLOR_A },
@@ -1439,13 +1504,21 @@ void main() {
       uniforms: particleUniforms,
       vertexShader: `
         uniform sampler2D texturePosition;
+        uniform sampler2D textureDefaultPosition;
+        uniform vec3 uStart;
+        uniform float uBurst;
+        uniform float uSim;
         uniform float uPixelRatio;
         varying float vLife;
         void main() {
           vec4 positionInfo = texture2D(texturePosition, position.xy);
-          vec4 mvPosition = modelViewMatrix * vec4(positionInfo.xyz, 1.0);
-          vLife = positionInfo.w;
-          gl_PointSize = 1300.0 / length(mvPosition.xyz) * smoothstep(0.0, 0.2, positionInfo.w) * uPixelRatio * 0.7;
+          vec4 def = texture2D(textureDefaultPosition, position.xy);
+          vec3 cloud = uStart + def.xyz * uBurst * 24.0;
+          vec3 p = mix(cloud, positionInfo.xyz, uSim);
+          vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
+          vLife = mix(0.4 + def.w * 0.6, positionInfo.w, uSim);
+          float grow = 1.0 + uBurst * 7.0 * (1.0 - uSim);
+          gl_PointSize = 1300.0 / length(mvPosition.xyz) * smoothstep(0.0, 0.2, vLife) * uPixelRatio * 0.7 * grow;
           gl_Position = projectionMatrix * mvPosition;
         }`,
       fragmentShader: `
@@ -1455,7 +1528,6 @@ void main() {
         varying float vLife;
         void main() {
           if (length(gl_PointCoord - 0.5) > 0.5) discard;
-          // Jeunes : blanc d'air. Puis bleu. En fin de vie : braise.
           vec3 c = mix(color2, color3, smoothstep(0.0, 0.3, vLife));
           c = mix(c, color1, smoothstep(0.35, 0.95, vLife));
           gl_FragColor = vec4(c, 1.0);
@@ -1466,7 +1538,7 @@ void main() {
 
     function init() {
       if (ok || failed) return;
-      gpu = new THREE.GPUComputationRenderer(W, H, renderer);
+      gpu = new THREE.GPUComputationRenderer(W, H, fxRenderer);
       if (coarse) gpu.setDataType(THREE.HalfFloatType);
       const def = gpu.createTexture();
       const d = def.image.data;
@@ -1479,17 +1551,19 @@ void main() {
         d[i * 4 + 2] = r * Math.sin(theta) * Math.cos(phi);
         d[i * 4 + 3] = Math.random();
       }
+      defTexture = def;
       posVar = gpu.addVariable('texturePosition', positionShader, def);
       gpu.setVariableDependencies(posVar, [posVar]);
       Object.assign(posVar.material.uniforms, {
         textureDefaultPosition: { value: def },
         mouse3d: { value: mouse3d },
+        uStart: { value: start },
         speed: { value: 1 }, dieSpeed: { value: 0 }, radius: { value: 0 }, curlSize: { value: 0 },
         attraction: { value: 0 }, time: { value: 0 }, initAnimation: { value: 0 },
-        uStart: { value: new THREE.Vector3(0, -200, 0) },
       });
       const error = gpu.init();
       if (error) { failed = true; console.warn(error); return; }
+      particleUniforms.textureDefaultPosition.value = def;
       ok = true;
     }
 
@@ -1501,32 +1575,33 @@ void main() {
       cam.updateMatrixWorld();
     }
     return {
-      scene: sceneA, camera: cam, bloom: 0.6, intro: 4500,
+      scene: sceneA, camera: cam, bloom: 0.6, cover: 1500, intro: 3800,
+      get ready() { return ok || failed; },
       enter(origin) {
         init();
         if (!ok) return;
-        // Le souffle part du bouton : on vise ce point depuis la caméra de départ.
         placeCamera(0);
-        const start = screenToPlane(cam, origin.x, origin.y, new THREE.Vector3());
-        posVar.material.uniforms.uStart.value.copy(start);
+        start.copy(screenToPlane(cam, origin.x, origin.y, new THREE.Vector3()));
         mouse3d.copy(start);
       },
       resize(aspect) { cam.aspect = aspect; cam.updateProjectionMatrix(); },
-      update(delta, k) {
+      update(delta, B) {
         if (!ok) return;
-        // Caméra de The Spirit : elle se rapproche pendant l'apparition.
-        orbit += delta * 0.00004;
+        const c = clamp01(B), k = clamp01(B - 1);
+        orbit += delta * 0.00004 * k;
         placeCamera(k);
+        // Phase 1 : le nuage jaillit du picto et grossit jusqu'à remplir la fenêtre.
+        particleUniforms.uBurst.value = easeInCubic(c) * 1.0;
+        particleUniforms.uSim.value = easeInOut(clamp01(k / 0.55));
 
-        // Le souffle suit la souris (ou le doigt) ; sinon il dessine sa boucle.
         const u = posVar.material.uniforms;
-        if (airPointer && performance.now() - airPointer.t < 4000) {
+        if (k > 0 && airPointer && performance.now() - airPointer.t < 4000) {
           ray.origin.setFromMatrixPosition(cam.matrixWorld);
           ray.direction.set(airPointer.x, airPointer.y, 0.5).unproject(cam).sub(ray.origin).normalize();
           const distance = ray.origin.length() / Math.cos(Math.PI - ray.direction.angleTo(ray.origin));
           ray.origin.add(ray.direction.multiplyScalar(distance));
           mouse3d.lerp(ray.origin, 0.2);
-        } else {
+        } else if (k > 0) {
           const r = coarse ? 100 : 200, h = coarse ? 40 : 60;
           followPointTime += delta * 0.001 * settings.speed;
           followPoint.set(Math.cos(followPointTime) * r, Math.cos(followPointTime * 4.0) * h, Math.sin(followPointTime * 2.0) * r);
@@ -1579,53 +1654,56 @@ void main() {
           float da = max(dot(n, la), 0.0), db = max(dot(n, lb), 0.0);
           float sa = pow(max(dot(r, la), 0.0), 70.0), sb = pow(max(dot(r, lb), 0.0), 40.0);
           vec3 env = mix(vec3(0.02, 0.0, 0.08), mix(uColorB, vec3(1.0), 0.35), smoothstep(-0.3, 1.0, r.y));
-          vec3 col = vec3(0.005, 0.015, 0.05);
+          vec3 col = vec3(0.01, 0.025, 0.08);
           col += uColorA * da * 0.18 + uColorB * db * 0.55;
           col += env * fres * 1.3;
           col += vec3(1.0) * sa * 1.6 + uColorA * sb * 1.1;
-          // Film irisé, comme une goutte d'huile.
           col += (0.5 + 0.5 * cos(6.28318 * (fres * 1.4 + vec3(0.0, 0.33, 0.67) + uTime * 0.05))) * fres * 0.3;
           gl_FragColor = vec4(col, 1.0);
         }`,
     });
     const mc = new THREE.MarchingCubes(coarse ? 36 : 52, mat, false, false);
     mc.isolation = 80;
-    mc.scale.setScalar(1.25);
     sceneE.add(mc);
 
     const N = 11;
-    const rest = new THREE.Vector3(), start = new THREE.Vector3();
-    const drops = Array.from({ length: N }, (_, i) => ({ delay: (i / N) * 0.55 + Math.random() * 0.05, side: Math.random() }));
+    const rest = new THREE.Vector3(), start = new THREE.Vector3(), coverPos = new THREE.Vector3(0, 0, -0.6);
     let t = 0;
     return {
-      scene: sceneE, camera: cam, bloom: 0.5, intro: 3600,
-      // Où se tient la masse liquide à l'écran (pour y faire grandir le pictogramme).
-      enter(origin) { start.copy(screenToPlane(cam, origin.x, origin.y, rest)); },
+      scene: sceneE, camera: cam, bloom: 0.5, cover: 1400, intro: 2800,
+      enter(origin) { start.copy(screenToPlane(cam, origin.x, origin.y, new THREE.Vector3(0, 0, 0))); },
       resize(aspect) {
         cam.aspect = aspect;
         cam.position.z = aspect < 1 ? 4 / Math.max(aspect, 0.55) : 4;
         rest.set(aspect >= 1 ? Math.min(0.9, 0.42 * aspect) : 0, aspect >= 1 ? 0.1 : 0.55, 0);
         cam.updateProjectionMatrix();
       },
-      update(delta, k) {
+      update(delta, B) {
         t += delta / 1000;
         uniforms.uTime.value = t;
+        const c = clamp01(B), k = clamp01(B - 1);
+        const coverScale = 10 * Math.max(1, 1 / cam.aspect);
+        if (B <= 1) {
+          // Une goutte au centre du picto, qui enfle au premier plan jusqu'à noyer la fenêtre.
+          const e = easeInCubic(c);
+          mc.position.lerpVectors(start, coverPos, easeInOut(c));
+          mc.scale.setScalar(THREE.MathUtils.lerp(0.12, coverScale, e));
+        } else {
+          // Le liquide se retire et se rassemble en masse vivante à sa place.
+          const e = easeInOut(clamp01(k / 0.75));
+          mc.position.lerpVectors(coverPos, rest, e);
+          mc.scale.setScalar(THREE.MathUtils.lerp(coverScale, 1.25, e));
+        }
         mc.rotation.y += delta * 0.00008;
-        // Une goutte part du pictogramme et grossit en rejoignant sa place.
-        const travel = easeInOut(clamp01(k / 0.55));
-        mc.position.lerpVectors(start, rest, travel);
-        mc.scale.setScalar(THREE.MathUtils.lerp(0.35, 1.25, easeOutCubic(clamp01(k / 0.6))));
         mc.reset();
         const strength = 1.2 / ((Math.sqrt(N) - 1) / 4 + 1);
+        const spread = easeInOut(clamp01((k - 0.3) / 0.6));
         for (let i = 0; i < N; i++) {
-          // Les gouttes sortent une à une du cœur et prennent leur orbite.
-          const fall = i === 0 ? 1 : clamp01((k - drops[i].delay * 0.8) / 0.4);
-          if (fall <= 0) continue;
-          const e = 1 - Math.pow(1 - fall, 2);
           const x = Math.sin(i + 1.26 * t * (1.03 + 0.5 * Math.cos(0.21 * i))) * 0.22 + 0.5;
-          const yRest = Math.cos(i + 1.12 * t * Math.cos(1.22 + 0.1424 * i)) * 0.2 + 0.5;
+          const y = Math.cos(i + 1.12 * t * Math.cos(1.22 + 0.1424 * i)) * 0.2 + 0.5;
           const z = Math.cos(i + 1.32 * t * 0.1 * Math.sin(0.92 + 0.53 * i)) * 0.22 + 0.5;
-          mc.addBall(THREE.MathUtils.lerp(0.5, x, e), THREE.MathUtils.lerp(0.5, yRest, e), THREE.MathUtils.lerp(0.5, z, e), strength * (0.5 + 0.5 * e), 12);
+          const s = THREE.MathUtils.lerp(0.06, 1, spread);   // serrées : une seule grosse goutte ; puis elles se dispersent
+          mc.addBall(0.5 + (x - 0.5) * s, 0.5 + (y - 0.5) * s, 0.5 + (z - 0.5) * s, strength * THREE.MathUtils.lerp(0.55, 1, spread), 12);
         }
       },
     };
@@ -1634,24 +1712,26 @@ void main() {
   /* ---------- TERRE : porteur·se de projet — des éclats de statue forment un buste ---------- */
   const bust = (function () {
     const sceneT = new THREE.Scene();
-    const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 50);
+    const cam = new THREE.PerspectiveCamera(30, 1, 0.05, 50);
     const uniforms = {
-      uAssemble: { value: 0 }, uFade: { value: 0 }, uStart: { value: new THREE.Vector3() },
+      uAssemble: { value: 0 }, uCover: { value: 0 }, uFade: { value: 0 },
+      uStart: { value: new THREE.Vector3() },
       uColorA: { value: COLOR_A }, uColorB: { value: COLOR_B },
     };
     const group = new THREE.Group();
     sceneT.add(group);
-    let ready = false, failed = false, t = 0;
+    let ready = false, failed = false, t = 0, mesh = null, chunkList = null;
     const startWorld = new THREE.Vector3();
 
     const mat = new THREE.ShaderMaterial({
       uniforms, side: THREE.DoubleSide,
       vertexShader: `
         attribute vec3 aCenter;
-        attribute vec3 aOffset;
+        attribute vec3 aCover;
         attribute vec3 aAxis;
         attribute vec2 aParams;   // angle, retard
         uniform float uAssemble;
+        uniform float uCover;
         uniform vec3 uStart;
         varying vec3 vNormal;
         varying vec3 vView;
@@ -1667,10 +1747,13 @@ void main() {
           float start = aParams.y * 0.62;
           float p = clamp((uAssemble - start) / 0.38, 0.0, 1.0);
           float e = 1.0 - pow(1.0 - p, 3.0);
-          mat3 R = rotation(aAxis, aParams.x * (1.0 - e));
-          // Départ : tous les éclats sortent du pictogramme, en gerbe.
-          vec3 from = uStart + aOffset * 0.35 * smoothstep(0.0, 0.25, uAssemble + 0.05);
-          vec3 pos = aCenter + R * (position - aCenter) + (from - aCenter) * (1.0 - e);
+          // Phase 1 : les éclats jaillissent du picto vers le premier plan, en grossissant.
+          float cv = uCover;
+          vec3 flying = mix(uStart, aCover, cv);
+          float size = mix(0.25, 3.2, cv);
+          mat3 R = rotation(aAxis, (aParams.x + cv * 1.5) * (1.0 - e));
+          vec3 local = R * (position - aCenter);
+          vec3 pos = mix(flying + local * size, aCenter + local, e);
           vec4 mv = modelViewMatrix * vec4(pos, 1.0);
           vView = -mv.xyz;
           vNormal = normalize(normalMatrix * (R * normal));
@@ -1695,13 +1778,13 @@ void main() {
           float da = max(dot(n, normalize(vec3(0.7, 0.6, 0.6))), 0.0);
           float db = max(dot(n, normalize(vec3(-0.9, -0.2, 0.3))), 0.0);
           vec3 stone = vec3(0.88, 0.85, 0.8);
-          vec3 col = stone * 0.035;
+          vec3 col = stone * 0.05;
           col += stone * (uColorA * pow(da, 1.4) * 0.55 + vec3(0.9, 0.85, 0.8) * da * 0.18);
           col += stone * uColorB * db * 0.45;
           col += vec3(1.0) * pow(fres, 1.5) * 0.22;
-          col += uColorA * vFlash * 1.4;                 // l'éclat s'embrase en trouvant sa place
-          if (!gl_FrontFacing) col *= 0.3;               // l'intérieur des éclats
-          col *= mix(0.6, 1.0, vPlaced) * uFade;
+          col += uColorA * vFlash * 1.4;
+          if (!gl_FrontFacing) col *= 0.35;
+          col *= mix(0.7, 1.0, vPlaced) * uFade;
           gl_FragColor = vec4(col, 1.0);
         }`,
     });
@@ -1718,7 +1801,6 @@ void main() {
       const P = g.attributes.position.array;
       const triCount = P.length / 9;
 
-      // Éclats de Voronoï : chaque triangle rejoint la graine la plus proche.
       const SEEDS = coarse ? 160 : 260;
       const seeds = [];
       for (let i = 0; i < SEEDS; i++) {
@@ -1739,42 +1821,57 @@ void main() {
         owner[tr] = best;
         sums[best * 4] += cx; sums[best * 4 + 1] += cy; sums[best * 4 + 2] += cz; sums[best * 4 + 3]++;
       }
-      const chunks = [];
+      chunkList = [];
       for (let k = 0; k < SEEDS; k++) {
         const c = sums[k * 4 + 3] || 1;
-        const cx = sums[k * 4] / c, cy = sums[k * 4 + 1] / c, cz = sums[k * 4 + 2] / c;
-        const out = new THREE.Vector3(cx, cy * 0.4, cz).normalize()
-          .add(new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(1.4)).normalize()
-          .multiplyScalar(1.6 + Math.random() * 2.6);
-        const axis = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
-        // Le buste se construit du cou vers le haut du crâne, avec un peu de désordre.
-        const heightOrder = (cy + 1.1) / 2.2;
-        chunks.push({ c: [cx, cy, cz], o: out, a: axis, ang: 2 + Math.random() * 7, delay: clamp01(heightOrder * 0.65 + Math.random() * 0.35) });
+        const cy = sums[k * 4 + 1] / c;
+        chunkList.push({
+          c: [sums[k * 4] / c, cy, sums[k * 4 + 2] / c],
+          a: new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize(),
+          ang: 2 + Math.random() * 7,
+          delay: clamp01((cy + 1.1) / 2.2 * 0.65 + Math.random() * 0.35),
+          cover: [Math.random(), Math.random(), Math.random()],
+        });
       }
       const vc = triCount * 3;
-      const aCenter = new Float32Array(vc * 3), aOffset = new Float32Array(vc * 3), aAxis = new Float32Array(vc * 3), aParams = new Float32Array(vc * 2);
+      const aCenter = new Float32Array(vc * 3), aCover = new Float32Array(vc * 3), aAxis = new Float32Array(vc * 3), aParams = new Float32Array(vc * 2);
+      const aChunk = new Int32Array(vc);
       for (let tr = 0; tr < triCount; tr++) {
-        const ch = chunks[owner[tr]];
+        const ch = chunkList[owner[tr]];
         for (let j = 0; j < 3; j++) {
           const v = tr * 3 + j;
           aCenter.set(ch.c, v * 3);
-          aOffset.set([ch.o.x, ch.o.y, ch.o.z], v * 3);
           aAxis.set([ch.a.x, ch.a.y, ch.a.z], v * 3);
           aParams.set([ch.ang, ch.delay], v * 2);
+          aChunk[v] = owner[tr];
         }
       }
       g.setAttribute('aCenter', new THREE.BufferAttribute(aCenter, 3));
-      g.setAttribute('aOffset', new THREE.BufferAttribute(aOffset, 3));
+      g.setAttribute('aCover', new THREE.BufferAttribute(aCover, 3));
       g.setAttribute('aAxis', new THREE.BufferAttribute(aAxis, 3));
       g.setAttribute('aParams', new THREE.BufferAttribute(aParams, 2));
-      const mesh = new THREE.Mesh(g, mat);
+      g.userData.chunk = aChunk;
+      mesh = new THREE.Mesh(g, mat);
       mesh.frustumCulled = false;
       group.add(mesh);
       ready = true;
     }
 
-    // Buste : scan « Lee Perry-Smith » d'Infinite-Realities (CC BY 3.0), fourni avec les exemples de three.js.
-    // Le modèle .glb voyage en base64 dans un .json (format servi partout).
+    // Où chaque éclat se tient quand ils couvrent la fenêtre : un mur d'éclats juste devant la caméra.
+    function layoutCover() {
+      if (!mesh) return;
+      const camLocal = cam.position.clone().sub(group.position);
+      const tanH = Math.tan(THREE.MathUtils.degToRad(15));
+      const per = chunkList.map(ch => {
+        const depth = 0.7 + ch.cover[2] * 1.4;
+        const hh = depth * tanH * 1.15, hw = hh * cam.aspect;
+        return [camLocal.x + (ch.cover[0] * 2 - 1) * hw, camLocal.y + (ch.cover[1] * 2 - 1) * hh, camLocal.z - depth];
+      });
+      const arr = mesh.geometry.attributes.aCover.array, chunk = mesh.geometry.userData.chunk;
+      for (let v = 0; v < chunk.length; v++) arr.set(per[chunk[v]], v * 3);
+      mesh.geometry.attributes.aCover.needsUpdate = true;
+    }
+
     fetch('models/LeePerrySmith.json').then(r => r.json()).then(data => {
       const bin = atob(data.glb);
       const bytes = new Uint8Array(bin.length);
@@ -1792,24 +1889,31 @@ void main() {
     }
 
     return {
-      scene: sceneT, camera: cam, bloom: 0.45, intro: 4400,
-      enter(origin) { startWorld.copy(screenToPlane(cam, origin.x, origin.y, group.position)); },
+      scene: sceneT, camera: cam, bloom: 0.45, cover: 1500, intro: 3800,
+      get ready() { return ready || failed; },
+      enter(origin) {
+        group.rotation.y = 0;
+        group.updateMatrixWorld();
+        startWorld.copy(screenToPlane(cam, origin.x, origin.y, group.position));
+        uniforms.uStart.value.copy(group.worldToLocal(startWorld.clone()));
+        layoutCover();
+      },
       resize(aspect) {
         cam.aspect = aspect;
         const z = 1.25 / Math.tan(THREE.MathUtils.degToRad(15)) * 1.35;
-        // Le buste se tient à droite du texte ; sur téléphone, au-dessus.
         group.position.set(aspect >= 1 ? Math.min(1.1, 0.5 * aspect) : 0, aspect >= 1 ? 0 : 0.55, 0);
         cam.position.set(0, 0.05, aspect < 1 ? z / Math.max(aspect, 0.55) * 0.8 : z);
         cam.lookAt(0, 0, 0);
         cam.updateProjectionMatrix();
       },
-      update(delta, k) {
+      update(delta, B) {
         t += delta / 1000;
+        const c = clamp01(B), k = clamp01(B - 1);
+        uniforms.uCover.value = easeInOut(c);
         uniforms.uAssemble.value = k;
-        uniforms.uFade.value = smoothstep(0, 0.04, k);
-        group.rotation.y = Math.sin(t * 0.25) * 0.45 + (1 - easeOutCubic(k)) * 1.2;
-        group.updateMatrixWorld();
-        uniforms.uStart.value.copy(group.worldToLocal(startWorld.clone()));
+        uniforms.uFade.value = smoothstep(0, 0.08, c);
+        // Pas de rotation tant que les éclats couvrent l'écran ; elle s'installe pendant l'assemblage.
+        group.rotation.y = Math.sin(t * 0.25) * 0.45 * smoothstep(0.4, 1, k);
       },
     };
   })();
@@ -1823,7 +1927,6 @@ void main() {
      0 → 1 : l'arbre se rétracte dans le sol.  1 → 2 : entrée de l'élément.
      ===================================================================== */
   const DURATIONS = reduceMotion ? [900, 1200] : [2600, 4600];
-  const RETRACT_MS = reduceMotion ? 300 : 380;   // court : l'effet doit partir presque tout de suite du pictogramme
   let P = 0, target = 0, arrivedAt = 0;
   let branch = null, B = 0, BT = 0, pendingGo = null;
   const views = { 0: 'p0', 1: 'p1', 2: 'p2', feu: 'b-feu', air: 'b-air', eau: 'b-eau', terre: 'b-terre' };
@@ -1955,7 +2058,7 @@ void main() {
     const panelT = clamp01(P - 1);
     const growT = panelT;
     const grow = 1 - Math.pow(1 - growT, 1.7);             // démarre vite, se pose en douceur
-    const retract = easeInOut(clamp01(B));                 // l'arbre rentre sous terre
+    const backdrop = 1 - smoothstep(0.7, 1, B);            // l'arrière-plan s'efface une fois l'écran couvert
 
     if (P <= 1) {
       // Plongée : la caméra traverse la surface puis rejoint le centre.
@@ -1980,21 +2083,16 @@ void main() {
       camera.lookAt(treeTarget);
     }
     camera.updateProjectionMatrix();
-    treeUniforms.uGrow.value = grow * 1.06 * (1 - retract);
-
-    // Quelle scène passe dans le bloom ?
-    const br = branch && B > 1 ? branches[branch] : null;
-    renderPass.scene = br ? br.scene : scene;
-    renderPass.camera = br ? br.camera : camera;
-    bloom.strength = br ? br.bloom : 0.8;
+    treeUniforms.uGrow.value = grow * 1.06;
+    treeUniforms.uFade.value = backdrop;
 
     // Textes
     panels[0].style.opacity = String(1 - smoothstep(0, 0.35, dive));
     panels[0].style.transform = `scale(${1 + dive * 0.6})`;
     panels[1].style.opacity = String(P <= 1 ? smoothstep(0.82, 1, dive) : 1 - smoothstep(0, 0.12, panelT));
     panels[1].style.transform = `translateY(${-smoothstep(0, 0.12, panelT) * 30}px)`;
-    panels[2].style.opacity = String(smoothstep(0.7, 1, panelT) * (1 - smoothstep(0, 0.5, B)));
-    panels[2].style.transform = `translateY(${(1 - smoothstep(0.7, 1, panelT)) * 24 + smoothstep(0, 0.5, B) * 24}px)`;
+    panels[2].style.opacity = String(smoothstep(0.7, 1, panelT) * backdrop);
+    panels[2].style.transform = `translateY(${(1 - smoothstep(0.7, 1, panelT)) * 24}px)`;
     for (const k in branches) {
       const on = branch === k ? smoothstep(0.7, 1, B - 1) : 0;
       viewEls[k].style.opacity = String(on);
@@ -2010,7 +2108,7 @@ void main() {
   /* =====================================================================
      Boucle (delta en millisecondes, comme Time.js)
      ===================================================================== */
-  let last = Date.now();
+  let last = Date.now(), backdropOff = false;
   function tick() {
     const now = Date.now();
     const delta = Math.min(now - last, 60);
@@ -2027,18 +2125,22 @@ void main() {
     if (branch && B !== BT) {
       const br = branches[branch];
       const dir = Math.sign(BT - B);
-      const inIntro = dir > 0 ? B >= 1 : B > 1;
-      const waiting = dir > 0 && B >= 1 && br.ready === false;   // le buste n'est pas encore chargé
+      const inFinal = dir > 0 ? B >= 1 : B > 1;
+      const waiting = dir > 0 && B === 0 && br.ready === false;   // le buste n'est pas encore chargé
       if (!waiting) {
-        const dur = inIntro ? (reduceMotion ? 1200 : br.intro) * (dir < 0 ? 0.5 : 1) : RETRACT_MS;
+        const dur = inFinal
+          ? (reduceMotion ? 1200 : br.intro) * (dir < 0 ? 0.5 : 1)
+          : (reduceMotion ? 600 : br.cover) * (dir < 0 ? 0.8 : 1);
         let next = B + dir * delta / dur;
-        if (dir > 0 && B < 1 && next > 1) next = 1;              // marque l'arrêt dans le noir
+        if (dir > 0 && B < 1 && next > 1) next = 1;              // l'écran couvert : on change de phase
         if (dir < 0 && B > 1 && next < 1) next = 1;
         B = next;
         if ((dir > 0 && B >= BT) || (dir < 0 && B <= BT)) { B = BT; arrivedAt = performance.now(); }
       }
       if (B === 0 && BT === 0) {
         branch = null;
+        fxRenderer.setRenderTarget(null);
+        fxRenderer.clear();
         document.querySelectorAll('.picto.away').forEach(el => el.classList.remove('away'));
         if (pendingGo !== null) { target = Math.min(Math.max(pendingGo, 0), 2); pendingGo = null; }
       }
@@ -2050,10 +2152,19 @@ void main() {
     agitation = Math.max(h.agitation, diving ? 0.8 : 0);
     if (P < 1) updateSphere(delta);
     treeUniforms.uTime.value += delta / 1000;
-    if (branch && B > 1) branches[branch].update(delta, clamp01(B - 1));
+    if (branch) {
+      const br = branches[branch];
+      br.update(delta, B);
+      fxRenderPass.scene = br.scene;
+      fxRenderPass.camera = br.camera;
+      fxBloom.strength = br.bloom;
+      fxComposer.render();
+    }
 
     stage(now);
-    composer.render();
+    // Derrière un effet installé, l'arrière-plan est éteint : inutile de le redessiner.
+    if (!(branch && B >= 1 && backdropOff)) composer.render();
+    backdropOff = !!branch && B >= 1;
     requestAnimationFrame(tick);
   }
   setView(0);
