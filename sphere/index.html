@@ -1671,6 +1671,12 @@ void main() {
     let t = 0;
     return {
       scene: sceneE, camera: cam, bloom: 0.5, cover: 1400, intro: 2800,
+      // Le halo s'additionne sur toute la surface : plus la bulle est grande, plus on le baisse,
+      // pour qu'elle garde la même matière que la masse finale.
+      bloomNow(B) {
+        const cover = B <= 1 ? easeInCubic(clamp01(B)) : 1 - easeInOut(clamp01((B - 1) / 0.75));
+        return 0.5 * (1 - 0.85 * cover);
+      },
       enter(origin) { start.copy(screenToPlane(cam, origin.x, origin.y, new THREE.Vector3(0, 0, 0))); },
       resize(aspect) {
         cam.aspect = aspect;
@@ -1750,7 +1756,7 @@ void main() {
           // Phase 1 : les éclats jaillissent du picto vers le premier plan, en grossissant.
           float cv = uCover;
           vec3 flying = mix(uStart, aCover, cv);
-          float size = mix(0.25, 3.2, cv);
+          float size = mix(0.25, 1.25, cv);
           mat3 R = rotation(aAxis, (aParams.x + cv * 1.5) * (1.0 - e));
           vec3 local = R * (position - aCenter);
           vec3 pos = mix(flying + local * size, aCenter + local, e);
@@ -1863,7 +1869,7 @@ void main() {
       const camLocal = cam.position.clone().sub(group.position);
       const tanH = Math.tan(THREE.MathUtils.degToRad(15));
       const per = chunkList.map(ch => {
-        const depth = 0.7 + ch.cover[2] * 1.4;
+        const depth = 3.4 + ch.cover[2] * 2.6;      // à bonne distance : on voit les éclats, l'arbre reste deviné derrière
         const hh = depth * tanH * 1.15, hw = hh * cam.aspect;
         return [camLocal.x + (ch.cover[0] * 2 - 1) * hw, camLocal.y + (ch.cover[1] * 2 - 1) * hh, camLocal.z - depth];
       });
@@ -1890,6 +1896,10 @@ void main() {
 
     return {
       scene: sceneT, camera: cam, bloom: 0.45, cover: 1500, intro: 3800,
+      bloomNow(B) {
+        const cover = B <= 1 ? easeInOut(clamp01(B)) : 1 - clamp01((B - 1) / 0.6);
+        return 0.45 * (1 - 0.6 * cover);
+      },
       get ready() { return ready || failed; },
       enter(origin) {
         group.rotation.y = 0;
@@ -2157,7 +2167,7 @@ void main() {
       br.update(delta, B);
       fxRenderPass.scene = br.scene;
       fxRenderPass.camera = br.camera;
-      fxBloom.strength = br.bloom;
+      fxBloom.strength = br.bloomNow ? br.bloomNow(B) : br.bloom;
       fxComposer.render();
     }
 
@@ -2168,6 +2178,8 @@ void main() {
     requestAnimationFrame(tick);
   }
   setView(0);
+  // Lecture seule, pour les tests : où en est l'animation.
+  window.reskifState = () => ({ P, B, branch });
   requestAnimationFrame(tick);
 })();
 </script>
