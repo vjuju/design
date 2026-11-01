@@ -1640,7 +1640,14 @@ void main() {
     }
 
     // Buste : scan « Lee Perry-Smith » d'Infinite-Realities (CC BY 3.0), fourni avec les exemples de three.js.
-    new THREE.GLTFLoader().load('models/LeePerrySmith.glb', gltf => {
+    // Le modèle .glb voyage en base64 dans un .json (format servi partout).
+    fetch('models/LeePerrySmith.json').then(r => r.json()).then(data => {
+      const bin = atob(data.glb);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      new THREE.GLTFLoader().parse(bytes.buffer, '', onModel, err => { failed = true; console.warn('Buste illisible', err); });
+    }).catch(err => { failed = true; console.warn('Buste introuvable', err); });
+    function onModel(gltf) {
       let found = null;
       gltf.scene.updateMatrixWorld(true);
       gltf.scene.traverse(o => { if (o.isMesh && !found) found = o; });
@@ -1648,7 +1655,7 @@ void main() {
       const geo = found.geometry.clone();
       geo.applyMatrix4(found.matrixWorld);
       shatter(geo);
-    }, undefined, err => { failed = true; console.warn('Buste introuvable', err); });
+    }
 
     return {
       scene: sceneT, camera: cam, bloom: 0.45, intro: 4400,
