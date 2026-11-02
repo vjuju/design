@@ -879,7 +879,7 @@ void main() {
     // Même touffeur à chaque fois : on replante jusqu'à tomber dans la bonne fourchette de rameaux.
     for (let attempt = 0; attempt < 40; attempt++) {
       branches = []; buds = [];
-      grow(new THREE.Vector3(0, -0.12, 0), trunkDir, g.trunk, trunkRadius, 0, 0);   // le pied commence sous la surface
+      grow(new THREE.Vector3(0, 0.015, 0), trunkDir, g.trunk, trunkRadius, 0, 0);   // le pied pose juste au-dessus de l'eau
       if (buds.length >= 250 && buds.length <= 300) break;
     }
 
@@ -1091,7 +1091,7 @@ void main() {
     uDrops: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 0, -99, 0)) },
   };
   const puddle = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.ShaderMaterial({
-    uniforms: puddleUniforms,          // écrit la profondeur : l'eau cache ce qui est sous la surface
+    uniforms: puddleUniforms, depthWrite: false,
     vertexShader: `
       varying vec3 vWorld;
       void main() {
