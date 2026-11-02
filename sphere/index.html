@@ -1083,7 +1083,7 @@ void main() {
      ===================================================================== */
   const PUDDLE_SCALE = 7;      // unités du monde pour une « largeur d'écran » d'ondes
   const puddleUniforms = {
-    uTime: { value: 0 }, uReveal: { value: 0 }, uOpacity: { value: 0 }, uSprout: { value: -1 }, uPreview: { value: 0 },
+    uTime: { value: 0 }, uReveal: { value: 0 }, uOpacity: { value: 0 }, uSprout: { value: -1 }, uPreview: { value: 0 }, uFlat: { value: null },
     uCenter: { value: new THREE.Vector2(100, 0) },
     uColorA: { value: new THREE.Color('#ff3e00') }, uColorB: { value: new THREE.Color('#0063ff') },
     uDrops: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 0, -99, 0)) },
@@ -1103,6 +1103,7 @@ void main() {
       uniform float uOpacity;
       uniform float uSprout;
       uniform float uPreview;
+      uniform vec3 uFlat;
       uniform vec2 uCenter;
       uniform vec3 uColorA;
       uniform vec3 uColorB;
@@ -1161,15 +1162,41 @@ void main() {
         col += vec3(0.55, 0.7, 1.0) * exp(-pow((rr - front) * 25.0, 2.0)) * (1.0 - smoothstep(0.6, 1.0, uReveal)) * 0.5 * step(0.001, uReveal);
         // Les bords se perdent dans la nuit.
         col *= 1.0 - smoothstep(2.5, 4.5, rr);
-        gl_FragColor = vec4(col * mask * uOpacity, 1.0);
+        // Hors de l'onde : le bleu uni sur lequel on est arrivé.
+        gl_FragColor = vec4(mix(uFlat, col, mask) * uOpacity, 1.0);
       }`,
   }));
   puddle.rotation.x = -Math.PI / 2;
+  puddleUniforms.uFlat.value = new THREE.Color(0.045, 0.024, 0.15);
   puddle.position.set(100, 0, 0);           // au pied de l'arbre
   puddle.renderOrder = -1;
   puddle.visible = false;
   scene.add(puddle);
 
+
+  // Pendant que la sphère rapetisse, le fond passe du noir au bleu de l'eau :
+  // on vient de loin et on arrive au-dessus de la flaque.
+  const WATER_FLAT = new THREE.Color(0.045, 0.024, 0.15);
+  const approachUniforms = { uAmount: { value: 0 }, uColor: { value: WATER_FLAT } };
+  const approach = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
+    uniforms: approachUniforms, depthTest: false, depthWrite: false,
+    vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
+    fragmentShader: `
+      uniform float uAmount;
+      uniform vec3 uColor;
+      varying vec2 vUv;
+      void main() {
+        float v = 1.0 - smoothstep(0.3, 1.2, length(vUv - 0.5) * 1.6);
+        // Le halo se resserre en arrivant : d'abord une lueur lointaine, puis toute la surface.
+        float spread = mix(0.25, 1.0, uAmount);
+        float glow = mix(1.0 - smoothstep(0.0, spread, length(vUv - 0.5)), 1.0, uAmount * uAmount);
+        gl_FragColor = vec4(uColor * mix(0.8, 1.05, v) * glow * uAmount, 1.0);
+      }`,
+  }));
+  approach.frustumCulled = false;
+  approach.renderOrder = -2;
+  approach.visible = false;
+  scene.add(approach);
 
   let dropIndex = 0, lastDropAt = 0;
   const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -2218,6 +2245,8 @@ void main() {
       puddle.visible = false;
       sphere.position.set(0, 0, 0);
       sphere.scale.setScalar(THREE.MathUtils.lerp(1, 0.07, shrink));   // reste visible jusqu'à l'onde
+      approachUniforms.uAmount.value = Math.pow(clamp01(P / FALL_END), 1.6);
+      approach.visible = P > 0;
       camera.fov = 25;
       camera.position.set(0, 0, restZ);
       camera.lookAt(0, 0, 0);
@@ -2225,12 +2254,14 @@ void main() {
       // Le point s'est éteint au centre de l'écran : l'onde part de là, sur la flaque vue en plongée.
       sphere.visible = false;
       puddle.visible = true;
+      approach.visible = false;
       camera.fov = TREE_FOV;
       camera.position.set(C.x + Math.sin(orbitBase) * PUDDLE_VIEW.back, PUDDLE_VIEW.height, C.z + Math.cos(orbitBase) * PUDDLE_VIEW.back);
       camera.lookAt(C);
     } else {
       sphere.visible = false;
       puddle.visible = true;
+      approach.visible = false;
       // Pose « flaque » : on regarde l'eau en plongée. Pose « arbre » : le point de vue habituel.
       const m = easeInOut(clamp01(growT / 0.8));
       const dist = treeDist * THREE.MathUtils.lerp(0.55, 1, smoothstep(0, 1, growT));
