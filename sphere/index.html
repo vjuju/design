@@ -608,7 +608,9 @@ void main()
 {
     // Position
     vec3 displacedPosition = getDisplacedPosition(position);
-    vec4 viewPosition = viewMatrix * vec4(displacedPosition, 1.0);
+    // (ajout : modelMatrix, pour que la sphère puisse rapetisser et se déplacer)
+    vec4 worldPosition = modelMatrix * vec4(displacedPosition, 1.0);
+    vec4 viewPosition = viewMatrix * worldPosition;
     gl_Position = projectionMatrix * viewPosition;
 
     // Bi tangents
@@ -627,7 +629,7 @@ void main()
     computedNormal = normalize(computedNormal);
 
     // Fresnel
-    vec3 viewDirection = normalize(displacedPosition.xyz - cameraPosition);
+    vec3 viewDirection = normalize(worldPosition.xyz - cameraPosition);
     float fresnel = uFresnelOffset + (1.0 + dot(viewDirection, computedNormal)) * uFresnelMultiplier;
     fresnel = pow(max(0.0, fresnel), uFresnelPower);
 
@@ -1081,7 +1083,7 @@ void main() {
      ===================================================================== */
   const PUDDLE_SCALE = 7;      // unités du monde pour une « largeur d'écran » d'ondes
   const puddleUniforms = {
-    uTime: { value: 0 }, uReveal: { value: 0 }, uOpacity: { value: 0 },
+    uTime: { value: 0 }, uReveal: { value: 0 }, uOpacity: { value: 0 }, uSprout: { value: -1 }, uPreview: { value: 0 },
     uCenter: { value: new THREE.Vector2(100, 0) },
     uColorA: { value: new THREE.Color('#ff3e00') }, uColorB: { value: new THREE.Color('#0063ff') },
     uDrops: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 0, -99, 0)) },
@@ -1099,6 +1101,8 @@ void main() {
       uniform float uTime;
       uniform float uReveal;
       uniform float uOpacity;
+      uniform float uSprout;
+      uniform float uPreview;
       uniform vec2 uCenter;
       uniform vec3 uColorA;
       uniform vec3 uColorB;
@@ -1125,6 +1129,11 @@ void main() {
         }
         // L'onde de la goutte qui ouvre la flaque.
         h += ring(p, vec2(0.0), uReveal * 3.0) * 1.6 * step(0.001, uReveal);
+        // L'arbre perce la surface : deux ondes partent de son pied.
+        if (uSprout > 0.0) {
+          h += ring(p, vec2(0.0), uSprout) * 1.5;
+          if (uSprout > 0.7) h += ring(p, vec2(0.0), uSprout - 0.7) * 0.8;
+        }
         h += sin(p.x * 9.0 + uTime * 0.7) * sin(p.y * 7.0 - uTime * 0.5) * 0.05;
         return h;
       }
@@ -1148,8 +1157,8 @@ void main() {
         // La flaque se découvre depuis le point d'impact.
         float rr = length(p);
         float front = uReveal * 1.8;
-        float mask = smoothstep(front, front - 0.15, rr);
-        col += vec3(0.55, 0.7, 1.0) * exp(-pow((rr - front) * 25.0, 2.0)) * (1.0 - smoothstep(0.6, 1.0, uReveal)) * 0.5;
+        float mask = max(smoothstep(front, front - 0.15, rr), uPreview * 0.35);   // l'eau se devine avant l'impact
+        col += vec3(0.55, 0.7, 1.0) * exp(-pow((rr - front) * 25.0, 2.0)) * (1.0 - smoothstep(0.6, 1.0, uReveal)) * 0.5 * step(0.001, uReveal);
         // Les bords se perdent dans la nuit.
         col *= 1.0 - smoothstep(2.5, 4.5, rr);
         gl_FragColor = vec4(col * mask * uOpacity, 1.0);
@@ -1161,10 +1170,6 @@ void main() {
   puddle.visible = false;
   scene.add(puddle);
 
-  // La goutte qui tombe.
-  const drop = new THREE.Mesh(new THREE.SphereGeometry(0.09, 24, 16), new THREE.MeshBasicMaterial({ color: new THREE.Color('#d6e4ff') }));
-  drop.visible = false;
-  scene.add(drop);
 
   let dropIndex = 0, lastDropAt = 0;
   const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -2188,36 +2193,48 @@ void main() {
      Mise en scène à partir de P et B
      ===================================================================== */
   const treeTarget = new THREE.Vector3();
-  const DIVE_END = 0.55;
   const PUDDLE_VIEW = { back: 3.2, height: 5.2 };    // caméra en plongée sur la flaque
+  const FALL_END = 0.82;                              // la sphère touche l'eau
+  const sphereTarget = new THREE.Vector3(), camFrom = new THREE.Vector3(), camTo = new THREE.Vector3();
   let treeUsed = false;
   function stage(time) {
-    // 0 → 1 : plongée dans la sphère (0 → 0.55), chute de la goutte (0.55 → 0.8), la flaque s'ouvre (0.8 → 1).
-    const dive = easeInOut(clamp01(P / DIVE_END));
-    const dropK = clamp01((P - DIVE_END) / 0.25);
-    const revealK = clamp01((P - DIVE_END - 0.25) / (1 - DIVE_END - 0.25));
+    // 0 → 1 : la sphère rapetisse (0 → 0.35), la caméra la suit au-dessus de la flaque (0.25 → 0.7),
+    // elle tombe dans l'eau (0.7 → 0.82), son onde découvre la flaque (0.82 → 1).
+    const shrink = easeInOut(clamp01(P / 0.35));
+    const travel = easeInOut(clamp01((P - 0.25) / 0.45));
+    const fall = clamp01((P - 0.7) / (FALL_END - 0.7));
+    const revealK = clamp01((P - FALL_END) / (1 - FALL_END));
     // 1 → 2 : la caméra se relève depuis la flaque, l'arbre en sort.
     const growT = clamp01(P - 1);
     const grow = 1 - Math.pow(1 - clamp01((growT - 0.12) / 0.88), 1.7);
     const backdrop = 1 - smoothstep(0.7, 1, B);            // l'arrière-plan s'efface une fois l'écran couvert
     const orbitBase = time * 0.00004;
+    const C = tree.position;                                // centre de la flaque, pied de l'arbre
 
-    if (P < DIVE_END) {
-      // Plongée : la caméra traverse la surface puis rejoint le centre.
-      sphere.visible = true;
-      tree.visible = false;
-      puddle.visible = false;
-      drop.visible = false;
-      if (treeUsed) { plantTree(); treeUsed = false; }   // la prochaine fois, un autre arbre
-      camera.fov = THREE.MathUtils.lerp(25, 75, smoothstep(0.35, 1, dive));
-      camera.position.set(0, 0, THREE.MathUtils.lerp(restZ, 0, dive));
-      camera.lookAt(0, 0, 0);
+    if (treeUsed && P <= 1) { plantTree(); treeUsed = false; }   // la prochaine fois, un autre arbre
+    tree.visible = P > 1;
+    if (P > 1) treeUsed = true;
+
+    if (P <= 1) {
+      // La sphère rapetisse, file au-dessus de la flaque et y tombe ; la caméra l'accompagne.
+      sphere.visible = fall < 1;
+      puddle.visible = P > 0.25;
+      sphere.position.set(
+        THREE.MathUtils.lerp(0, C.x, travel),
+        THREE.MathUtils.lerp(0, 1.6, travel) * (1 - fall * fall),
+        THREE.MathUtils.lerp(0, C.z, travel));
+      sphere.scale.setScalar(THREE.MathUtils.lerp(1, 0.12, shrink) * (1 - smoothstep(0.8, 1, fall)));
+      camFrom.set(0, 0, restZ);
+      camTo.set(C.x + Math.sin(orbitBase) * PUDDLE_VIEW.back, PUDDLE_VIEW.height, C.z + Math.cos(orbitBase) * PUDDLE_VIEW.back);
+      camera.position.lerpVectors(camFrom, camTo, travel);
+      // La caméra suit la sphère, puis se pose sur la flaque : on la voit tomber dans l'eau.
+      sphereTarget.copy(sphere.position);
+      sphereTarget.y *= 1 - smoothstep(0.55, 1, travel);
+      camera.fov = THREE.MathUtils.lerp(25, TREE_FOV, travel);
+      camera.lookAt(sphereTarget);
     } else {
       sphere.visible = false;
       puddle.visible = true;
-      if (P <= 1 && treeUsed) { plantTree(); treeUsed = false; }
-      tree.visible = P > 1;
-      if (P > 1) treeUsed = true;
       // Pose « flaque » : on regarde l'eau en plongée. Pose « arbre » : le point de vue habituel.
       const m = easeInOut(clamp01(growT / 0.8));
       const dist = treeDist * THREE.MathUtils.lerp(0.55, 1, smoothstep(0, 1, growT));
@@ -2227,25 +2244,23 @@ void main() {
       const targetY = THREE.MathUtils.lerp(0, lookY, m);
       const orbit = orbitBase + growT * 0.9;
       camera.fov = TREE_FOV;
-      treeTarget.set(tree.position.x, targetY, 0);
-      camera.position.set(tree.position.x + Math.sin(orbit) * horiz, camY, Math.cos(orbit) * horiz);
+      treeTarget.set(C.x, targetY, 0);
+      camera.position.set(C.x + Math.sin(orbit) * horiz, camY, Math.cos(orbit) * horiz);
       camera.lookAt(treeTarget);
-      // La goutte tombe vers le point où poussera l'arbre.
-      drop.visible = dropK > 0 && dropK < 1;
-      const fall = dropK * dropK;
-      drop.position.set(tree.position.x, THREE.MathUtils.lerp(2.4, 0, fall), 0);
-      drop.scale.set(1, 1 + fall * 2.2, 1);
     }
     camera.updateProjectionMatrix();
     treeUniforms.uGrow.value = grow * 1.06;
     treeUniforms.uFade.value = backdrop;
     puddleUniforms.uReveal.value = easeOutCubic(revealK);
+    puddleUniforms.uPreview.value = smoothstep(0.55, 1, travel);
+    // Âge (en secondes) des ondes nées quand l'arbre sort de l'eau.
+    puddleUniforms.uSprout.value = growT > 0.1 ? (growT - 0.1) * DURATIONS[1] / 1000 : -1;
     puddleUniforms.uOpacity.value = 1 - smoothstep(0.55, 1, growT);
     if (puddleUniforms.uOpacity.value <= 0) puddle.visible = false;
 
     // Textes
-    panels[0].style.opacity = String(1 - smoothstep(0, 0.35, dive));
-    panels[0].style.transform = `scale(${1 + dive * 0.6})`;
+    panels[0].style.opacity = String(1 - smoothstep(0, 0.25, P));
+    panels[0].style.transform = `scale(${1 - shrink * 0.25})`;
     panels[1].style.opacity = String(P <= 1 ? smoothstep(0.35, 1, revealK) : 1 - smoothstep(0, 0.12, growT));
     panels[1].style.transform = `translateY(${P <= 1 ? (1 - smoothstep(0.35, 1, revealK)) * 20 : -smoothstep(0, 0.12, growT) * 30}px)`;
     panels[2].style.opacity = String(smoothstep(0.7, 1, growT) * backdrop);
@@ -2305,12 +2320,12 @@ void main() {
     }
 
     const h = hoverSpeed();
-    const diving = P > 0 && P < DIVE_END && target > P;
+    const diving = P > 0 && P < FALL_END && target > P;
     speed = h.speed + (diving ? 4 : 0);
     agitation = Math.max(h.agitation, diving ? 0.8 : 0);
-    if (P < DIVE_END) updateSphere(delta);
+    if (P < FALL_END) updateSphere(delta);
     treeUniforms.uTime.value += delta / 1000;
-    if (P > DIVE_END && P < 2) puddleUniforms.uTime.value += delta / 1000;
+    if (P > 0.25 && P < 2) puddleUniforms.uTime.value += delta / 1000;
     if (branch) {
       const br = branches[branch];
       br.update(delta, B);
@@ -2329,6 +2344,7 @@ void main() {
   setView(0);
   // Lecture seule, pour les tests : où en est l'animation.
   window.reskifState = () => ({ P, B, branch });
+  window.reskifSeek = v => { P = target = v; };      // pour les tests : figer l'animation à un instant
   requestAnimationFrame(tick);
 })();
 </script>
