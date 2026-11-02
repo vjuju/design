@@ -1,0 +1,2355 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Reskif</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Le virtuel au service du réel. Reskif est un réseau de kif rassemblant financeur·ses, éclaireur·ses, expert·es et porteur·ses de projets.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Fraunces:ital,opsz,wght@1,9..144,300;1,9..144,500&display=swap">
+<style>
+  /* Trois panneaux plein écran, un seul canvas derrière. On passe de l'un à l'autre par une animation 3D :
+     plongée dans la sphère, puis croissance d'un arbre. Un seul univers, nuit. */
+  :root {
+    --night: #010101;
+    --ink: #ffffff;
+    --muted: rgba(255, 255, 255, .62);
+    --line: rgba(255, 255, 255, .22);
+    --glass: rgba(10, 4, 24, .55);
+    --warm: #ffb08a;
+    --cold: #9cc0ff;
+    --display: "Syne", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --text: "Fraunces", "Iowan Old Style", Georgia, serif;
+    --dict: "EB Garamond", Garamond, "Times New Roman", serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+    background: var(--night);
+    color: var(--ink);
+    font: 14px/1.5 var(--display);
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: #ffffff22; }
+
+  #fx { position: fixed; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+  body[data-panel="0"] #scene, body[data-panel="1"] #scene { cursor: pointer; }
+
+  .panel {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding-block: calc(24px + env(safe-area-inset-top, 0px)) calc(56px + env(safe-area-inset-bottom, 0px));
+    padding-left: max(20px, env(safe-area-inset-left, 0px));
+    padding-right: max(56px, env(safe-area-inset-right, 0px));
+    pointer-events: none;
+    text-align: center;
+    opacity: 0;
+    will-change: opacity, transform;
+  }
+  .panel.live { pointer-events: auto; }
+  #p0 { padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+
+  .hero { display: flex; flex-direction: column; align-items: center; gap: clamp(16px, 3vmin, 28px); }
+  .logo { width: clamp(120px, 22vmin, 200px); height: auto; filter: drop-shadow(0 0 18px rgba(0, 0, 0, .6)); }
+  #p0 h1 {
+    margin: 0;
+    font: 800 clamp(30px, 8.4vmin, 92px)/.95 var(--display);
+    letter-spacing: -.01em;
+    text-transform: uppercase;
+    text-wrap: balance;
+    max-width: 14ch;
+    text-shadow: 0 0 10px rgba(0, 0, 0, .7);
+  }
+
+  .def { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  #p1 .dict {
+    margin: 0;
+    font: 400 clamp(19px, 3vmin, 28px)/1.3 var(--dict);
+    color: var(--muted);
+    letter-spacing: .01em;
+  }
+  #p1 .dict .sc { font-variant: small-caps; letter-spacing: .04em; color: var(--ink); }
+  #p1 .dict i { font-style: italic; color: var(--ink); }
+  #p1 .lede {
+    margin: 6px 0 0;
+    max-width: 32ch;
+    font: 300 italic clamp(21px, 3.6vmin, 36px)/1.25 var(--text);
+    text-wrap: balance;
+  }
+  #p1 strong {
+    display: block;
+    font: 800 clamp(48px, 12vmin, 128px)/.9 var(--display);
+    font-style: normal;
+    letter-spacing: -.02em;
+    text-transform: uppercase;
+  }
+  .role { font-weight: 500; white-space: nowrap; }
+  .role.w { color: var(--warm); }
+  .role.c { color: var(--cold); }
+
+  #p2 { align-items: stretch; }
+  .choose { display: flex; flex-direction: column; justify-content: space-between; gap: 24px; width: min(880px, 100%); }
+  .choose h2 {
+    margin: 0;
+    font: 800 clamp(28px, 6vmin, 64px)/1 var(--display);
+    text-transform: uppercase;
+    letter-spacing: -.01em;
+    text-shadow: 0 0 14px rgba(0, 0, 0, .8);
+  }
+  .choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .choice {
+    display: flex; flex-direction: row; align-items: center; gap: 16px;
+    min-width: 0;
+    padding: 18px 20px;
+    text-align: left;
+    color: var(--ink);
+    background: var(--glass);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    cursor: pointer;
+    transition: border-color .25s, background .25s, transform .25s;
+  }
+  .choice b { font: 700 clamp(17px, 2.4vmin, 22px)/1.15 var(--display); }
+  .choice-text { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+  .choice .d { font: 300 italic 15px/1.35 var(--text); color: var(--muted); }
+  .choice:hover { transform: translateY(-2px); border-color: rgba(255, 255, 255, .5); }
+  .choice.w:hover, .choice.w[aria-pressed="true"] { border-color: var(--warm); background: rgba(255, 106, 43, .14); }
+  .choice.c:hover, .choice.c[aria-pressed="true"] { border-color: var(--cold); background: rgba(0, 99, 255, .16); }
+  .choice:focus-visible, .nav button:focus-visible, .next:focus-visible { outline: 2px solid var(--warm); outline-offset: 3px; }
+  .status { margin: 0; min-height: 1.5em; font: 300 italic 16px/1.4 var(--text); color: var(--muted); }
+
+  .nav {
+    position: fixed;
+    right: max(16px, env(safe-area-inset-right, 0px));
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .nav button {
+    width: 28px; height: 28px; padding: 0;
+    display: grid; place-items: center;
+    background: none; border: 0; cursor: pointer;
+  }
+  .nav button::before {
+    content: ""; width: 8px; height: 8px; border-radius: 50%;
+    border: 1px solid var(--muted);
+    transition: background .3s, border-color .3s, transform .3s;
+  }
+  .nav button[aria-current="step"]::before { background: var(--ink); border-color: var(--ink); transform: scale(1.25); }
+
+  .next {
+    position: fixed;
+    left: 50%;
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 8px 12px;
+    font: 500 11px/1 var(--display);
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: none; border: 0; cursor: pointer;
+    transition: opacity .5s, color .2s;
+  }
+  .next:hover { color: var(--ink); }
+  .next svg { animation: nudge 2.2s ease-in-out infinite; }
+  @keyframes nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
+  body:not([data-panel="0"]):not([data-panel="1"]) .next, body.moving .next { opacity: 0; pointer-events: none; }
+
+  .branch { place-items: end start; text-align: left; }
+  .branch.top { place-items: start start; }
+  .branch-text { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; max-width: 34rem; }
+  .kicker { font: 500 12px/1 var(--display); letter-spacing: .16em; text-transform: uppercase; color: var(--warm); }
+  #b-air .kicker, #b-eau .kicker { color: var(--cold); }
+  .branch h2 {
+    margin: 0;
+    font: 800 clamp(34px, 7vmin, 76px)/.95 var(--display);
+    text-transform: uppercase;
+    letter-spacing: -.01em;
+    text-wrap: balance;
+    text-shadow: 0 0 14px rgba(0, 0, 0, .7);
+  }
+  .branch p { margin: 0; max-width: 34ch; font: 300 italic clamp(18px, 2.6vmin, 24px)/1.35 var(--text); text-shadow: 0 0 12px rgba(0, 0, 0, .8); }
+  .branch small { font-size: 11px; color: var(--muted); }
+  .branch small a { color: inherit; text-underline-offset: 2px; }
+  .back {
+    margin-top: 6px;
+    font: 500 12px/1 var(--display);
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: var(--glass);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 12px 18px;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: border-color .2s, background .2s;
+  }
+  .back:hover { border-color: var(--ink); }
+  .back:focus-visible { outline: 2px solid var(--warm); outline-offset: 3px; }
+  /* Pictogrammes des quatre éléments */
+  .picto { flex: none; width: 48px; height: 48px; overflow: visible; filter: drop-shadow(0 0 6px rgba(255, 106, 43, .35)); transition: opacity .3s; }
+  .picto-air, .picto-eau { filter: drop-shadow(0 0 6px rgba(77, 141, 255, .45)); }
+  .picto.away { opacity: 0; transform: scale(1.35); filter: blur(4px); transition: opacity .22s ease-out, transform .22s ease-out, filter .22s ease-out; }
+  .picto * { transform-box: fill-box; }
+  .picto-feu .f1 { transform-origin: 50% 100%; animation: flicker 1.3s ease-in-out infinite alternate; }
+  .picto-feu .f2 { transform-origin: 50% 100%; animation: flicker 0.9s ease-in-out infinite alternate-reverse; opacity: .9; }
+  .picto-feu .em { animation: ember 1.8s ease-in infinite; }
+  .picto-feu .em2 { animation-delay: .6s; }
+  .picto-feu .em3 { animation-delay: 1.2s; }
+  @keyframes flicker {
+    0% { transform: scale(1, 1) skewX(0deg); }
+    50% { transform: scale(.94, 1.07) skewX(-4deg); }
+    100% { transform: scale(1.04, .95) skewX(4deg); }
+  }
+  @keyframes ember { 0% { transform: translateY(6px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate(3px, -14px); opacity: 0; } }
+
+  .picto-air .swirl path { stroke-dasharray: 26 8; animation: gust 1.6s linear infinite; }
+  .picto-air .w2 { animation-duration: 1.2s !important; }
+  .picto-air .w3 { stroke-dasharray: 5 4; animation-duration: 0.9s !important; }
+  .picto-air .swirl { transform-origin: 50% 50%; transform-box: view-box; animation: sway 3s ease-in-out infinite; }
+  .picto-air .motes { transform-origin: 50% 50%; transform-box: view-box; animation: spin 6s linear infinite; }
+  @keyframes gust { to { stroke-dashoffset: -34; } }
+  @keyframes sway { 0%, 100% { transform: translateX(-1.5px); } 50% { transform: translateX(1.5px); } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .picto-eau .d0 { transform-origin: 50% 50%; animation: wobble 2.6s ease-in-out infinite; }
+  .picto-eau .d1 { animation: drip 2.2s cubic-bezier(.5, 0, .9, .5) infinite; }
+  .picto-eau .d2 { animation: orbit 3.4s ease-in-out infinite; }
+  .picto-eau .d3 { animation: orbit 2.8s ease-in-out infinite reverse; }
+  .picto-eau .shine { animation: wobble 2.6s ease-in-out infinite; transform-origin: 50% 50%; }
+  @keyframes wobble { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.08, .93); } }
+  @keyframes drip { 0% { transform: translateY(-6px); } 70% { transform: translateY(16px); } 100% { transform: translateY(18px); opacity: 0; } }
+  @keyframes orbit { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-7px, -4px); } }
+
+  .picto-terre .s { transform-origin: 50% 50%; animation: assemble 3.6s cubic-bezier(.3, 0, .2, 1) infinite; animation-delay: calc(var(--i) * 90ms); }
+  @keyframes assemble {
+    0% { transform: translate(var(--dx), var(--dy)) rotate(var(--r)); opacity: 0; }
+    35%, 82% { transform: none; opacity: 1; }
+    100% { transform: translate(calc(var(--dx) * .6), calc(var(--dy) * .6)) rotate(calc(var(--r) * .5)); opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) { .picto *, .picto .motes { animation: none !important; } }
+
+  .credits {
+    position: fixed;
+    right: max(16px, env(safe-area-inset-right, 0px));
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    font-size: 11px;
+    color: var(--muted);
+    text-align: right;
+  }
+  .credits a { color: inherit; text-underline-offset: 2px; }
+  .credits a:hover { color: var(--ink); }
+
+  @media (max-width: 640px) {
+    .choices { grid-template-columns: 1fr; gap: 8px; }
+    .choice { padding: 12px 16px; border-radius: 14px; }
+    .choice .d { font-size: 13px; }
+    .choice .picto { width: 40px; height: 40px; }
+    .credits { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { .next svg { animation: none; } }
+  .fallback { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--muted); }
+</style>
+</head>
+<body data-panel="0">
+<canvas id="scene" tabindex="0" aria-label="Animation 3D. Sur le premier panneau, survoler le centre de la sphère l'accélère, s'en éloigner la ralentit."></canvas>
+
+<section class="panel" id="p0" aria-label="Accueil">
+  <div class="hero">
+    <img class="logo" src="reskif_logo.svg" alt="Reskif" width="605" height="185">
+    <h1>Le virtuel au service du réel</h1>
+  </div>
+</section>
+
+<section class="panel" id="p1" aria-label="Le réseau" aria-hidden="true">
+  <div class="def">
+    <strong>Reskif</strong>
+    <p class="dict"><span class="sc">Association</span>, contraction de <i>réseau de kif</i>.</p>
+    <p class="lede">Reskif est une plateforme intelligente qui rassemble les personnes qui
+      <span class="role w">demandent</span>, <span class="role c">financent</span>,
+      <span class="role w">conseillent</span> et <span class="role c">portent</span>
+      des projets tournés vers le vivant.</p>
+  </div>
+</section>
+
+<section class="panel" id="p2" aria-label="Rejoindre" aria-hidden="true">
+  <div class="choose">
+    <h2>Et vous, qui <span style="white-space:nowrap">êtes-vous&nbsp;?</span></h2>
+    <div>
+      <div class="choices">
+        <button type="button" class="choice w" id="c-financeur" data-branch="feu" tabindex="-1">
+          <svg class="picto picto-feu" viewBox="0 0 48 48" aria-hidden="true">
+            <defs><linearGradient id="g-feu" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#fff3d6"/><stop offset=".3" stop-color="#ffb347"/><stop offset=".62" stop-color="#ff3e00"/><stop offset="1" stop-color="#5b1cff"/></linearGradient></defs>
+            <path class="f1" d="M24 46c-9 0-15-6-15-14 0-7 5-11 7-17 1 4 3 6 5 7 0-6 3-12 8-17 0 7 4 11 7 15 2 3 3 6 3 10 0 9-6 16-15 16z" fill="url(#g-feu)"/>
+            <path class="f2" d="M24 46c-5 0-8-3-8-8 0-4 3-6 4-10 1 2 2 3 3 3 0-3 2-6 4-8 0 4 2 6 3 8 1 2 2 4 2 6 0 5-3 9-8 9z" fill="#fff3d6"/>
+            <circle class="em" cx="13" cy="24" r="1.3" fill="#ffb347"/><circle class="em em2" cx="35" cy="20" r="1.1" fill="#ff7a3d"/><circle class="em em3" cx="28" cy="10" r=".9" fill="#fff3d6"/>
+          </svg>
+          <span class="choice-text"><b>Je suis financeur·se</b><span class="d">Je fais pousser des projets qui ont du sens.</span></span>
+        </button>
+        <button type="button" class="choice c" id="c-eclaireur" data-branch="air" tabindex="-1">
+          <svg class="picto picto-air" viewBox="0 0 48 48" aria-hidden="true">
+            <g class="swirl" fill="none" stroke-linecap="round" stroke-width="3">
+              <path class="w1" d="M5 19h23a6 6 0 1 0-6-6" stroke="#e6eeff"/>
+              <path class="w2" d="M5 27h31a6 6 0 1 1-6 6" stroke="#4d8dff"/>
+              <path class="w3" d="M9 35h11" stroke="#9cc0ff"/>
+            </g>
+            <g class="motes"><circle cx="40" cy="12" r="1.6" fill="#e6eeff"/><circle cx="8" cy="40" r="1.2" fill="#4d8dff"/><circle cx="42" cy="38" r="1" fill="#ff7a3d"/><circle cx="14" cy="8" r="1" fill="#9cc0ff"/></g>
+          </svg>
+          <span class="choice-text"><b>Je suis éclaireur·se</b><span class="d">J'ouvre la voie et je partage l'élan.</span></span>
+        </button>
+        <button type="button" class="choice w" id="c-expert" data-branch="eau" tabindex="-1">
+          <svg class="picto picto-eau" viewBox="0 0 48 48" aria-hidden="true">
+            <defs>
+              <filter id="goo" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur in="SourceGraphic" stdDeviation="2.2" result="b"/><feColorMatrix in="b" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -8"/></filter>
+              <radialGradient id="g-eau" cx=".35" cy=".3" r=".85"><stop offset="0" stop-color="#cfe0ff"/><stop offset=".35" stop-color="#4d6dff"/><stop offset="1" stop-color="#1c0a8a"/></radialGradient>
+            </defs>
+            <g filter="url(#goo)" fill="url(#g-eau)">
+              <circle class="d0" cx="24" cy="31" r="11"/><circle class="d1" cx="24" cy="9" r="4.5"/><circle class="d2" cx="33" cy="31" r="5"/><circle class="d3" cx="15" cy="33" r="4"/>
+            </g>
+            <ellipse class="shine" cx="20" cy="26" rx="3" ry="1.8" fill="#ffffff" opacity=".85"/>
+          </svg>
+          <span class="choice-text"><b>Je suis expert·e</b><span class="d">J'apporte mon savoir-faire là où il compte.</span></span>
+        </button>
+        <button type="button" class="choice c" id="c-porteur" data-branch="terre" tabindex="-1">
+          <svg class="picto picto-terre" viewBox="0 0 48 48" aria-hidden="true">
+            <polygon class="s" style="--dx:-14px;--dy:-10px;--r:-80deg;--i:6" points="16,11 24,4 24,16" fill="#efe9df"/>
+            <polygon class="s" style="--dx:14px;--dy:-12px;--r:70deg;--i:7" points="24,4 32,11 24,16" fill="#ff8a5c"/>
+            <polygon class="s" style="--dx:-16px;--dy:2px;--r:110deg;--i:4" points="16,11 24,16 16,21" fill="#d6cfc4"/>
+            <polygon class="s" style="--dx:16px;--dy:0px;--r:-120deg;--i:5" points="32,11 32,21 24,16" fill="#ff6a2b"/>
+            <polygon class="s" style="--dx:-12px;--dy:8px;--r:60deg;--i:2" points="16,21 24,16 24,27" fill="#8fa8ff"/>
+            <polygon class="s" style="--dx:12px;--dy:10px;--r:-70deg;--i:3" points="24,16 32,21 24,27" fill="#e2dbd0"/>
+            <polygon class="s" style="--dx:0px;--dy:14px;--r:90deg;--i:1" points="20,26 28,26 29,33 19,33" fill="#c9c2b8"/>
+            <polygon class="s" style="--dx:-16px;--dy:14px;--r:-50deg;--i:0" points="7,45 19,33 24,35 24,45" fill="#4d6dff"/>
+            <polygon class="s" style="--dx:16px;--dy:14px;--r:50deg;--i:0" points="24,45 24,35 29,33 41,45" fill="#ff8a5c"/>
+          </svg>
+          <span class="choice-text"><b>Je porte un projet</b><span class="d">Je cherche des allié·es pour le faire grandir.</span></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<canvas id="fx" aria-hidden="true"></canvas>
+
+<section class="panel branch top" id="b-feu" aria-label="Financeur·se" aria-hidden="true">
+  <div class="branch-text">
+    <span class="kicker">Financeur·se · Le feu</span>
+    <h2>Allumer ce qui compte</h2>
+    <p>Votre soutien est une flamme qui se transmet. Il donne aux projets l'énergie de démarrer, et à vous la joie de voir grandir ce qui prend soin des liens à soi, aux autres et à la nature.</p>
+    <button type="button" class="back" tabindex="-1">← Revenir aux profils</button>
+  </div>
+</section>
+
+<section class="panel branch" id="b-air" aria-label="Éclaireur·se" aria-hidden="true">
+  <div class="branch-text">
+    <span class="kicker">Éclaireur·se · L'air</span>
+    <h2>Faire circuler l'élan</h2>
+    <p>Vous sentez avant les autres d'où vient le vent. Vos idées, vos rencontres et vos intuitions ouvrent la voie et portent le réseau plus loin. Bougez la souris : le souffle vous suit.</p>
+    <button type="button" class="back" tabindex="-1">← Revenir aux profils</button>
+    <small>Particules : <a href="https://github.com/edankwan/The-Spirit" target="_blank" rel="noopener">The Spirit</a> d'Edan Kwan (MIT)</small>
+  </div>
+</section>
+
+<section class="panel branch" id="b-eau" aria-label="Expert·e" aria-hidden="true">
+  <div class="branch-text">
+    <span class="kicker">Expert·e · L'eau</span>
+    <h2>Irriguer les projets</h2>
+    <p>Votre savoir-faire coule là où on en a besoin. Il épouse la forme de chaque projet et le nourrit en profondeur, sans le figer.</p>
+    <button type="button" class="back" tabindex="-1">← Revenir aux profils</button>
+  </div>
+</section>
+
+<section class="panel branch" id="b-terre" aria-label="Porteur·se de projet" aria-hidden="true">
+  <div class="branch-text">
+    <span class="kicker">Porteur·se de projet · La terre</span>
+    <h2>Rassembler les morceaux</h2>
+    <p>Une idée, des rencontres, des moyens, des savoirs : pièce par pièce, le réseau vous aide à rassembler ce qu'il faut pour donner corps à votre projet.</p>
+    <button type="button" class="back" tabindex="-1">← Revenir aux profils</button>
+    <small>Buste : scan Lee Perry-Smith d'<a href="https://ir-ltd.net/" target="_blank" rel="noopener">Infinite-Realities</a> (<a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a>)</small>
+  </div>
+</section>
+
+<nav class="nav" aria-label="Panneaux">
+  <button type="button" data-go="0" aria-label="Le virtuel au service du réel" aria-current="step"></button>
+  <button type="button" data-go="1" aria-label="Le réseau"></button>
+  <button type="button" data-go="2" aria-label="Qui êtes-vous ?"></button>
+</nav>
+
+<button type="button" class="next" id="next">
+  <span id="next-label">Survolez le cœur · Défilez pour entrer</span>
+  <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 5l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+</button>
+
+<div class="credits">Sphère : <a href="https://github.com/brunosimon/organic-sphere" target="_blank" rel="noopener">Organic Sphere</a>
+  de <a href="https://bruno-simon.com" target="_blank" rel="noopener">Bruno Simon</a> · Arbre d'après les croissances procédurales de Marius Ballot</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/misc/GPUComputationRenderer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/objects/MarchingCubes.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
+<script>
+(function () {
+  if (!window.THREE || !THREE.EffectComposer || !THREE.UnrealBloomPass || !THREE.GPUComputationRenderer || !THREE.MarchingCubes || !THREE.GLTFLoader) {
+    document.body.insertAdjacentHTML('beforeend', '<div class="fallback">Three.js n’a pas pu se charger. Vérifiez la connexion puis rechargez la page.</div>');
+    return;
+  }
+
+  /* =====================================================================
+     Shaders : repris tels quels de brunosimon/organic-sphere
+     (src/Experience/shaders/sphere/vertex.glsl et fragment.glsl,
+     bruit perlin4d de Stefan Gustavson).
+     ===================================================================== */
+  const perlin4d = `
+//	Classic Perlin 3D Noise 
+//	by Stefan Gustavson
+//
+vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
+vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
+vec4 fade(vec4 t) {return t*t*t*(t*(t*6.0-15.0)+10.0);}
+
+float perlin4d(vec4 P){
+  vec4 Pi0 = floor(P); // Integer part for indexing
+  vec4 Pi1 = Pi0 + 1.0; // Integer part + 1
+  Pi0 = mod(Pi0, 289.0);
+  Pi1 = mod(Pi1, 289.0);
+  vec4 Pf0 = fract(P); // Fractional part for interpolation
+  vec4 Pf1 = Pf0 - 1.0; // Fractional part - 1.0
+  vec4 ix = vec4(Pi0.x, Pi1.x, Pi0.x, Pi1.x);
+  vec4 iy = vec4(Pi0.yy, Pi1.yy);
+  vec4 iz0 = vec4(Pi0.zzzz);
+  vec4 iz1 = vec4(Pi1.zzzz);
+  vec4 iw0 = vec4(Pi0.wwww);
+  vec4 iw1 = vec4(Pi1.wwww);
+
+  vec4 ixy = permute(permute(ix) + iy);
+  vec4 ixy0 = permute(ixy + iz0);
+  vec4 ixy1 = permute(ixy + iz1);
+  vec4 ixy00 = permute(ixy0 + iw0);
+  vec4 ixy01 = permute(ixy0 + iw1);
+  vec4 ixy10 = permute(ixy1 + iw0);
+  vec4 ixy11 = permute(ixy1 + iw1);
+
+  vec4 gx00 = ixy00 / 7.0;
+  vec4 gy00 = floor(gx00) / 7.0;
+  vec4 gz00 = floor(gy00) / 6.0;
+  gx00 = fract(gx00) - 0.5;
+  gy00 = fract(gy00) - 0.5;
+  gz00 = fract(gz00) - 0.5;
+  vec4 gw00 = vec4(0.75) - abs(gx00) - abs(gy00) - abs(gz00);
+  vec4 sw00 = step(gw00, vec4(0.0));
+  gx00 -= sw00 * (step(0.0, gx00) - 0.5);
+  gy00 -= sw00 * (step(0.0, gy00) - 0.5);
+
+  vec4 gx01 = ixy01 / 7.0;
+  vec4 gy01 = floor(gx01) / 7.0;
+  vec4 gz01 = floor(gy01) / 6.0;
+  gx01 = fract(gx01) - 0.5;
+  gy01 = fract(gy01) - 0.5;
+  gz01 = fract(gz01) - 0.5;
+  vec4 gw01 = vec4(0.75) - abs(gx01) - abs(gy01) - abs(gz01);
+  vec4 sw01 = step(gw01, vec4(0.0));
+  gx01 -= sw01 * (step(0.0, gx01) - 0.5);
+  gy01 -= sw01 * (step(0.0, gy01) - 0.5);
+
+  vec4 gx10 = ixy10 / 7.0;
+  vec4 gy10 = floor(gx10) / 7.0;
+  vec4 gz10 = floor(gy10) / 6.0;
+  gx10 = fract(gx10) - 0.5;
+  gy10 = fract(gy10) - 0.5;
+  gz10 = fract(gz10) - 0.5;
+  vec4 gw10 = vec4(0.75) - abs(gx10) - abs(gy10) - abs(gz10);
+  vec4 sw10 = step(gw10, vec4(0.0));
+  gx10 -= sw10 * (step(0.0, gx10) - 0.5);
+  gy10 -= sw10 * (step(0.0, gy10) - 0.5);
+
+  vec4 gx11 = ixy11 / 7.0;
+  vec4 gy11 = floor(gx11) / 7.0;
+  vec4 gz11 = floor(gy11) / 6.0;
+  gx11 = fract(gx11) - 0.5;
+  gy11 = fract(gy11) - 0.5;
+  gz11 = fract(gz11) - 0.5;
+  vec4 gw11 = vec4(0.75) - abs(gx11) - abs(gy11) - abs(gz11);
+  vec4 sw11 = step(gw11, vec4(0.0));
+  gx11 -= sw11 * (step(0.0, gx11) - 0.5);
+  gy11 -= sw11 * (step(0.0, gy11) - 0.5);
+
+  vec4 g0000 = vec4(gx00.x,gy00.x,gz00.x,gw00.x);
+  vec4 g1000 = vec4(gx00.y,gy00.y,gz00.y,gw00.y);
+  vec4 g0100 = vec4(gx00.z,gy00.z,gz00.z,gw00.z);
+  vec4 g1100 = vec4(gx00.w,gy00.w,gz00.w,gw00.w);
+  vec4 g0010 = vec4(gx10.x,gy10.x,gz10.x,gw10.x);
+  vec4 g1010 = vec4(gx10.y,gy10.y,gz10.y,gw10.y);
+  vec4 g0110 = vec4(gx10.z,gy10.z,gz10.z,gw10.z);
+  vec4 g1110 = vec4(gx10.w,gy10.w,gz10.w,gw10.w);
+  vec4 g0001 = vec4(gx01.x,gy01.x,gz01.x,gw01.x);
+  vec4 g1001 = vec4(gx01.y,gy01.y,gz01.y,gw01.y);
+  vec4 g0101 = vec4(gx01.z,gy01.z,gz01.z,gw01.z);
+  vec4 g1101 = vec4(gx01.w,gy01.w,gz01.w,gw01.w);
+  vec4 g0011 = vec4(gx11.x,gy11.x,gz11.x,gw11.x);
+  vec4 g1011 = vec4(gx11.y,gy11.y,gz11.y,gw11.y);
+  vec4 g0111 = vec4(gx11.z,gy11.z,gz11.z,gw11.z);
+  vec4 g1111 = vec4(gx11.w,gy11.w,gz11.w,gw11.w);
+
+  vec4 norm00 = taylorInvSqrt(vec4(dot(g0000, g0000), dot(g0100, g0100), dot(g1000, g1000), dot(g1100, g1100)));
+  g0000 *= norm00.x;
+  g0100 *= norm00.y;
+  g1000 *= norm00.z;
+  g1100 *= norm00.w;
+
+  vec4 norm01 = taylorInvSqrt(vec4(dot(g0001, g0001), dot(g0101, g0101), dot(g1001, g1001), dot(g1101, g1101)));
+  g0001 *= norm01.x;
+  g0101 *= norm01.y;
+  g1001 *= norm01.z;
+  g1101 *= norm01.w;
+
+  vec4 norm10 = taylorInvSqrt(vec4(dot(g0010, g0010), dot(g0110, g0110), dot(g1010, g1010), dot(g1110, g1110)));
+  g0010 *= norm10.x;
+  g0110 *= norm10.y;
+  g1010 *= norm10.z;
+  g1110 *= norm10.w;
+
+  vec4 norm11 = taylorInvSqrt(vec4(dot(g0011, g0011), dot(g0111, g0111), dot(g1011, g1011), dot(g1111, g1111)));
+  g0011 *= norm11.x;
+  g0111 *= norm11.y;
+  g1011 *= norm11.z;
+  g1111 *= norm11.w;
+
+  float n0000 = dot(g0000, Pf0);
+  float n1000 = dot(g1000, vec4(Pf1.x, Pf0.yzw));
+  float n0100 = dot(g0100, vec4(Pf0.x, Pf1.y, Pf0.zw));
+  float n1100 = dot(g1100, vec4(Pf1.xy, Pf0.zw));
+  float n0010 = dot(g0010, vec4(Pf0.xy, Pf1.z, Pf0.w));
+  float n1010 = dot(g1010, vec4(Pf1.x, Pf0.y, Pf1.z, Pf0.w));
+  float n0110 = dot(g0110, vec4(Pf0.x, Pf1.yz, Pf0.w));
+  float n1110 = dot(g1110, vec4(Pf1.xyz, Pf0.w));
+  float n0001 = dot(g0001, vec4(Pf0.xyz, Pf1.w));
+  float n1001 = dot(g1001, vec4(Pf1.x, Pf0.yz, Pf1.w));
+  float n0101 = dot(g0101, vec4(Pf0.x, Pf1.y, Pf0.z, Pf1.w));
+  float n1101 = dot(g1101, vec4(Pf1.xy, Pf0.z, Pf1.w));
+  float n0011 = dot(g0011, vec4(Pf0.xy, Pf1.zw));
+  float n1011 = dot(g1011, vec4(Pf1.x, Pf0.y, Pf1.zw));
+  float n0111 = dot(g0111, vec4(Pf0.x, Pf1.yzw));
+  float n1111 = dot(g1111, Pf1);
+
+  vec4 fade_xyzw = fade(Pf0);
+  vec4 n_0w = mix(vec4(n0000, n1000, n0100, n1100), vec4(n0001, n1001, n0101, n1101), fade_xyzw.w);
+  vec4 n_1w = mix(vec4(n0010, n1010, n0110, n1110), vec4(n0011, n1011, n0111, n1111), fade_xyzw.w);
+  vec4 n_zw = mix(n_0w, n_1w, fade_xyzw.z);
+  vec2 n_yzw = mix(n_zw.xy, n_zw.zw, fade_xyzw.y);
+  float n_xyzw = mix(n_yzw.x, n_yzw.y, fade_xyzw.x);
+  return 2.2 * n_xyzw;
+}
+`;
+
+  const vertexShader = `
+#define M_PI 3.1415926535897932384626433832795
+
+uniform vec3 uLightAColor;
+uniform vec3 uLightAPosition;
+uniform float uLightAIntensity;
+uniform vec3 uLightBColor;
+uniform vec3 uLightBPosition;
+uniform float uLightBIntensity;
+
+uniform vec2 uSubdivision;
+
+uniform vec3 uOffset;
+
+uniform float uDistortionFrequency;
+uniform float uDistortionStrength;
+uniform float uDisplacementFrequency;
+uniform float uDisplacementStrength;
+
+uniform float uFresnelOffset;
+uniform float uFresnelMultiplier;
+uniform float uFresnelPower;
+
+uniform float uTime;
+
+varying vec3 vColor;
+
+${perlin4d}
+
+vec3 getDisplacedPosition(vec3 _position)
+{
+    vec3 distoredPosition = _position;
+    distoredPosition += perlin4d(vec4(distoredPosition * uDistortionFrequency + uOffset, uTime)) * uDistortionStrength;
+
+    float perlinStrength = perlin4d(vec4(distoredPosition * uDisplacementFrequency + uOffset, uTime));
+
+    vec3 displacedPosition = _position;
+    displacedPosition += normalize(_position) * perlinStrength * uDisplacementStrength;
+
+    return displacedPosition;
+}
+
+void main()
+{
+    // Position
+    vec3 displacedPosition = getDisplacedPosition(position);
+    // (ajout : modelMatrix, pour que la sphère puisse rapetisser et se déplacer)
+    vec4 worldPosition = modelMatrix * vec4(displacedPosition, 1.0);
+    vec4 viewPosition = viewMatrix * worldPosition;
+    gl_Position = projectionMatrix * viewPosition;
+
+    // Bi tangents
+    float distanceA = (M_PI * 2.0) / uSubdivision.x;
+    float distanceB = M_PI / uSubdivision.x;
+
+    vec3 biTangent = cross(normal, tangent.xyz);
+
+    vec3 positionA = position + tangent.xyz * distanceA;
+    vec3 displacedPositionA = getDisplacedPosition(positionA);
+
+    vec3 positionB = position + biTangent.xyz * distanceB;
+    vec3 displacedPositionB = getDisplacedPosition(positionB);
+
+    vec3 computedNormal = cross(displacedPositionA - displacedPosition.xyz, displacedPositionB - displacedPosition.xyz);
+    computedNormal = normalize(computedNormal);
+
+    // Fresnel
+    vec3 viewDirection = normalize(worldPosition.xyz - cameraPosition);
+    float fresnel = uFresnelOffset + (1.0 + dot(viewDirection, computedNormal)) * uFresnelMultiplier;
+    fresnel = pow(max(0.0, fresnel), uFresnelPower);
+
+    // Color
+    float lightAIntensity = max(0.0, - dot(computedNormal.xyz, normalize(- uLightAPosition))) * uLightAIntensity;
+    float lightBIntensity = max(0.0, - dot(computedNormal.xyz, normalize(- uLightBPosition))) * uLightBIntensity;
+
+    vec3 color = vec3(0.0);
+    color = mix(color, uLightAColor, lightAIntensity * fresnel);
+    color = mix(color, uLightBColor, lightBIntensity * fresnel);
+    color = mix(color, vec3(1.0), clamp(pow(max(0.0, fresnel - 0.8), 3.0), 0.0, 1.0));
+
+    // Varying
+    vColor = color;
+}`;
+
+  const fragmentShader = `
+varying vec3 vColor;
+
+void main()
+{
+    gl_FragColor = vec4(vColor, 1.0);
+}`;
+
+  const bloomCompositeShader = `
+varying vec2 vUv;
+uniform sampler2D blurTexture1;
+uniform sampler2D blurTexture2;
+uniform sampler2D blurTexture3;
+uniform sampler2D blurTexture4;
+uniform sampler2D blurTexture5;
+uniform sampler2D dirtTexture;
+uniform float bloomStrength;
+uniform float bloomRadius;
+uniform float bloomFactors[NUM_MIPS];
+uniform vec3 bloomTintColors[NUM_MIPS];
+uniform vec3 uTintColor;
+uniform float uTintStrength;
+
+float lerpBloomFactor(const in float factor) {
+    float mirrorFactor = 1.2 - factor;
+    return mix(factor, mirrorFactor, bloomRadius);
+}
+
+void main() {
+    vec4 color = bloomStrength * ( lerpBloomFactor(bloomFactors[0]) * vec4(bloomTintColors[0], 1.0) * texture2D(blurTexture1, vUv) +
+        lerpBloomFactor(bloomFactors[1]) * vec4(bloomTintColors[1], 1.0) * texture2D(blurTexture2, vUv) +
+        lerpBloomFactor(bloomFactors[2]) * vec4(bloomTintColors[2], 1.0) * texture2D(blurTexture3, vUv) +
+        lerpBloomFactor(bloomFactors[3]) * vec4(bloomTintColors[3], 1.0) * texture2D(blurTexture4, vUv) +
+        lerpBloomFactor(bloomFactors[4]) * vec4(bloomTintColors[4], 1.0) * texture2D(blurTexture5, vUv) );
+
+    color.rgb = mix(color.rgb, uTintColor, uTintStrength);
+    gl_FragColor = color;
+}`;
+
+  /* =====================================================================
+     Renderer + bloom (Renderer.js de Bruno Simon)
+     ===================================================================== */
+  const canvas = document.getElementById('scene');
+  const config = { pixelRatio: Math.min(Math.max(window.devicePixelRatio, 1), 2), width: innerWidth, height: innerHeight };
+  const coarse = matchMedia('(pointer: coarse)').matches;
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas, alpha: false, antialias: true });
+  } catch (e) {
+    document.body.insertAdjacentHTML('beforeend', '<div class="fallback">WebGL n’est pas disponible dans ce navigateur, l’animation ne peut pas s’afficher.</div>');
+    return;
+  }
+  renderer.setClearColor('#010101', 1);
+  renderer.setPixelRatio(config.pixelRatio);
+  renderer.setSize(config.width, config.height, false);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(25, config.width / config.height, 0.01, 80);
+  scene.add(camera);
+
+  const RenderTargetClass = config.pixelRatio >= 2 || !THREE.WebGLMultisampleRenderTarget ? THREE.WebGLRenderTarget : THREE.WebGLMultisampleRenderTarget;
+  const renderTarget = new RenderTargetClass(config.width, config.height, {
+    generateMipmaps: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+    format: THREE.RGBFormat, encoding: THREE.sRGBEncoding
+  });
+  const composer = new THREE.EffectComposer(renderer, renderTarget);
+  composer.setSize(config.width, config.height);
+  composer.setPixelRatio(config.pixelRatio);
+  const renderPass = new THREE.RenderPass(scene, camera);
+  composer.addPass(renderPass);
+
+  const bloom = new THREE.UnrealBloomPass(new THREE.Vector2(config.width, config.height), 0.8, 0.315, 0);
+  bloom.compositeMaterial.uniforms.uTintColor = { value: new THREE.Color('#7f00ff') };
+  bloom.compositeMaterial.uniforms.uTintStrength = { value: 0.15 };
+  bloom.compositeMaterial.fragmentShader = bloomCompositeShader;
+  bloom.compositeMaterial.needsUpdate = true;
+  composer.addPass(bloom);
+
+
+  /* =====================================================================
+     Sphère (Sphere.js), sans micro : les « variations » suivent le pointeur.
+     ===================================================================== */
+  const subdivisions = coarse ? 256 : 512;
+  const geometry = new THREE.SphereGeometry(1, subdivisions, subdivisions);
+  geometry.computeTangents();
+
+  const lights = {
+    a: { intensity: 1.85, color: new THREE.Color('#ff3e00'), spherical: new THREE.Spherical(1, 0.615, 2.049) },
+    b: { intensity: 1.4, color: new THREE.Color('#0063ff'), spherical: new THREE.Spherical(1, 2.561, -1.844) },
+  };
+
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      uLightAColor: { value: lights.a.color },
+      uLightAPosition: { value: new THREE.Vector3().setFromSpherical(lights.a.spherical) },
+      uLightAIntensity: { value: lights.a.intensity },
+      uLightBColor: { value: lights.b.color },
+      uLightBPosition: { value: new THREE.Vector3().setFromSpherical(lights.b.spherical) },
+      uLightBIntensity: { value: lights.b.intensity },
+      uSubdivision: { value: new THREE.Vector2(geometry.parameters.widthSegments, geometry.parameters.heightSegments) },
+      uOffset: { value: new THREE.Vector3() },
+      uDistortionFrequency: { value: 1.5 },
+      uDistortionStrength: { value: 0.65 },
+      uDisplacementFrequency: { value: 2.120 },
+      uDisplacementStrength: { value: 0.152 },
+      uFresnelOffset: { value: -1.609 },
+      uFresnelMultiplier: { value: 3.587 },
+      uFresnelPower: { value: 1.793 },
+      uTime: { value: 0 },
+    },
+    defines: { USE_TANGENT: '' },
+    vertexShader, fragmentShader,
+  });
+  const sphere = new THREE.Mesh(geometry, material);
+  scene.add(sphere);
+
+  let speed = 1, agitation = 0;
+  const variations = {
+    volume:      { current: 0.152,  up: 0.03,  down: 0.002, target: () => 0.152 + agitation * 0.06 },
+    lowLevel:    { current: 0.0003, up: 0.005, down: 0.002, target: () => 0.0003 * speed },
+    mediumLevel: { current: 3.587,  up: 0.008, down: 0.004, target: () => 3.587 + agitation * 0.6 },
+    highLevel:   { current: 0.65,   up: 0.02,  down: 0.001, target: () => 0.65 + agitation * 0.5 },
+  };
+  const offset = { spherical: new THREE.Spherical(1, Math.random() * Math.PI, Math.random() * Math.PI * 2), direction: new THREE.Vector3() };
+
+  function updateSphere(delta) {
+    for (const name in variations) {
+      const v = variations[name];
+      const target = v.target();
+      const easing = target > v.current ? v.up : v.down;
+      v.current += (target - v.current) * Math.min(easing * delta, 1);
+    }
+    const timeFrequency = variations.lowLevel.current;
+    const elapsedTime = delta * timeFrequency;
+
+    material.uniforms.uDisplacementStrength.value = variations.volume.current;
+    material.uniforms.uDistortionStrength.value = variations.highLevel.current;
+    material.uniforms.uFresnelMultiplier.value = variations.mediumLevel.current;
+
+    const offsetTime = elapsedTime * 0.3;
+    offset.spherical.phi = ((Math.sin(offsetTime * 0.001) * Math.sin(offsetTime * 0.00321)) * 0.5 + 0.5) * Math.PI;
+    offset.spherical.theta = ((Math.sin(offsetTime * 0.0001) * Math.sin(offsetTime * 0.000321)) * 0.5 + 0.5) * Math.PI * 2;
+    offset.direction.setFromSpherical(offset.spherical);
+    offset.direction.multiplyScalar(timeFrequency * 2);
+    material.uniforms.uOffset.value.add(offset.direction);
+    material.uniforms.uTime.value += elapsedTime;
+  }
+
+  /* =====================================================================
+     Arbre à croissance procédurale, dans les tons de la sphère.
+     Chaque sommet porte l'instant où la croissance l'atteint (aGrow) ;
+     le shader ne montre que ce qui a déjà poussé, avec un front blanc incandescent.
+     ===================================================================== */
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  function buildTree(seed) {
+    const rnd = mulberry32(seed);
+    // Le caractère de l'arbre, tiré au sort à chaque plantation.
+    const g = {
+      depth: 6,
+      trunk: 1.3 + rnd() * 0.7,          // longueur du tronc
+      curl: 0.12 + rnd() * 0.22,         // branches droites ou tortueuses
+      tropism: rnd() * 0.05,             // attirance vers le haut
+      spread: 0.85 + rnd() * 0.4,        // ouverture des fourches
+      ratio: 0.62 + rnd() * 0.1,         // longueur des branches filles
+      lean: (rnd() - 0.5) * 0.45,        // inclinaison du tronc
+      leanAz: rnd() * Math.PI * 2,
+    };
+    const MAX_DEPTH = g.depth;
+    let branches = [];
+    let buds = [];
+    const up = new THREE.Vector3(0, 1, 0);
+
+    function perpendicular(d) {
+      const ref = Math.abs(d.y) < 0.9 ? up : new THREE.Vector3(1, 0, 0);
+      return new THREE.Vector3().crossVectors(d, ref).normalize();
+    }
+
+    function grow(start, dir, length, radius, depth, t0) {
+      if (branches.length > 1400) return;
+      const n = Math.max(4, Math.round(length * 9));
+      const step = length / n;
+      const pts = [], times = [], radii = [];
+      const p = start.clone();
+      const d = dir.clone().normalize();
+      const slow = 1 + depth * 0.12;          // les rameaux fins poussent un peu moins vite
+      const terminal = depth === MAX_DEPTH;
+      for (let i = 0; i <= n; i++) {
+        pts.push(p.clone());
+        times.push(t0 + i * step * slow);
+        const u = i / n;
+        radii.push(radius * (terminal ? 1 - 0.85 * u : 1 - 0.3 * u));
+        d.x += (rnd() - 0.5) * g.curl;
+        d.z += (rnd() - 0.5) * g.curl;
+        d.y += (rnd() - 0.5) * g.curl * 0.55 + (depth < 2 ? 0.035 + g.tropism : g.tropism * 0.4);   // tropisme vers la lumière
+        d.normalize();
+        p.addScaledVector(d, step);
+      }
+      branches.push({ pts, times, radii, depth });
+
+      if (terminal) {
+        buds.push({ p: pts[n], t: times[n] + 0.08 });
+        return;
+      }
+      const kids = depth === 0 ? 3 : (rnd() < 0.45 ? 3 : 2);
+      for (let k = 0; k < kids; k++) {
+        const last = k === kids - 1;
+        const i = last ? n : Math.min(n - 1, Math.floor(n * (0.45 + 0.5 * rnd())));
+        const a = pts[Math.max(i - 1, 0)], b = pts[i];
+        const pd = new THREE.Vector3().subVectors(b, a).normalize();
+        const phi = k * 2.39996 + rnd() * 1.2 + depth;               // angle d'or
+        const tilt = (last ? 0.15 + rnd() * 0.2 : 0.45 + rnd() * 0.45) * g.spread;
+        const perp = perpendicular(pd).applyAxisAngle(pd, phi);
+        const nd = pd.clone().multiplyScalar(Math.cos(tilt)).addScaledVector(perp, Math.sin(tilt)).normalize();
+        grow(b, nd, length * (g.ratio + rnd() * 0.12), radii[i] * (last ? 0.82 : 0.66), depth + 1, times[i]);
+      }
+    }
+
+    const trunkDir = new THREE.Vector3(Math.sin(g.leanAz) * g.lean, 1, Math.cos(g.leanAz) * g.lean);
+    const trunkRadius = 0.1 + rnd() * 0.04;
+    // Même touffeur à chaque fois : on replante jusqu'à tomber dans la bonne fourchette de rameaux.
+    for (let attempt = 0; attempt < 40; attempt++) {
+      branches = []; buds = [];
+      grow(new THREE.Vector3(0, 0.015, 0), trunkDir, g.trunk, trunkRadius, 0, 0);   // le pied pose juste au-dessus de l'eau
+      if (buds.length >= 250 && buds.length <= 300) break;
+    }
+
+    // Normalisation du temps et de la hauteur.
+    let maxT = 0, maxY = 0, maxR = 0;
+    for (const br of branches) for (let i = 0; i < br.pts.length; i++) {
+      maxT = Math.max(maxT, br.times[i]); maxY = Math.max(maxY, br.pts[i].y);
+      maxR = Math.max(maxR, Math.hypot(br.pts[i].x, br.pts[i].z));
+    }
+    for (const b of buds) maxT = Math.max(maxT, b.t);
+
+    // Tubes : 6 côtés par anneau.
+    const SIDES = 12;   // sections rondes : le contact avec l'eau est une courbe
+    const pos = [], nor = [], rad = [], grw = [], hgt = [], dep = [], idx = [];
+    let base = 0;
+    const T = new THREE.Vector3(), N = new THREE.Vector3(), B = new THREE.Vector3(), ring = new THREE.Vector3();
+    for (const br of branches) {
+      const m = br.pts.length;
+      for (let i = 0; i < m; i++) {
+        T.subVectors(br.pts[Math.min(i + 1, m - 1)], br.pts[Math.max(i - 1, 0)]).normalize();
+        N.copy(perpendicular(T)); B.crossVectors(T, N);
+        for (let j = 0; j < SIDES; j++) {
+          const ang = j / SIDES * Math.PI * 2;
+          ring.copy(N).multiplyScalar(Math.cos(ang)).addScaledVector(B, Math.sin(ang));
+          pos.push(br.pts[i].x, br.pts[i].y, br.pts[i].z);
+          nor.push(ring.x, ring.y, ring.z);
+          rad.push(br.radii[i]);
+          grw.push(br.times[i] / maxT);
+          hgt.push(br.pts[i].y / maxY);
+          dep.push(br.depth / MAX_DEPTH);
+        }
+      }
+      for (let i = 0; i < m - 1; i++) for (let j = 0; j < SIDES; j++) {
+        const a = base + i * SIDES + j, b = base + i * SIDES + (j + 1) % SIDES;
+        const c = a + SIDES, d = b + SIDES;
+        idx.push(a, c, b, b, c, d);
+      }
+      base += m * SIDES;
+    }
+    const tubes = new THREE.BufferGeometry();
+    tubes.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    tubes.setAttribute('aNormal', new THREE.Float32BufferAttribute(nor, 3));
+    tubes.setAttribute('aRadius', new THREE.Float32BufferAttribute(rad, 1));
+    tubes.setAttribute('aGrow', new THREE.Float32BufferAttribute(grw, 1));
+    tubes.setAttribute('aHeight', new THREE.Float32BufferAttribute(hgt, 1));
+    tubes.setAttribute('aDepth', new THREE.Float32BufferAttribute(dep, 1));
+    tubes.setIndex(idx);
+
+    // Bourgeons lumineux au bout des rameaux.
+    const bp = [], bg = [], bh = [], bs = [];
+    for (const b of buds) { bp.push(b.p.x, b.p.y, b.p.z); bg.push(b.t / maxT); bh.push(b.p.y / maxY); bs.push(rnd()); }
+    const budsGeo = new THREE.BufferGeometry();
+    budsGeo.setAttribute('position', new THREE.Float32BufferAttribute(bp, 3));
+    budsGeo.setAttribute('aGrow', new THREE.Float32BufferAttribute(bg, 1));
+    budsGeo.setAttribute('aHeight', new THREE.Float32BufferAttribute(bh, 1));
+    budsGeo.setAttribute('aSeed', new THREE.Float32BufferAttribute(bs, 1));
+
+    return { tubes, buds: budsGeo, maxY, maxR };
+  }
+
+  const treeShared = `
+    uniform float uGrow;
+    uniform float uTime;
+    uniform float uMaxY;
+    vec3 sway(vec3 c, float h) {
+      float s = h * h * 0.07;
+      c.x += sin(uTime * 0.8 + c.y * 1.3) * s;
+      c.z += cos(uTime * 0.6 + c.y * 1.1) * s;
+      return c;
+    }`;
+
+  const treeVertex = `
+    attribute vec3 aNormal;
+    attribute float aRadius;
+    attribute float aGrow;
+    attribute float aHeight;
+    attribute float aDepth;
+    ${treeShared}
+    varying vec3 vNormal;
+    varying vec3 vView;
+    varying float vGrow;
+    varying float vHeight;
+    varying float vDepth;
+    varying float vHot;
+    void main() {
+      float since = uGrow - aGrow;
+      float taper = smoothstep(0.0, 0.035, since);       // la pointe s'affine sur le front de croissance
+      vec3 c = sway(position, aHeight);
+      vec3 p = c + aNormal * aRadius * taper;
+      vec4 mv = modelViewMatrix * vec4(p, 1.0);
+      vView = -mv.xyz;
+      vNormal = normalize(normalMatrix * aNormal);
+      vGrow = aGrow;
+      vHeight = aHeight;
+      vDepth = aDepth;
+      vHot = exp(-max(since, 0.0) * 45.0);
+      gl_Position = projectionMatrix * mv;
+    }`;
+
+  const treeFragment = `
+    uniform float uGrow;
+    uniform float uFade;
+    uniform vec3 uColorA;
+    uniform vec3 uColorB;
+    varying vec3 vNormal;
+    varying vec3 vView;
+    varying float vGrow;
+    varying float vHeight;
+    varying float vDepth;
+    varying float vHot;
+    void main() {
+      if (vGrow > uGrow) discard;
+      vec3 n = normalize(vNormal);
+      vec3 v = normalize(vView);
+      float fresnel = pow(1.0 - abs(dot(n, v)), 2.0);
+      float la = max(dot(n, normalize(vec3(0.8, 0.9, 0.4))), 0.0);
+      float lb = max(dot(n, normalize(vec3(-0.9, -0.6, 0.3))), 0.0);
+      // Tronc braise, cime bleue, comme les deux lumières de la sphère.
+      float k = smoothstep(0.05, 0.95, vHeight * 0.75 + vDepth * 0.45);
+      vec3 base = mix(uColorA, uColorB, k);
+      vec3 color = base * (0.06 + la * 0.55 + fresnel * 1.5);
+      color += uColorA * la * 0.35 * (1.0 - k);
+      color += uColorB * lb * 0.5;
+      color = mix(color, vec3(1.0), clamp(pow(max(0.0, fresnel - 0.55), 2.0) * 3.0, 0.0, 1.0));
+      color += vec3(1.0, 0.92, 0.85) * vHot * 1.6;
+      gl_FragColor = vec4(color * uFade, 1.0);
+    }`;
+
+  const budVertex = `
+    attribute float aGrow;
+    attribute float aHeight;
+    attribute float aSeed;
+    ${treeShared}
+    uniform float uPixelRatio;
+    varying float vAlpha;
+    varying float vSeed;
+    void main() {
+      float on = smoothstep(aGrow, aGrow + 0.05, uGrow);
+      vec3 c = sway(position, aHeight);
+      vec4 mv = modelViewMatrix * vec4(c, 1.0);
+      float twinkle = 0.75 + 0.25 * sin(uTime * (1.5 + aSeed * 2.0) + aSeed * 40.0);
+      gl_PointSize = (0.10 + aSeed * 0.08) * on * twinkle * uPixelRatio * 900.0 / -mv.z;
+      vAlpha = on;
+      vSeed = aSeed;
+      gl_Position = projectionMatrix * mv;
+    }`;
+
+  const budFragment = `
+    uniform float uFade;
+    uniform vec3 uColorA;
+    uniform vec3 uColorB;
+    varying float vAlpha;
+    varying float vSeed;
+    void main() {
+      float d = length(gl_PointCoord - 0.5);
+      float glow = smoothstep(0.5, 0.0, d);
+      glow *= glow;
+      vec3 col = vSeed < 0.33 ? uColorA : (vSeed < 0.8 ? uColorB : vec3(1.0));
+      gl_FragColor = vec4(mix(col, vec3(1.0), glow * 0.6) * glow * vAlpha * uFade, 1.0);
+    }`;
+
+  const newSeed = () => (Math.random() * 4294967296) >>> 0;
+  let treeData = buildTree(newSeed());
+  const treeUniforms = {
+    uGrow: { value: 0 },
+    uTime: { value: 0 },
+    uMaxY: { value: treeData.maxY },
+    uColorA: { value: new THREE.Color('#ff3e00') },
+    uColorB: { value: new THREE.Color('#0063ff') },
+    uPixelRatio: { value: config.pixelRatio },
+    uFade: { value: 1 },
+  };
+  const tree = new THREE.Group();
+  tree.position.set(100, 0, 0);          // loin de la sphère : on bascule de caméra dans le noir
+  const tubesMesh = new THREE.Mesh(treeData.tubes, new THREE.ShaderMaterial({
+    uniforms: treeUniforms, vertexShader: treeVertex, fragmentShader: treeFragment, side: THREE.DoubleSide,
+  }));
+  const budsPoints = new THREE.Points(treeData.buds, new THREE.ShaderMaterial({
+    uniforms: treeUniforms, vertexShader: budVertex, fragmentShader: budFragment,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  }));
+  tree.add(tubesMesh, budsPoints);
+
+  // Un nouvel arbre, une nouvelle forme.
+  function plantTree() {
+    tubesMesh.geometry.dispose();
+    budsPoints.geometry.dispose();
+    treeData = buildTree(newSeed());
+    tubesMesh.geometry = treeData.tubes;
+    budsPoints.geometry = treeData.buds;
+    treeUniforms.uMaxY.value = treeData.maxY;
+    frameTree();
+  }
+  tree.visible = false;
+  scene.add(tree);
+
+  /* =====================================================================
+     Flaque d'eau : fond du panneau de définition.
+     Un vrai plan d'eau en 3D, posé au pied de l'arbre : la goutte y tombe,
+     son onde découvre la flaque, puis l'arbre en sort.
+     Les ondes reflètent un ciel de nuit et deux lampadaires aux couleurs
+     de la sphère. Le pointeur fait aussi des ronds dans l'eau.
+     ===================================================================== */
+  const PUDDLE_SCALE = 7;      // unités du monde pour une « largeur d'écran » d'ondes
+  const puddleUniforms = {
+    uTime: { value: 0 }, uReveal: { value: 0 }, uOpacity: { value: 0 }, uSprout: { value: -1 }, uPreview: { value: 0 }, uFlat: { value: null }, uFlatAmount: { value: 1 },
+    uCenter: { value: new THREE.Vector2(100, 0) },
+    uColorA: { value: new THREE.Color('#ff3e00') }, uColorB: { value: new THREE.Color('#0063ff') },
+    uDrops: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 0, -99, 0)) },
+  };
+  const puddle = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.ShaderMaterial({
+    uniforms: puddleUniforms, depthWrite: false,
+    vertexShader: `
+      varying vec3 vWorld;
+      void main() {
+        vec4 w = modelMatrix * vec4(position, 1.0);
+        vWorld = w.xyz;
+        gl_Position = projectionMatrix * viewMatrix * w;
+      }`,
+    fragmentShader: `
+      uniform float uTime;
+      uniform float uReveal;      // 0 : bleu uni, 1 : la flaque
+      uniform float uOpacity;
+      uniform float uSprout;
+      uniform float uPreview;
+      uniform vec3 uFlat;
+      uniform float uFlatAmount;
+      uniform vec2 uCenter;
+      uniform vec3 uColorA;
+      uniform vec3 uColorB;
+      uniform vec4 uDrops[4];
+      varying vec3 vWorld;
+      float hash(float n) { return fract(sin(n) * 43758.5453); }
+      float ring(vec2 p, vec2 c, float age) {
+        float d = length(p - c) - age * 0.32;
+        return sin(d * 75.0) * exp(-d * d * 160.0) * exp(-age * 0.85) * smoothstep(0.0, 0.06, age);
+      }
+      float height(vec2 p) {
+        float h = 0.0;
+        for (int i = 0; i < 7; i++) {
+          float fi = float(i);
+          float period = 2.8 + hash(fi * 7.1) * 2.6;
+          float tt = uTime + hash(fi * 3.3) * period;
+          float cycle = floor(tt / period);
+          vec2 c = vec2(hash(fi * 12.9 + cycle * 1.7) - 0.5, hash(fi * 4.1 + cycle * 3.9) - 0.5) * 1.6;
+          h += ring(p, c, mod(tt, period)) * (0.6 + hash(fi + cycle) * 0.6);
+        }
+        for (int i = 0; i < 4; i++) {
+          float age = uTime - uDrops[i].z;
+          if (age > 0.0 && age < 6.0) h += ring(p, uDrops[i].xy, age) * uDrops[i].w;
+        }
+        // L'arbre perce la surface : deux ondes partent de son pied.
+        if (uSprout > 0.0) {
+          h += ring(p, vec2(0.0), uSprout) * 1.5;
+          if (uSprout > 0.7) h += ring(p, vec2(0.0), uSprout - 0.7) * 0.8;
+        }
+        h += sin(p.x * 9.0 + uTime * 0.7) * sin(p.y * 7.0 - uTime * 0.5) * 0.05;
+        return h;
+      }
+      vec3 sky(vec3 r) {
+        // Même nuit que le premier panneau : le fond de l'eau est presque noir, seuls les reflets brillent.
+        vec3 c = mix(vec3(0.0), vec3(0.006, 0.002, 0.016), clamp(r.y, 0.0, 1.0));
+        vec3 la = normalize(vec3(0.45, 0.8, -0.4)), lb = normalize(vec3(-0.5, 0.78, -0.42));
+        c += uColorA * (pow(max(dot(r, la), 0.0), 900.0) * 1.4 + pow(max(dot(r, la), 0.0), 60.0) * 0.025);
+        c += uColorB * (pow(max(dot(r, lb), 0.0), 700.0) * 1.5 + pow(max(dot(r, lb), 0.0), 50.0) * 0.03);
+        return c;
+      }
+      void main() {
+        vec2 p = (vWorld.xz - uCenter) / ${PUDDLE_SCALE.toFixed(1)};
+        float e = 0.0015;
+        float h = height(p);
+        vec2 g = vec2(height(p + vec2(e, 0.0)) - h, height(p + vec2(0.0, e)) - h) / e;
+        vec3 n = normalize(vec3(-g.x * 0.012, 1.0, -g.y * 0.012));
+        vec3 v = normalize(vWorld - cameraPosition);
+        vec3 r = reflect(v, n);
+        vec3 col = sky(r);
+        col += vec3(0.35, 0.45, 0.9) * clamp(length(g) * 0.004, 0.0, 1.0) * 0.25;
+        // Les bords se perdent dans la nuit.
+        float rr = length(p);
+        col *= 1.0 - smoothstep(2.5, 4.5, rr);
+        // À l'impact, la flaque apparaît en fondu depuis le noir.
+        gl_FragColor = vec4(mix(uFlat * uFlatAmount, col, uReveal) * uOpacity, 1.0);
+      }`,
+  }));
+  puddle.rotation.x = -Math.PI / 2;
+  puddleUniforms.uFlat.value = new THREE.Color(0, 0, 0);   // la flaque apparaît depuis le noir
+  puddle.position.set(100, 0, 0);           // au pied de l'arbre
+  puddle.renderOrder = -1;
+  puddle.visible = false;
+  scene.add(puddle);
+
+
+  let dropIndex = 0, lastDropAt = 0;
+  const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  const pickRay = new THREE.Raycaster();
+  function addDrop(x, y, strength) {
+    pickRay.setFromCamera(new THREE.Vector2(x / config.width * 2 - 1, -(y / config.height) * 2 + 1), camera);
+    const hit = new THREE.Vector3();
+    if (!pickRay.ray.intersectPlane(groundPlane, hit)) return;
+    const d = puddleUniforms.uDrops.value[dropIndex++ % 4];
+    d.set((hit.x - 100) / PUDDLE_SCALE, hit.z / PUDDLE_SCALE, puddleUniforms.uTime.value, strength);
+  }
+
+  /* =====================================================================
+     Cadrage
+     ===================================================================== */
+  const halfFov = THREE.MathUtils.degToRad(25 / 2);
+  const TREE_FOV = 40;
+  const treeTan = Math.tan(THREE.MathUtils.degToRad(TREE_FOV / 2));
+  let restZ = 7, treeDist = 10;
+  // Caméra à l'horizontale, base du tronc calée juste sous le bas de la fenêtre :
+  // la hauteur visible (2 · dist · tan) doit contenir tout l'arbre.
+  function frameTree() {
+    const halfH = treeData.maxY * 0.56, halfW = treeData.maxR * 0.95;
+    treeDist = Math.max(halfH / treeTan, halfW / (treeTan * config.width / config.height));
+  }
+  function resize() {
+    config.width = innerWidth; config.height = innerHeight;
+    camera.aspect = config.width / config.height;
+    restZ = camera.aspect >= 1 ? 7 : Math.max(7, 1.45 / (Math.tan(halfFov) * camera.aspect) + 0.2);
+    frameTree();
+    camera.updateProjectionMatrix();
+    renderer.setSize(config.width, config.height, false);
+    composer.setSize(config.width, config.height);
+    bloom.setSize(config.width, config.height);
+  }
+  addEventListener('resize', resize);
+  resize();
+
+  const smoothstep = (a, b, x) => { const t = Math.min(Math.max((x - a) / (b - a), 0), 1); return t * t * (3 - 2 * t); };
+  const easeInOut = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const clamp01 = x => Math.min(Math.max(x, 0), 1);
+
+  /* =====================================================================
+     Quatre profils, quatre éléments.
+     Les effets sont dessinés sur un second canvas, transparent, posé
+     au-dessus de l'arbre et du panneau. Chaque effet reçoit B (0 → 2) :
+       0 → 1 : il naît au centre du pictogramme et grandit au premier plan
+               jusqu'à couvrir la fenêtre (l'arrière-plan reste visible) ;
+       1 → 2 : l'arrière-plan s'est effacé, l'effet prend sa forme finale.
+     ===================================================================== */
+  const fxCanvas = document.getElementById('fx');
+  const fxRenderer = new THREE.WebGLRenderer({ canvas: fxCanvas, alpha: true, antialias: true, premultipliedAlpha: true });
+  fxRenderer.setClearColor(0x000000, 0);
+  fxRenderer.setPixelRatio(config.pixelRatio);
+  fxRenderer.setSize(config.width, config.height, false);
+  const fxComposer = new THREE.EffectComposer(fxRenderer);
+  fxComposer.setPixelRatio(config.pixelRatio);
+  fxComposer.setSize(config.width, config.height);
+  const fxRenderPass = new THREE.RenderPass(new THREE.Scene(), new THREE.Camera(), null, new THREE.Color(0x000000), 0);
+  fxComposer.addPass(fxRenderPass);
+  // On garde l'alpha de la scène avant le halo (le flou du bloom le rend opaque).
+  const fxSceneRT = new THREE.WebGLRenderTarget(config.width * config.pixelRatio, config.height * config.pixelRatio, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat });
+  const savePass = new THREE.ShaderPass({
+    uniforms: { tDiffuse: { value: null } },
+    vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `uniform sampler2D tDiffuse; varying vec2 vUv; void main() { gl_FragColor = texture2D(tDiffuse, vUv); }`,
+  });
+  savePass.needsSwap = false;
+  savePass.render = function (r, writeBuffer, readBuffer) {
+    this.uniforms.tDiffuse.value = readBuffer.texture;
+    r.setRenderTarget(fxSceneRT);
+    r.clear();
+    this.fsQuad.render(r);
+  };
+  fxComposer.addPass(savePass);
+  const fxBloom = new THREE.UnrealBloomPass(new THREE.Vector2(config.width, config.height), 0.6, 0.315, 0);
+  fxComposer.addPass(fxBloom);
+  // Le halo devient lui aussi opaque là où il brille : il se pose par-dessus le HTML.
+  fxComposer.addPass(new THREE.ShaderPass({
+    uniforms: { tDiffuse: { value: null }, tScene: { value: fxSceneRT.texture } },
+    vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `
+      uniform sampler2D tDiffuse;
+      uniform sampler2D tScene;
+      varying vec2 vUv;
+      void main() {
+        vec4 c = texture2D(tDiffuse, vUv);
+        float a = clamp(max(texture2D(tScene, vUv).a, max(c.r, max(c.g, c.b))), 0.0, 1.0);
+        gl_FragColor = vec4(min(c.rgb, vec3(a)), a);
+      }`,
+  }));
+  addEventListener('resize', () => {
+    fxRenderer.setSize(config.width, config.height, false);
+    fxComposer.setSize(config.width, config.height);
+    fxBloom.setSize(config.width, config.height);
+    fxSceneRT.setSize(config.width * config.pixelRatio, config.height * config.pixelRatio);
+  });
+
+  const COLOR_A = new THREE.Color('#ff3e00');
+  const COLOR_B = new THREE.Color('#0063ff');
+  const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+  const easeInCubic = t => t * t * t;
+  const fullscreenVertex = `
+    varying vec2 vUv;
+    void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
+
+  // Point de l'écran (px) projeté sur le plan qui passe par `through` face à la caméra.
+  function screenToPlane(cam, sx, sy, through) {
+    cam.updateMatrixWorld();
+    const o = new THREE.Vector3().setFromMatrixPosition(cam.matrixWorld);
+    const d = new THREE.Vector3(sx / config.width * 2 - 1, -(sy / config.height) * 2 + 1, 0.5).unproject(cam).sub(o).normalize();
+    const n = cam.getWorldDirection(new THREE.Vector3());
+    const tt = through.clone().sub(o).dot(n) / d.dot(n);
+    return o.addScaledVector(d, tt);
+  }
+
+  /* ---------- FEU : financeur·se ---------- */
+  const fire = (function () {
+    const sceneF = new THREE.Scene();
+    const cam = new THREE.Camera();
+    const uniforms = {
+      uTime: { value: 0 }, uHeight: { value: 0 }, uAspect: { value: 1 },
+      uOrigin: { value: new THREE.Vector2(0.5, 0.2) }, uIgnite: { value: 0 },
+      uColorA: { value: COLOR_A }, uColorB: { value: COLOR_B },
+    };
+    const flames = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
+      uniforms, vertexShader: fullscreenVertex, depthTest: false, depthWrite: false, transparent: true,
+      fragmentShader: `
+        uniform float uTime;
+        uniform float uHeight;
+        uniform float uAspect;
+        uniform vec2 uOrigin;
+        uniform float uIgnite;
+        uniform vec3 uColorA;
+        uniform vec3 uColorB;
+        varying vec2 vUv;
+        float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float noise(vec2 p) {
+          vec2 i = floor(p), f = fract(p);
+          vec2 u = f * f * (3.0 - 2.0 * f);
+          return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+        }
+        float fbm(vec2 p) {
+          float v = 0.0, a = 0.5;
+          for (int i = 0; i < 5; i++) { v += a * noise(p); p = p * 2.03 + 17.0; a *= 0.5; }
+          return v;
+        }
+        void main() {
+          vec2 p = vec2((vUv.x - 0.5) * uAspect, vUv.y);
+          float t = uTime;
+          vec2 q = vec2(fbm(p * 2.6 + vec2(0.0, -t * 1.2)), fbm(p * 2.6 + vec2(5.2, -t * 1.05)));
+          float n = fbm(p * vec2(2.2, 1.4) + q * 1.6 + vec2(0.0, -t * 1.9));
+          // Flammes posées en bas de l'écran (forme finale).
+          float f = n * 1.45 - vUv.y / max(uHeight, 0.001) * 0.95 + 0.1;
+          f *= step(0.001, uHeight);
+          // Flamme née au centre du pictogramme, qui grandit jusqu'à tout couvrir.
+          vec2 dp = p - vec2((uOrigin.x - 0.5) * uAspect, uOrigin.y);
+          dp.y = dp.y > 0.0 ? dp.y * 0.6 : dp.y * 1.6;
+          float fi = n * 1.45 - length(dp) / max(uIgnite, 0.0001) * 0.95 + 0.3;
+          fi = min(fi, 0.3 + n * 0.38);              // brasier orangé, pas un écran blanc
+          f = clamp(max(f, fi * step(0.00001, uIgnite)), 0.0, 1.0);
+          vec3 c = vec3(0.0);
+          c = mix(c, vec3(0.16, 0.0, 0.42), smoothstep(0.02, 0.16, f));
+          c = mix(c, uColorB * 0.9, smoothstep(0.14, 0.26, f) * 0.6);
+          c = mix(c, uColorA, smoothstep(0.24, 0.45, f));
+          c = mix(c, vec3(1.0, 0.62, 0.18), smoothstep(0.45, 0.68, f));
+          c = mix(c, vec3(1.0, 0.95, 0.82), smoothstep(0.7, 0.95, f));
+          gl_FragColor = vec4(c, smoothstep(0.02, 0.2, f));
+        }`,
+    }));
+    flames.frustumCulled = false;
+    sceneF.add(flames);
+
+    const COUNT = 420;
+    const seeds = new Float32Array(COUNT * 4);
+    for (let i = 0; i < COUNT * 4; i++) seeds[i] = Math.random();
+    const eg = new THREE.BufferGeometry();
+    eg.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(COUNT * 3), 3));
+    eg.setAttribute('aSeed', new THREE.Float32BufferAttribute(seeds, 4));
+    const embers = new THREE.Points(eg, new THREE.ShaderMaterial({
+      uniforms: Object.assign({ uPixelRatio: { value: config.pixelRatio } }, uniforms),
+      transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending,
+      vertexShader: `
+        attribute vec4 aSeed;
+        uniform float uTime;
+        uniform float uHeight;
+        uniform float uPixelRatio;
+        varying float vAlpha;
+        varying float vHot;
+        void main() {
+          float life = fract(aSeed.x + uTime * (0.08 + aSeed.y * 0.14));
+          float y = life * (uHeight * 1.7 + 0.15) - 0.05;
+          float x = (aSeed.z - 0.5) * 2.2 + sin(uTime * (0.6 + aSeed.w) + aSeed.x * 30.0) * 0.06 + (life * life) * (aSeed.w - 0.5) * 0.4;
+          gl_Position = vec4(x, y * 2.0 - 1.0, 0.0, 1.0);
+          vAlpha = smoothstep(0.0, 0.1, life) * (1.0 - smoothstep(0.55, 1.0, life)) * step(0.02, uHeight);
+          vHot = aSeed.y;
+          gl_PointSize = (1.5 + aSeed.w * 3.5) * uPixelRatio * (1.0 - life * 0.6);
+        }`,
+      fragmentShader: `
+        uniform vec3 uColorA;
+        varying float vAlpha;
+        varying float vHot;
+        void main() {
+          float d = length(gl_PointCoord - 0.5);
+          float g = smoothstep(0.5, 0.0, d);
+          vec3 c = mix(uColorA, vec3(1.0, 0.85, 0.5), vHot);
+          gl_FragColor = vec4(c * g * vAlpha, g * vAlpha);
+        }`,
+    }));
+    embers.frustumCulled = false;
+    sceneF.add(embers);
+
+    return {
+      scene: sceneF, camera: cam, bloom: 0.7, cover: 1300, intro: 2600,
+      enter(origin) { uniforms.uOrigin.value.set(origin.x / config.width, 1 - origin.y / config.height); },
+      resize(aspect) { uniforms.uAspect.value = aspect; },
+      update(delta, B) {
+        uniforms.uTime.value += delta / 1000;
+        const c = clamp01(B), k = clamp01(B - 1);
+        if (B <= 1) {
+          // Une flamme au centre du picto, qui enfle jusqu'à recouvrir toute la fenêtre.
+          uniforms.uIgnite.value = 0.015 + easeInCubic(c) * 2.6;
+          uniforms.uHeight.value = 0;
+        } else {
+          // Le brasier se retire vers le bas et se pose dans la moitié basse.
+          uniforms.uIgnite.value = THREE.MathUtils.lerp(2.6, 0, easeInOut(clamp01(k / 0.7)));
+          uniforms.uHeight.value = THREE.MathUtils.lerp(1.6, 0.52, easeInOut(k));
+        }
+      },
+    };
+  })();
+
+  /* ---------- AIR : éclaireur·se — The Spirit, d'Edan Kwan ---------- */
+  /*
+   * Simulation et rendu des particules adaptés de « The Spirit » d'Edan Kwan
+   * https://github.com/edankwan/The-Spirit
+   *
+   * The MIT License (MIT)
+   * Copyright (c) 2015 Edan Kwan
+   *
+   * Permission is hereby granted, free of charge, to any person obtaining a copy
+   * of this software and associated documentation files (the "Software"), to deal
+   * in the Software without restriction, including without limitation the rights
+   * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   * copies of the Software, and to permit persons to whom the Software is
+   * furnished to do so, subject to the following conditions:
+   *
+   * The above copyright notice and this permission notice shall be included in all
+   * copies or substantial portions of the Software.
+   *
+   * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   * SOFTWARE.
+   */
+  const air = (function () {
+    const spiritNoise = `
+vec4 mod289(vec4 x) {
+    return x - floor(x * (1.0 / 289.0)) * 289.0;
+}
+
+float mod289(float x) {
+    return x - floor(x * (1.0 / 289.0)) * 289.0;
+}
+
+vec4 permute(vec4 x) {
+    return mod289(((x*34.0)+1.0)*x);
+}
+
+float permute(float x) {
+    return mod289(((x*34.0)+1.0)*x);
+}
+
+vec4 taylorInvSqrt(vec4 r) {
+    return 1.79284291400159 - 0.85373472095314 * r;
+}
+
+float taylorInvSqrt(float r) {
+    return 1.79284291400159 - 0.85373472095314 * r;
+}
+
+vec4 grad4(float j, vec4 ip) {
+    const vec4 ones = vec4(1.0, 1.0, 1.0, -1.0);
+    vec4 p,s;
+
+    p.xyz = floor( fract (vec3(j) * ip.xyz) * 7.0) * ip.z - 1.0;
+    p.w = 1.5 - dot(abs(p.xyz), ones.xyz);
+    s = vec4(lessThan(p, vec4(0.0)));
+    p.xyz = p.xyz + (s.xyz*2.0 - 1.0) * s.www;
+
+    return p;
+}
+
+#define F4 0.309016994374947451
+
+vec4 simplexNoiseDerivatives (vec4 v) {
+    const vec4  C = vec4( 0.138196601125011,0.276393202250021,0.414589803375032,-0.447213595499958);
+
+    vec4 i  = floor(v + dot(v, vec4(F4)) );
+    vec4 x0 = v -   i + dot(i, C.xxxx);
+
+    vec4 i0;
+    vec3 isX = step( x0.yzw, x0.xxx );
+    vec3 isYZ = step( x0.zww, x0.yyz );
+    i0.x = isX.x + isX.y + isX.z;
+    i0.yzw = 1.0 - isX;
+    i0.y += isYZ.x + isYZ.y;
+    i0.zw += 1.0 - isYZ.xy;
+    i0.z += isYZ.z;
+    i0.w += 1.0 - isYZ.z;
+
+    vec4 i3 = clamp( i0, 0.0, 1.0 );
+    vec4 i2 = clamp( i0-1.0, 0.0, 1.0 );
+    vec4 i1 = clamp( i0-2.0, 0.0, 1.0 );
+
+    vec4 x1 = x0 - i1 + C.xxxx;
+    vec4 x2 = x0 - i2 + C.yyyy;
+    vec4 x3 = x0 - i3 + C.zzzz;
+    vec4 x4 = x0 + C.wwww;
+
+    i = mod289(i);
+    float j0 = permute( permute( permute( permute(i.w) + i.z) + i.y) + i.x);
+    vec4 j1 = permute( permute( permute( permute (
+             i.w + vec4(i1.w, i2.w, i3.w, 1.0 ))
+           + i.z + vec4(i1.z, i2.z, i3.z, 1.0 ))
+           + i.y + vec4(i1.y, i2.y, i3.y, 1.0 ))
+           + i.x + vec4(i1.x, i2.x, i3.x, 1.0 ));
+
+
+    vec4 ip = vec4(1.0/294.0, 1.0/49.0, 1.0/7.0, 0.0) ;
+
+    vec4 p0 = grad4(j0,   ip);
+    vec4 p1 = grad4(j1.x, ip);
+    vec4 p2 = grad4(j1.y, ip);
+    vec4 p3 = grad4(j1.z, ip);
+    vec4 p4 = grad4(j1.w, ip);
+
+    vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+    p0 *= norm.x;
+    p1 *= norm.y;
+    p2 *= norm.z;
+    p3 *= norm.w;
+    p4 *= taylorInvSqrt(dot(p4,p4));
+
+    vec3 values0 = vec3(dot(p0, x0), dot(p1, x1), dot(p2, x2)); //value of contributions from each corner at point
+    vec2 values1 = vec2(dot(p3, x3), dot(p4, x4));
+
+    vec3 m0 = max(0.5 - vec3(dot(x0,x0), dot(x1,x1), dot(x2,x2)), 0.0); //(0.5 - x^2) where x is the distance
+    vec2 m1 = max(0.5 - vec2(dot(x3,x3), dot(x4,x4)), 0.0);
+
+    vec3 temp0 = -6.0 * m0 * m0 * values0;
+    vec2 temp1 = -6.0 * m1 * m1 * values1;
+
+    vec3 mmm0 = m0 * m0 * m0;
+    vec2 mmm1 = m1 * m1 * m1;
+
+    float dx = temp0[0] * x0.x + temp0[1] * x1.x + temp0[2] * x2.x + temp1[0] * x3.x + temp1[1] * x4.x + mmm0[0] * p0.x + mmm0[1] * p1.x + mmm0[2] * p2.x + mmm1[0] * p3.x + mmm1[1] * p4.x;
+    float dy = temp0[0] * x0.y + temp0[1] * x1.y + temp0[2] * x2.y + temp1[0] * x3.y + temp1[1] * x4.y + mmm0[0] * p0.y + mmm0[1] * p1.y + mmm0[2] * p2.y + mmm1[0] * p3.y + mmm1[1] * p4.y;
+    float dz = temp0[0] * x0.z + temp0[1] * x1.z + temp0[2] * x2.z + temp1[0] * x3.z + temp1[1] * x4.z + mmm0[0] * p0.z + mmm0[1] * p1.z + mmm0[2] * p2.z + mmm1[0] * p3.z + mmm1[1] * p4.z;
+    float dw = temp0[0] * x0.w + temp0[1] * x1.w + temp0[2] * x2.w + temp1[0] * x3.w + temp1[1] * x4.w + mmm0[0] * p0.w + mmm0[1] * p1.w + mmm0[2] * p2.w + mmm1[0] * p3.w + mmm1[1] * p4.w;
+
+    return vec4(dx, dy, dz, dw) * 49.0;
+}
+`;
+    const spiritCurl = `
+vec3 curl( in vec3 p, in float noiseTime, in float persistence ) {
+
+    vec4 xNoisePotentialDerivatives = vec4(0.0);
+    vec4 yNoisePotentialDerivatives = vec4(0.0);
+    vec4 zNoisePotentialDerivatives = vec4(0.0);
+
+    for (int i = 0; i < 3; ++i) {
+
+        float twoPowI = pow(2.0, float(i));
+        float scale = 0.5 * twoPowI * pow(persistence, float(i));
+
+        xNoisePotentialDerivatives += simplexNoiseDerivatives(vec4(p * twoPowI, noiseTime)) * scale;
+        yNoisePotentialDerivatives += simplexNoiseDerivatives(vec4((p + vec3(123.4, 129845.6, -1239.1)) * twoPowI, noiseTime)) * scale;
+        zNoisePotentialDerivatives += simplexNoiseDerivatives(vec4((p + vec3(-9519.0, 9051.0, -123.0)) * twoPowI, noiseTime)) * scale;
+    }
+
+    return vec3(
+        zNoisePotentialDerivatives[1] - yNoisePotentialDerivatives[2],
+        xNoisePotentialDerivatives[2] - zNoisePotentialDerivatives[0],
+        yNoisePotentialDerivatives[0] - xNoisePotentialDerivatives[1]
+    );
+
+}
+`;
+    const positionShader = `
+uniform sampler2D textureDefaultPosition;
+uniform float time;
+uniform float speed;
+uniform float dieSpeed;
+uniform float radius;
+uniform float curlSize;
+uniform float attraction;
+uniform float initAnimation;
+uniform vec3 mouse3d;
+uniform vec3 uStart;
+${spiritNoise}
+${spiritCurl}
+void main() {
+
+    vec2 uv = gl_FragCoord.xy / resolution.xy;
+
+    vec4 positionInfo = texture2D( texturePosition, uv );
+    vec3 position = mix(uStart, positionInfo.xyz, smoothstep(0.0, 0.3, initAnimation));
+    float life = positionInfo.a - dieSpeed;
+
+    vec3 followPosition = mix(uStart, mouse3d, smoothstep(0.2, 0.7, initAnimation));
+
+    if(life < 0.0) {
+        positionInfo = texture2D( textureDefaultPosition, uv );
+        position = positionInfo.xyz * (1.0 + sin(time * 15.0) * 0.2 + (1.0 - initAnimation)) * 0.4 * radius;
+        position += followPosition;
+        life = 0.5 + fract(positionInfo.w * 21.4131 + time);
+    } else {
+        vec3 delta = followPosition - position;
+        position += delta * (0.005 + life * 0.01) * attraction * (1.0 - smoothstep(50.0, 350.0, length(delta))) *speed;
+        position += curl(position * curlSize, time, 0.1 + (1.0 - life) * 0.1) *speed;
+    }
+
+    gl_FragColor = vec4(position, life);
+
+}`;
+
+    const amount = coarse ? [128, 128, 0.48] : [256, 256, 0.6];
+    const W = amount[0], H = amount[1];
+    const settings = { speed: 1, dieSpeed: 0.015, radius: amount[2], curlSize: 0.02, attraction: 1 };
+
+    const sceneA = new THREE.Scene();
+    const cam = new THREE.PerspectiveCamera(45, 1, 10, 3000);
+    sceneA.add(cam);
+
+    let gpu = null, posVar = null, ok = false, failed = false, defTexture = null;
+    const followPoint = new THREE.Vector3();
+    const mouse3d = new THREE.Vector3();
+    const start = new THREE.Vector3(0, -200, 0);
+    let followPointTime = 0, orbit = 0;
+
+    const pos = new Float32Array(W * H * 3);
+    for (let i = 0; i < W * H; i++) { pos[i * 3] = (i % W + 0.5) / W; pos[i * 3 + 1] = (Math.floor(i / W) + 0.5) / H; }
+    const pg = new THREE.BufferGeometry();
+    pg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    const particleUniforms = {
+      texturePosition: { value: null },
+      textureDefaultPosition: { value: null },
+      uStart: { value: start },
+      uBurst: { value: 0 },      // nuage qui jaillit du picto
+      uSim: { value: 0 },        // 0 : nuage, 1 : simulation de The Spirit
+      uPixelRatio: { value: config.pixelRatio },
+      color1: { value: new THREE.Color('#e6eeff') },
+      color2: { value: COLOR_A },
+      color3: { value: COLOR_B },
+    };
+    const particles = new THREE.Points(pg, new THREE.ShaderMaterial({
+      uniforms: particleUniforms,
+      vertexShader: `
+        uniform sampler2D texturePosition;
+        uniform sampler2D textureDefaultPosition;
+        uniform vec3 uStart;
+        uniform float uBurst;
+        uniform float uSim;
+        uniform float uPixelRatio;
+        varying float vLife;
+        void main() {
+          vec4 positionInfo = texture2D(texturePosition, position.xy);
+          vec4 def = texture2D(textureDefaultPosition, position.xy);
+          vec3 cloud = uStart + def.xyz * uBurst * 24.0;
+          vec3 p = mix(cloud, positionInfo.xyz, uSim);
+          vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
+          vLife = mix(0.4 + def.w * 0.6, positionInfo.w, uSim);
+          float grow = 1.0 + uBurst * 7.0 * (1.0 - uSim);
+          gl_PointSize = 1300.0 / length(mvPosition.xyz) * smoothstep(0.0, 0.2, vLife) * uPixelRatio * 0.7 * grow;
+          gl_Position = projectionMatrix * mvPosition;
+        }`,
+      fragmentShader: `
+        uniform vec3 color1;
+        uniform vec3 color2;
+        uniform vec3 color3;
+        varying float vLife;
+        void main() {
+          if (length(gl_PointCoord - 0.5) > 0.5) discard;
+          vec3 c = mix(color2, color3, smoothstep(0.0, 0.3, vLife));
+          c = mix(c, color1, smoothstep(0.35, 0.95, vLife));
+          gl_FragColor = vec4(c, 1.0);
+        }`,
+    }));
+    particles.frustumCulled = false;
+    sceneA.add(particles);
+
+    function init() {
+      if (ok || failed) return;
+      gpu = new THREE.GPUComputationRenderer(W, H, fxRenderer);
+      if (coarse) gpu.setDataType(THREE.HalfFloatType);
+      const def = gpu.createTexture();
+      const d = def.image.data;
+      for (let i = 0; i < W * H; i++) {
+        const r = (0.5 + Math.random() * 0.5) * 50;
+        const phi = (Math.random() - 0.5) * Math.PI;
+        const theta = Math.random() * Math.PI * 2;
+        d[i * 4] = r * Math.cos(theta) * Math.cos(phi);
+        d[i * 4 + 1] = r * Math.sin(phi);
+        d[i * 4 + 2] = r * Math.sin(theta) * Math.cos(phi);
+        d[i * 4 + 3] = Math.random();
+      }
+      defTexture = def;
+      posVar = gpu.addVariable('texturePosition', positionShader, def);
+      gpu.setVariableDependencies(posVar, [posVar]);
+      Object.assign(posVar.material.uniforms, {
+        textureDefaultPosition: { value: def },
+        mouse3d: { value: mouse3d },
+        uStart: { value: start },
+        speed: { value: 1 }, dieSpeed: { value: 0 }, radius: { value: 0 }, curlSize: { value: 0 },
+        attraction: { value: 0 }, time: { value: 0 }, initAnimation: { value: 0 },
+      });
+      const error = gpu.init();
+      if (error) { failed = true; console.warn(error); return; }
+      particleUniforms.textureDefaultPosition.value = def;
+      ok = true;
+    }
+
+    const ray = new THREE.Ray();
+    function placeCamera(k) {
+      const dist = THREE.MathUtils.lerp(1000, 450, easeOutCubic(k)) * (cam.aspect < 1 ? 1.5 / Math.max(cam.aspect, 0.5) : 1);
+      cam.position.set(300, 60, 300).normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), orbit).multiplyScalar(dist);
+      cam.lookAt(0, 0, 0);
+      cam.updateMatrixWorld();
+    }
+    return {
+      scene: sceneA, camera: cam, bloom: 0.6, cover: 1500, intro: 3800,
+      get ready() { return ok || failed; },
+      enter(origin) {
+        init();
+        if (!ok) return;
+        placeCamera(0);
+        start.copy(screenToPlane(cam, origin.x, origin.y, new THREE.Vector3()));
+        mouse3d.copy(start);
+      },
+      resize(aspect) { cam.aspect = aspect; cam.updateProjectionMatrix(); },
+      update(delta, B) {
+        if (!ok) return;
+        const c = clamp01(B), k = clamp01(B - 1);
+        orbit += delta * 0.00004 * k;
+        placeCamera(k);
+        // Phase 1 : le nuage jaillit du picto et grossit jusqu'à remplir la fenêtre.
+        particleUniforms.uBurst.value = easeInCubic(c) * 1.0;
+        particleUniforms.uSim.value = easeInOut(clamp01(k / 0.55));
+
+        const u = posVar.material.uniforms;
+        if (k > 0 && airPointer && performance.now() - airPointer.t < 4000) {
+          ray.origin.setFromMatrixPosition(cam.matrixWorld);
+          ray.direction.set(airPointer.x, airPointer.y, 0.5).unproject(cam).sub(ray.origin).normalize();
+          const distance = ray.origin.length() / Math.cos(Math.PI - ray.direction.angleTo(ray.origin));
+          ray.origin.add(ray.direction.multiplyScalar(distance));
+          mouse3d.lerp(ray.origin, 0.2);
+        } else if (k > 0) {
+          const r = coarse ? 100 : 200, h = coarse ? 40 : 60;
+          followPointTime += delta * 0.001 * settings.speed;
+          followPoint.set(Math.cos(followPointTime) * r, Math.cos(followPointTime * 4.0) * h, Math.sin(followPointTime * 2.0) * r);
+          mouse3d.lerp(followPoint, 0.2);
+        }
+        const deltaRatio = delta / 16.6667;
+        u.speed.value = settings.speed * deltaRatio;
+        u.dieSpeed.value = settings.dieSpeed * deltaRatio;
+        u.radius.value = settings.radius;
+        u.curlSize.value = settings.curlSize;
+        u.attraction.value = settings.attraction;
+        u.initAnimation.value = k;
+        u.time.value += delta * 0.001;
+        gpu.compute();
+        particleUniforms.texturePosition.value = gpu.getCurrentRenderTarget(posVar).texture;
+      },
+    };
+  })();
+
+  /* ---------- EAU : expert·e — liquide en métaballes ---------- */
+  const liquid = (function () {
+    const sceneE = new THREE.Scene();
+    const cam = new THREE.PerspectiveCamera(35, 1, 0.1, 50);
+    cam.position.set(0, 0, 4);
+    const uniforms = { uTime: { value: 0 }, uColorA: { value: COLOR_A }, uColorB: { value: COLOR_B } };
+    const mat = new THREE.ShaderMaterial({
+      uniforms,
+      vertexShader: `
+        varying vec3 vNormal;
+        varying vec3 vView;
+        void main() {
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          vView = -mv.xyz;
+          vNormal = normalize(normalMatrix * normal);
+          gl_Position = projectionMatrix * mv;
+        }`,
+      fragmentShader: `
+        uniform float uTime;
+        uniform vec3 uColorA;
+        uniform vec3 uColorB;
+        varying vec3 vNormal;
+        varying vec3 vView;
+        void main() {
+          vec3 n = normalize(vNormal);
+          vec3 v = normalize(vView);
+          float fres = pow(1.0 - max(dot(n, v), 0.0), 3.0);
+          vec3 la = normalize(vec3(0.8, 0.9, 0.5));
+          vec3 lb = normalize(vec3(-0.9, -0.5, 0.4));
+          vec3 r = reflect(-v, n);
+          float da = max(dot(n, la), 0.0), db = max(dot(n, lb), 0.0);
+          float sa = pow(max(dot(r, la), 0.0), 70.0), sb = pow(max(dot(r, lb), 0.0), 40.0);
+          vec3 env = mix(vec3(0.02, 0.0, 0.08), mix(uColorB, vec3(1.0), 0.35), smoothstep(-0.3, 1.0, r.y));
+          vec3 col = vec3(0.01, 0.025, 0.08);
+          col += uColorA * da * 0.18 + uColorB * db * 0.55;
+          col += env * fres * 1.3;
+          col += vec3(1.0) * sa * 1.6 + uColorA * sb * 1.1;
+          col += (0.5 + 0.5 * cos(6.28318 * (fres * 1.4 + vec3(0.0, 0.33, 0.67) + uTime * 0.05))) * fres * 0.3;
+          gl_FragColor = vec4(col, 1.0);
+        }`,
+    });
+    const mc = new THREE.MarchingCubes(coarse ? 36 : 52, mat, false, false);
+    mc.isolation = 80;
+    sceneE.add(mc);
+
+    const N = 11;
+    const rest = new THREE.Vector3(), start = new THREE.Vector3(), coverPos = new THREE.Vector3(0, 0, -0.6);
+    let t = 0;
+    return {
+      scene: sceneE, camera: cam, bloom: 0.5, cover: 1400, intro: 2800,
+      // Le halo s'additionne sur toute la surface : plus la bulle est grande, plus on le baisse,
+      // pour qu'elle garde la même matière que la masse finale.
+      bloomNow(B) {
+        const cover = B <= 1 ? easeInCubic(clamp01(B)) : 1 - easeInOut(clamp01((B - 1) / 0.75));
+        return 0.5 * (1 - 0.85 * cover);
+      },
+      enter(origin) { start.copy(screenToPlane(cam, origin.x, origin.y, new THREE.Vector3(0, 0, 0))); },
+      resize(aspect) {
+        cam.aspect = aspect;
+        cam.position.z = aspect < 1 ? 4 / Math.max(aspect, 0.55) : 4;
+        rest.set(aspect >= 1 ? Math.min(0.9, 0.42 * aspect) : 0, aspect >= 1 ? 0.1 : 0.55, 0);
+        cam.updateProjectionMatrix();
+      },
+      update(delta, B) {
+        t += delta / 1000;
+        uniforms.uTime.value = t;
+        const c = clamp01(B), k = clamp01(B - 1);
+        const coverScale = 10 * Math.max(1, 1 / cam.aspect);
+        if (B <= 1) {
+          // Une goutte au centre du picto, qui enfle au premier plan jusqu'à noyer la fenêtre.
+          const e = easeInCubic(c);
+          mc.position.lerpVectors(start, coverPos, easeInOut(c));
+          mc.scale.setScalar(THREE.MathUtils.lerp(0.12, coverScale, e));
+        } else {
+          // Le liquide se retire et se rassemble en masse vivante à sa place.
+          const e = easeInOut(clamp01(k / 0.75));
+          mc.position.lerpVectors(coverPos, rest, e);
+          mc.scale.setScalar(THREE.MathUtils.lerp(coverScale, 1.25, e));
+        }
+        mc.rotation.y += delta * 0.00008;
+        mc.reset();
+        const strength = 1.2 / ((Math.sqrt(N) - 1) / 4 + 1);
+        const spread = easeInOut(clamp01((k - 0.3) / 0.6));
+        for (let i = 0; i < N; i++) {
+          const x = Math.sin(i + 1.26 * t * (1.03 + 0.5 * Math.cos(0.21 * i))) * 0.22 + 0.5;
+          const y = Math.cos(i + 1.12 * t * Math.cos(1.22 + 0.1424 * i)) * 0.2 + 0.5;
+          const z = Math.cos(i + 1.32 * t * 0.1 * Math.sin(0.92 + 0.53 * i)) * 0.22 + 0.5;
+          const s = THREE.MathUtils.lerp(0.06, 1, spread);   // serrées : une seule grosse goutte ; puis elles se dispersent
+          mc.addBall(0.5 + (x - 0.5) * s, 0.5 + (y - 0.5) * s, 0.5 + (z - 0.5) * s, strength * THREE.MathUtils.lerp(0.55, 1, spread), 12);
+        }
+      },
+    };
+  })();
+
+  /* ---------- TERRE : porteur·se de projet — des éclats de statue forment un buste ---------- */
+  const bust = (function () {
+    const sceneT = new THREE.Scene();
+    const cam = new THREE.PerspectiveCamera(30, 1, 0.05, 50);
+    const uniforms = {
+      uAssemble: { value: 0 }, uCover: { value: 0 }, uFade: { value: 0 },
+      uStart: { value: new THREE.Vector3() },
+      uColorA: { value: COLOR_A }, uColorB: { value: COLOR_B },
+    };
+    const group = new THREE.Group();
+    sceneT.add(group);
+    let ready = false, failed = false, t = 0, mesh = null, chunkList = null;
+    const startWorld = new THREE.Vector3();
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms, side: THREE.DoubleSide,
+      vertexShader: `
+        attribute vec3 aCenter;
+        attribute vec3 aCover;
+        attribute vec3 aAxis;
+        attribute vec2 aParams;   // angle, retard
+        uniform float uAssemble;
+        uniform float uCover;
+        uniform vec3 uStart;
+        varying vec3 vNormal;
+        varying vec3 vView;
+        varying float vFlash;
+        varying float vPlaced;
+        mat3 rotation(vec3 axis, float a) {
+          float s = sin(a), c = cos(a), oc = 1.0 - c;
+          return mat3(oc * axis.x * axis.x + c, oc * axis.x * axis.y + axis.z * s, oc * axis.z * axis.x - axis.y * s,
+                      oc * axis.x * axis.y - axis.z * s, oc * axis.y * axis.y + c, oc * axis.y * axis.z + axis.x * s,
+                      oc * axis.z * axis.x + axis.y * s, oc * axis.y * axis.z - axis.x * s, oc * axis.z * axis.z + c);
+        }
+        void main() {
+          float start = aParams.y * 0.62;
+          float p = clamp((uAssemble - start) / 0.38, 0.0, 1.0);
+          float e = 1.0 - pow(1.0 - p, 3.0);
+          // Phase 1 : les éclats jaillissent du picto vers le premier plan, en grossissant.
+          float cv = uCover;
+          vec3 flying = mix(uStart, aCover, cv);
+          float size = mix(0.25, 1.25, cv);
+          mat3 R = rotation(aAxis, (aParams.x + cv * 1.5) * (1.0 - e));
+          vec3 local = R * (position - aCenter);
+          vec3 pos = mix(flying + local * size, aCenter + local, e);
+          vec4 mv = modelViewMatrix * vec4(pos, 1.0);
+          vView = -mv.xyz;
+          vNormal = normalize(normalMatrix * (R * normal));
+          float after = (uAssemble - start - 0.38) / 0.12;
+          vFlash = step(1.0, p) * (1.0 - clamp(after, 0.0, 1.0));
+          vPlaced = e;
+          gl_Position = projectionMatrix * mv;
+        }`,
+      fragmentShader: `
+        uniform vec3 uColorA;
+        uniform vec3 uColorB;
+        uniform float uFade;
+        varying vec3 vNormal;
+        varying vec3 vView;
+        varying float vFlash;
+        varying float vPlaced;
+        void main() {
+          vec3 n = normalize(vNormal);
+          if (!gl_FrontFacing) n = -n;
+          vec3 v = normalize(vView);
+          float fres = pow(1.0 - max(dot(n, v), 0.0), 2.5);
+          float da = max(dot(n, normalize(vec3(0.7, 0.6, 0.6))), 0.0);
+          float db = max(dot(n, normalize(vec3(-0.9, -0.2, 0.3))), 0.0);
+          vec3 stone = vec3(0.88, 0.85, 0.8);
+          vec3 col = stone * 0.05;
+          col += stone * (uColorA * pow(da, 1.4) * 0.55 + vec3(0.9, 0.85, 0.8) * da * 0.18);
+          col += stone * uColorB * db * 0.45;
+          col += vec3(1.0) * pow(fres, 1.5) * 0.22;
+          col += uColorA * vFlash * 1.4;
+          if (!gl_FrontFacing) col *= 0.35;
+          col *= mix(0.7, 1.0, vPlaced) * uFade;
+          gl_FragColor = vec4(col, 1.0);
+        }`,
+    });
+
+    function shatter(source) {
+      const g = source.index ? source.toNonIndexed() : source.clone();
+      g.computeBoundingBox();
+      const bb = g.boundingBox, size = new THREE.Vector3(), center = new THREE.Vector3();
+      bb.getSize(size); bb.getCenter(center);
+      const s = 2.2 / size.y;
+      g.translate(-center.x, -center.y, -center.z);
+      g.scale(s, s, s);
+      if (!g.attributes.normal) g.computeVertexNormals();
+      const P = g.attributes.position.array;
+      const triCount = P.length / 9;
+
+      const SEEDS = coarse ? 160 : 260;
+      const seeds = [];
+      for (let i = 0; i < SEEDS; i++) {
+        const tIdx = Math.floor(Math.random() * triCount) * 9;
+        seeds.push([(P[tIdx] + P[tIdx + 3] + P[tIdx + 6]) / 3, (P[tIdx + 1] + P[tIdx + 4] + P[tIdx + 7]) / 3, (P[tIdx + 2] + P[tIdx + 5] + P[tIdx + 8]) / 3]);
+      }
+      const owner = new Int32Array(triCount);
+      const sums = new Float32Array(SEEDS * 4);
+      for (let tr = 0; tr < triCount; tr++) {
+        const o = tr * 9;
+        const cx = (P[o] + P[o + 3] + P[o + 6]) / 3, cy = (P[o + 1] + P[o + 4] + P[o + 7]) / 3, cz = (P[o + 2] + P[o + 5] + P[o + 8]) / 3;
+        let best = 0, bd = Infinity;
+        for (let k = 0; k < SEEDS; k++) {
+          const dx = cx - seeds[k][0], dy = cy - seeds[k][1], dz = cz - seeds[k][2];
+          const d = dx * dx + dy * dy + dz * dz;
+          if (d < bd) { bd = d; best = k; }
+        }
+        owner[tr] = best;
+        sums[best * 4] += cx; sums[best * 4 + 1] += cy; sums[best * 4 + 2] += cz; sums[best * 4 + 3]++;
+      }
+      chunkList = [];
+      for (let k = 0; k < SEEDS; k++) {
+        const c = sums[k * 4 + 3] || 1;
+        const cy = sums[k * 4 + 1] / c;
+        chunkList.push({
+          c: [sums[k * 4] / c, cy, sums[k * 4 + 2] / c],
+          a: new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize(),
+          ang: 2 + Math.random() * 7,
+          delay: clamp01((cy + 1.1) / 2.2 * 0.65 + Math.random() * 0.35),
+          cover: [Math.random(), Math.random(), Math.random()],
+        });
+      }
+      const vc = triCount * 3;
+      const aCenter = new Float32Array(vc * 3), aCover = new Float32Array(vc * 3), aAxis = new Float32Array(vc * 3), aParams = new Float32Array(vc * 2);
+      const aChunk = new Int32Array(vc);
+      for (let tr = 0; tr < triCount; tr++) {
+        const ch = chunkList[owner[tr]];
+        for (let j = 0; j < 3; j++) {
+          const v = tr * 3 + j;
+          aCenter.set(ch.c, v * 3);
+          aAxis.set([ch.a.x, ch.a.y, ch.a.z], v * 3);
+          aParams.set([ch.ang, ch.delay], v * 2);
+          aChunk[v] = owner[tr];
+        }
+      }
+      g.setAttribute('aCenter', new THREE.BufferAttribute(aCenter, 3));
+      g.setAttribute('aCover', new THREE.BufferAttribute(aCover, 3));
+      g.setAttribute('aAxis', new THREE.BufferAttribute(aAxis, 3));
+      g.setAttribute('aParams', new THREE.BufferAttribute(aParams, 2));
+      g.userData.chunk = aChunk;
+      mesh = new THREE.Mesh(g, mat);
+      mesh.frustumCulled = false;
+      group.add(mesh);
+      ready = true;
+    }
+
+    // Où chaque éclat se tient quand ils couvrent la fenêtre : un mur d'éclats juste devant la caméra.
+    function layoutCover() {
+      if (!mesh) return;
+      const camLocal = cam.position.clone().sub(group.position);
+      const tanH = Math.tan(THREE.MathUtils.degToRad(15));
+      const per = chunkList.map(ch => {
+        const depth = 3.4 + ch.cover[2] * 2.6;      // à bonne distance : on voit les éclats, l'arbre reste deviné derrière
+        const hh = depth * tanH * 1.15, hw = hh * cam.aspect;
+        return [camLocal.x + (ch.cover[0] * 2 - 1) * hw, camLocal.y + (ch.cover[1] * 2 - 1) * hh, camLocal.z - depth];
+      });
+      const arr = mesh.geometry.attributes.aCover.array, chunk = mesh.geometry.userData.chunk;
+      for (let v = 0; v < chunk.length; v++) arr.set(per[chunk[v]], v * 3);
+      mesh.geometry.attributes.aCover.needsUpdate = true;
+    }
+
+    fetch('models/LeePerrySmith.json').then(r => r.json()).then(data => {
+      const bin = atob(data.glb);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      new THREE.GLTFLoader().parse(bytes.buffer, '', onModel, err => { failed = true; console.warn('Buste illisible', err); });
+    }).catch(err => { failed = true; console.warn('Buste introuvable', err); });
+    function onModel(gltf) {
+      let found = null;
+      gltf.scene.updateMatrixWorld(true);
+      gltf.scene.traverse(o => { if (o.isMesh && !found) found = o; });
+      if (!found) { failed = true; return; }
+      const geo = found.geometry.clone();
+      geo.applyMatrix4(found.matrixWorld);
+      shatter(geo);
+    }
+
+    return {
+      scene: sceneT, camera: cam, bloom: 0.45, cover: 1500, intro: 3800,
+      bloomNow(B) {
+        const cover = B <= 1 ? easeInOut(clamp01(B)) : 1 - clamp01((B - 1) / 0.6);
+        return 0.45 * (1 - 0.6 * cover);
+      },
+      get ready() { return ready || failed; },
+      enter(origin) {
+        group.rotation.y = 0;
+        group.updateMatrixWorld();
+        startWorld.copy(screenToPlane(cam, origin.x, origin.y, group.position));
+        uniforms.uStart.value.copy(group.worldToLocal(startWorld.clone()));
+        layoutCover();
+      },
+      resize(aspect) {
+        cam.aspect = aspect;
+        const z = 1.25 / Math.tan(THREE.MathUtils.degToRad(15)) * 1.35;
+        group.position.set(aspect >= 1 ? Math.min(1.1, 0.5 * aspect) : 0, aspect >= 1 ? 0 : 0.55, 0);
+        cam.position.set(0, 0.05, aspect < 1 ? z / Math.max(aspect, 0.55) * 0.8 : z);
+        cam.lookAt(0, 0, 0);
+        cam.updateProjectionMatrix();
+      },
+      update(delta, B) {
+        t += delta / 1000;
+        const c = clamp01(B), k = clamp01(B - 1);
+        uniforms.uCover.value = easeInOut(c);
+        uniforms.uAssemble.value = k;
+        uniforms.uFade.value = smoothstep(0, 0.08, c);
+        // Pas de rotation tant que les éclats couvrent l'écran ; elle s'installe pendant l'assemblage.
+        group.rotation.y = Math.sin(t * 0.25) * 0.45 * smoothstep(0.4, 1, k);
+      },
+    };
+  })();
+
+  const branches = { feu: fire, air, eau: liquid, terre: bust };
+
+  /* =====================================================================
+     Panneaux : P va de 0 à 2 ; chaque intervalle est une animation.
+     0 → 1 : plongée dans la sphère.  1 → 2 : croissance de l'arbre.
+     Depuis le panneau 2, B va de 0 à 2 vers l'univers d'un profil :
+     0 → 1 : l'arbre se rétracte dans le sol.  1 → 2 : entrée de l'élément.
+     ===================================================================== */
+  const DURATIONS = reduceMotion ? [1400, 1400] : [4600, 5200];
+  let P = 0, target = 0, arrivedAt = 0;
+  let branch = null, B = 0, BT = 0, pendingGo = null;
+  const views = { 0: 'p0', 1: 'p1', 2: 'p2', feu: 'b-feu', air: 'b-air', eau: 'b-eau', terre: 'b-terre' };
+  const viewEls = Object.fromEntries(Object.entries(views).map(([k, id]) => [k, document.getElementById(id)]));
+  const panels = [0, 1, 2].map(i => viewEls[i]);
+  const navButtons = [...document.querySelectorAll('.nav button')];
+  const nextLabel = document.getElementById('next-label');
+  const LABELS = ['Survolez le cœur · Défilez pour entrer', 'Défilez pour continuer', ''];
+  let shown = null;
+
+  function setView(name) {
+    name = String(name);
+    if (name === shown) return;
+    shown = name;
+    document.body.dataset.panel = name;
+    for (const k in viewEls) {
+      viewEls[k].classList.toggle('live', k === name);
+      viewEls[k].setAttribute('aria-hidden', String(k !== name));
+    }
+    document.querySelectorAll('.choice').forEach(b => b.tabIndex = name === '2' ? 0 : -1);
+    document.querySelectorAll('.back').forEach(b => b.tabIndex = b.closest('.panel') === viewEls[name] ? 0 : -1);
+    const idx = name in branches ? 2 : Number(name);
+    navButtons.forEach((b, k) => k === idx ? b.setAttribute('aria-current', 'step') : b.removeAttribute('aria-current'));
+    if (LABELS[idx]) nextLabel.textContent = LABELS[idx];
+  }
+
+  /* Le pictogramme s'éteint sur place ; l'effet 3D naît à son emplacement. */
+  function pictoOrigin(btn) {
+    const icon = btn && btn.querySelector('.picto');
+    if (!icon) return { x: config.width / 2, y: config.height * 0.7 };
+    const r = icon.getBoundingClientRect();
+    icon.classList.add('away');
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  }
+
+  function openBranch(key, btn) {
+    if (branch || P !== 2 || target !== 2) return;
+    const origin = pictoOrigin(btn);
+    branch = key;
+    BT = 2;
+    if (branches[key].enter) branches[key].enter(origin);
+  }
+  function closeBranch(then) {
+    if (!branch) return;
+    BT = 0;
+    pendingGo = then === undefined ? null : then;
+  }
+
+  function go(dir) {
+    const now = performance.now();
+    if (branch) {
+      if (dir < 0 && B === BT && now - arrivedAt > 650) closeBranch();
+      return;
+    }
+    const moving = P !== target;
+    const motion = Math.sign(target - P);
+    if (moving && dir === motion) return;                    // déjà en route dans ce sens
+    if (!moving && now - arrivedAt < 650) return;            // inertie du trackpad
+    goTo(target + dir);
+  }
+  function goTo(i) {
+    if (branch) { closeBranch(i); return; }
+    target = Math.min(Math.max(i, 0), 2);
+  }
+
+  addEventListener('wheel', e => {
+    if (Math.abs(e.deltaY) < 6) return;
+    e.preventDefault();
+    go(Math.sign(e.deltaY));
+  }, { passive: false });
+
+  let touchY = null;
+  addEventListener('touchstart', e => { touchY = e.touches[0].clientY; }, { passive: true });
+  addEventListener('touchend', e => {
+    if (touchY === null) return;
+    const dy = touchY - e.changedTouches[0].clientY;
+    touchY = null;
+    if (Math.abs(dy) > 40) go(Math.sign(dy));
+  }, { passive: true });
+
+  addEventListener('pointerdown', e => { if (P > 0.9 && P < 1.1 && !branch) addDrop(e.clientX, e.clientY, 1.4); });
+  canvas.addEventListener('click', () => { if (!branch && target < 2 && P === target) go(1); });
+  addEventListener('keydown', e => {
+    const onButton = e.target.closest && e.target.closest('button');
+    if (['ArrowDown', 'PageDown'].includes(e.key) || (e.key === ' ' && !onButton) || (e.key === 'Enter' && e.target === canvas)) { e.preventDefault(); go(1); }
+    if (['ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); go(-1); }
+    if (e.key === 'Escape') closeBranch();
+  });
+  document.getElementById('next').addEventListener('click', () => go(1));
+  navButtons.forEach(b => b.addEventListener('click', () => goTo(Number(b.dataset.go))));
+  document.querySelectorAll('.choice').forEach(btn => btn.addEventListener('click', () => openBranch(btn.dataset.branch, btn)));
+  document.querySelectorAll('.back').forEach(btn => btn.addEventListener('click', () => closeBranch()));
+
+  /* =====================================================================
+     Pointeur : survol de la sphère (panneau 1), souffle de l'air
+     ===================================================================== */
+  let pointer = null, airPointer = null;
+  addEventListener('pointermove', e => {
+    if (e.pointerType !== 'touch') pointer = { x: e.clientX, y: e.clientY };
+    if (P > 0.9 && P < 1.1 && !branch && performance.now() - lastDropAt > 280) { addDrop(e.clientX, e.clientY, 0.7); lastDropAt = performance.now(); }
+    airPointer = { x: e.clientX / config.width * 2 - 1, y: -(e.clientY / config.height) * 2 + 1, t: performance.now() };
+  });
+  document.addEventListener('pointerleave', () => { pointer = null; airPointer = null; });
+  addEventListener('blur', () => { pointer = null; airPointer = null; });
+
+  function hoverSpeed() {
+    if (!pointer || P > 0.001) return { speed: 1, agitation: 0 };
+    const r = (1 / (restZ * Math.tan(halfFov))) * (config.height / 2);
+    const d = Math.hypot(pointer.x - config.width / 2, pointer.y - config.height / 2) / r;
+    if (d < 1) {
+      const k = Math.pow(1 - d, 1.4);
+      return { speed: 1 + k * 7, agitation: k };
+    }
+    return { speed: 1 - smoothstep(1, 2.4, d) * 0.85, agitation: 0 };
+  }
+
+  function resizeBranches() {
+    const aspect = config.width / config.height;
+    for (const k in branches) branches[k].resize(aspect);
+  }
+  addEventListener('resize', resizeBranches);
+  resizeBranches();
+
+  /* =====================================================================
+     Mise en scène à partir de P et B
+     ===================================================================== */
+  const treeTarget = new THREE.Vector3();
+  const PUDDLE_VIEW = { back: 3.2, height: 5.2 };    // caméra en plongée sur la flaque
+  const FALL_END = 0.7;                               // la sphère touche l'eau
+  let lastStageP = 0;
+  let treeUsed = false;
+  function stage(time) {
+    // 0 → 1 : la sphère rapetisse sur place jusqu'à disparaître (0 → 0.7) ;
+    // une onde naît à cet endroit et découvre la flaque (0.7 → 1).
+    const shrink = easeInOut(clamp01(P / FALL_END));
+    const revealK = clamp01((P - FALL_END) / (1 - FALL_END));
+    // 1 → 2 : la caméra se relève depuis la flaque, l'arbre en sort.
+    const growT = clamp01(P - 1);
+    const grow = 1 - Math.pow(1 - clamp01((growT - 0.12) / 0.88), 1.7);
+    const backdrop = 1 - smoothstep(0.7, 1, B);            // l'arrière-plan s'efface une fois l'écran couvert
+    const orbitBase = time * 0.00004;
+    const C = tree.position;                                // centre de la flaque, pied de l'arbre
+
+    if (treeUsed && P <= 1) { plantTree(); treeUsed = false; }   // la prochaine fois, un autre arbre
+    tree.visible = P > 1;
+    if (P > 1) treeUsed = true;
+
+    if (P < FALL_END) {
+      // La caméra ne bouge pas : la sphère rapetisse jusqu'à n'être plus qu'un point.
+      sphere.visible = true;
+      puddle.visible = false;
+      sphere.position.set(0, 0, 0);
+      // La chute accélère jusqu'au bout : la sphère rapetisse de plus en plus vite (en proportion)
+      // et disparaît en pleine vitesse, au moment exact où naît l'onde.
+      const x = clamp01(P / FALL_END);
+      sphere.scale.setScalar(Math.exp(-Math.log(1 / 0.07) * Math.pow(x, 2.5)));
+      camera.fov = 25;
+      camera.position.set(0, 0, restZ);
+      camera.lookAt(0, 0, 0);
+    } else if (P <= 1) {
+      // Le point s'est éteint au centre de l'écran : l'onde part de là, sur la flaque vue en plongée.
+      sphere.visible = false;
+      puddle.visible = true;
+      camera.fov = TREE_FOV;
+      camera.position.set(C.x + Math.sin(orbitBase) * PUDDLE_VIEW.back, PUDDLE_VIEW.height, C.z + Math.cos(orbitBase) * PUDDLE_VIEW.back);
+      camera.lookAt(C);
+    } else {
+      sphere.visible = false;
+      puddle.visible = true;
+      // Pose « flaque » : on regarde l'eau en plongée. Pose « arbre » : le point de vue habituel.
+      const m = easeInOut(clamp01(growT / 0.8));
+      const dist = treeDist * THREE.MathUtils.lerp(0.55, 1, smoothstep(0, 1, growT));
+      const lookY = dist * treeTan + treeData.maxY * 0.02;   // base du tronc juste sous la fenêtre
+      const horiz = THREE.MathUtils.lerp(PUDDLE_VIEW.back, dist, m);
+      const camY = THREE.MathUtils.lerp(PUDDLE_VIEW.height, lookY, m);
+      const targetY = THREE.MathUtils.lerp(0, lookY, m);
+      const orbit = orbitBase + growT * 0.9;
+      camera.fov = TREE_FOV;
+      treeTarget.set(C.x, targetY, 0);
+      camera.position.set(C.x + Math.sin(orbit) * horiz, camY, Math.cos(orbit) * horiz);
+      camera.lookAt(treeTarget);
+    }
+    camera.updateProjectionMatrix();
+    treeUniforms.uGrow.value = grow * 1.06;
+    treeUniforms.uFade.value = backdrop;
+    puddleUniforms.uReveal.value = smoothstep(0, 0.35, revealK);
+    // La goutte touche l'eau : une onde ordinaire de la flaque, comme celles des autres gouttes.
+    if (P >= FALL_END && lastStageP < FALL_END) {
+      puddleUniforms.uDrops.value[dropIndex++ % 4].set(0, 0, puddleUniforms.uTime.value, 1.4);
+    }
+    lastStageP = P;
+    // Le bleu uni ne sert qu'à raccorder la chute à la flaque : il s'éteint dès que la caméra bouge.
+    puddleUniforms.uFlatAmount.value = 1 - smoothstep(0, 0.12, growT);
+    // Âge (en secondes) des ondes nées quand l'arbre sort de l'eau.
+    puddleUniforms.uSprout.value = growT > 0.1 ? (growT - 0.1) * DURATIONS[1] / 1000 : -1;
+    puddleUniforms.uOpacity.value = 1 - smoothstep(0.55, 1, growT);
+    if (puddleUniforms.uOpacity.value <= 0) puddle.visible = false;
+
+    // Textes
+    panels[0].style.opacity = String(1 - smoothstep(0, 0.3, P));
+    panels[0].style.transform = `scale(${1 - shrink * 0.25})`;
+    panels[1].style.opacity = String(P <= 1 ? smoothstep(0.25, 1, revealK) : 1 - smoothstep(0, 0.12, growT));
+    panels[1].style.transform = `translateY(${P <= 1 ? (1 - smoothstep(0.25, 1, revealK)) * 20 : -smoothstep(0, 0.12, growT) * 30}px)`;
+    panels[2].style.opacity = String(smoothstep(0.7, 1, growT) * backdrop);
+    panels[2].style.transform = `translateY(${(1 - smoothstep(0.7, 1, growT)) * 24}px)`;
+    for (const k in branches) {
+      const on = branch === k ? smoothstep(0.7, 1, B - 1) : 0;
+      viewEls[k].style.opacity = String(on);
+      viewEls[k].style.transform = `translateY(${(1 - on) * 24}px)`;
+    }
+
+    const moving = P !== target || B !== BT;
+    document.body.classList.toggle('moving', moving);
+    if (branch && B >= 1) setView(branch);
+    else setView(P === target ? target : Math.min(2, Math.round(P)));
+  }
+
+
+  /* =====================================================================
+     Boucle (delta en millisecondes, comme Time.js)
+     ===================================================================== */
+  let last = Date.now(), backdropOff = false;
+  function tick() {
+    const now = Date.now();
+    const delta = Math.min(now - last, 60);
+    last = now;
+
+    if (P !== target) {
+      const dir = Math.sign(target - P);
+      const seg = dir > 0 ? Math.floor(P) : Math.ceil(P) - 1;
+      const dur = DURATIONS[Math.min(Math.max(seg, 0), 1)] * (dir < 0 ? 0.65 : 1);
+      P += dir * delta / dur;
+      if ((dir > 0 && P >= target) || (dir < 0 && P <= target)) { P = target; arrivedAt = performance.now(); }
+    }
+
+    if (branch && B !== BT) {
+      const br = branches[branch];
+      const dir = Math.sign(BT - B);
+      const inFinal = dir > 0 ? B >= 1 : B > 1;
+      const waiting = dir > 0 && B === 0 && br.ready === false;   // le buste n'est pas encore chargé
+      if (!waiting) {
+        const dur = inFinal
+          ? (reduceMotion ? 1200 : br.intro) * (dir < 0 ? 0.5 : 1)
+          : (reduceMotion ? 600 : br.cover) * (dir < 0 ? 0.8 : 1);
+        let next = B + dir * delta / dur;
+        if (dir > 0 && B < 1 && next > 1) next = 1;              // l'écran couvert : on change de phase
+        if (dir < 0 && B > 1 && next < 1) next = 1;
+        B = next;
+        if ((dir > 0 && B >= BT) || (dir < 0 && B <= BT)) { B = BT; arrivedAt = performance.now(); }
+      }
+      if (B === 0 && BT === 0) {
+        branch = null;
+        fxRenderer.setRenderTarget(null);
+        fxRenderer.clear();
+        document.querySelectorAll('.picto.away').forEach(el => el.classList.remove('away'));
+        if (pendingGo !== null) { target = Math.min(Math.max(pendingGo, 0), 2); pendingGo = null; }
+      }
+    }
+
+    const h = hoverSpeed();
+    const diving = P > 0 && P < FALL_END && target > P;
+    speed = h.speed + (diving ? 4 : 0);
+    agitation = Math.max(h.agitation, diving ? 0.8 : 0);
+    if (P < FALL_END) updateSphere(delta);
+    treeUniforms.uTime.value += delta / 1000;
+    if (P > 0.25 && P < 2) puddleUniforms.uTime.value += delta / 1000;
+    if (branch) {
+      const br = branches[branch];
+      br.update(delta, B);
+      fxRenderPass.scene = br.scene;
+      fxRenderPass.camera = br.camera;
+      fxBloom.strength = br.bloomNow ? br.bloomNow(B) : br.bloom;
+      fxComposer.render();
+    }
+
+    stage(now);
+    // Derrière un effet installé, l'arrière-plan est éteint : inutile de le redessiner.
+    if (!(branch && B >= 1 && backdropOff)) composer.render();
+    backdropOff = !!branch && B >= 1;
+    requestAnimationFrame(tick);
+  }
+  setView(0);
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
