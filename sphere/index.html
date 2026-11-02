@@ -834,7 +834,7 @@ void main() {
 
     function grow(start, dir, length, radius, depth, t0) {
       if (branches.length > 1400) return;
-      const n = Math.max(4, Math.round(length * 9));
+      const n = Math.max(4, Math.round(length * (depth === 0 ? 22 : 9)));   // tronc plus finement découpé : son pied s'évase en douceur
       const step = length / n;
       const pts = [], times = [], radii = [];
       const p = start.clone();
@@ -845,7 +845,9 @@ void main() {
         pts.push(p.clone());
         times.push(t0 + i * step * slow);
         const u = i / n;
-        radii.push(radius * (terminal ? 1 - 0.85 * u : 1 - 0.3 * u));
+        // Le pied du tronc s'évase en courbe là où il sort de l'eau.
+        const flare = depth === 0 ? 1 + 1.3 * Math.exp(-u * 16) : 1;
+        radii.push(radius * (terminal ? 1 - 0.85 * u : 1 - 0.3 * u) * flare);
         d.x += (rnd() - 0.5) * g.curl;
         d.z += (rnd() - 0.5) * g.curl;
         d.y += (rnd() - 0.5) * g.curl * 0.55 + (depth < 2 ? 0.035 + g.tropism : g.tropism * 0.4);   // tropisme vers la lumière
@@ -877,7 +879,7 @@ void main() {
     // Même touffeur à chaque fois : on replante jusqu'à tomber dans la bonne fourchette de rameaux.
     for (let attempt = 0; attempt < 40; attempt++) {
       branches = []; buds = [];
-      grow(new THREE.Vector3(0, 0, 0), trunkDir, g.trunk, trunkRadius, 0, 0);
+      grow(new THREE.Vector3(0, -0.12, 0), trunkDir, g.trunk, trunkRadius, 0, 0);   // le pied commence sous la surface
       if (buds.length >= 250 && buds.length <= 300) break;
     }
 
@@ -890,7 +892,7 @@ void main() {
     for (const b of buds) maxT = Math.max(maxT, b.t);
 
     // Tubes : 6 côtés par anneau.
-    const SIDES = 6;
+    const SIDES = 12;   // sections rondes : le contact avec l'eau est une courbe
     const pos = [], nor = [], rad = [], grw = [], hgt = [], dep = [], idx = [];
     let base = 0;
     const T = new THREE.Vector3(), N = new THREE.Vector3(), B = new THREE.Vector3(), ring = new THREE.Vector3();
@@ -1089,7 +1091,7 @@ void main() {
     uDrops: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 0, -99, 0)) },
   };
   const puddle = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.ShaderMaterial({
-    uniforms: puddleUniforms, depthWrite: false,
+    uniforms: puddleUniforms,          // écrit la profondeur : l'eau cache ce qui est sous la surface
     vertexShader: `
       varying vec3 vWorld;
       void main() {
@@ -1099,7 +1101,7 @@ void main() {
       }`,
     fragmentShader: `
       uniform float uTime;
-      uniform float uReveal;
+      uniform float uReveal;      // 0 : bleu uni, 1 : la flaque
       uniform float uOpacity;
       uniform float uSprout;
       uniform float uPreview;
@@ -1129,8 +1131,6 @@ void main() {
           float age = uTime - uDrops[i].z;
           if (age > 0.0 && age < 6.0) h += ring(p, uDrops[i].xy, age) * uDrops[i].w;
         }
-        // L'onde de la goutte qui ouvre la flaque.
-        h += ring(p, vec2(0.0), uReveal * 4.5) * 1.6 * step(0.001, uReveal);
         // L'arbre perce la surface : deux ondes partent de son pied.
         if (uSprout > 0.0) {
           h += ring(p, vec2(0.0), uSprout) * 1.5;
@@ -1156,15 +1156,11 @@ void main() {
         vec3 r = reflect(v, n);
         vec3 col = sky(r);
         col += vec3(0.35, 0.45, 0.9) * clamp(length(g) * 0.004, 0.0, 1.0) * 0.25;
-        // La flaque se découvre depuis le point d'impact.
-        float rr = length(p);
-        float front = uReveal * 1.5;               // suit l'onde de la goutte, sans la devancer
-        float mask = max(smoothstep(front, front - 0.15, rr), uPreview * 0.35);   // l'eau se devine avant l'impact
-        col += vec3(0.55, 0.7, 1.0) * exp(-pow((rr - front) * 25.0, 2.0)) * (1.0 - smoothstep(0.6, 1.0, uReveal)) * 0.5 * step(0.001, uReveal);
         // Les bords se perdent dans la nuit.
+        float rr = length(p);
         col *= 1.0 - smoothstep(2.5, 4.5, rr);
-        // Hors de l'onde : le bleu uni sur lequel on est arrivé.
-        gl_FragColor = vec4(mix(uFlat * uFlatAmount, col, mask) * uOpacity, 1.0);
+        // À l'impact, la flaque remplace en fondu le bleu uni sur lequel on est arrivé.
+        gl_FragColor = vec4(mix(uFlat * uFlatAmount, col, uReveal) * uOpacity, 1.0);
       }`,
   }));
   puddle.rotation.x = -Math.PI / 2;
@@ -2093,7 +2089,7 @@ void main() {
      Depuis le panneau 2, B va de 0 à 2 vers l'univers d'un profil :
      0 → 1 : l'arbre se rétracte dans le sol.  1 → 2 : entrée de l'élément.
      ===================================================================== */
-  const DURATIONS = reduceMotion ? [1400, 1400] : [6200, 5200];
+  const DURATIONS = reduceMotion ? [1400, 1400] : [4600, 5200];
   let P = 0, target = 0, arrivedAt = 0;
   let branch = null, B = 0, BT = 0, pendingGo = null;
   const views = { 0: 'p0', 1: 'p1', 2: 'p2', feu: 'b-feu', air: 'b-air', eau: 'b-eau', terre: 'b-terre' };
@@ -2222,7 +2218,8 @@ void main() {
      ===================================================================== */
   const treeTarget = new THREE.Vector3();
   const PUDDLE_VIEW = { back: 3.2, height: 5.2 };    // caméra en plongée sur la flaque
-  const FALL_END = 0.58;                              // la sphère s'éteint, l'onde naît (puis 2,6 s d'onde)
+  const FALL_END = 0.7;                               // la sphère touche l'eau
+  let lastStageP = 0;
   let treeUsed = false;
   function stage(time) {
     // 0 → 1 : la sphère rapetisse sur place jusqu'à disparaître (0 → 0.7) ;
@@ -2282,7 +2279,12 @@ void main() {
     camera.updateProjectionMatrix();
     treeUniforms.uGrow.value = grow * 1.06;
     treeUniforms.uFade.value = backdrop;
-    puddleUniforms.uReveal.value = 1 - Math.pow(1 - revealK, 2);   // onde lente, qui ralentit encore en s'élargissant
+    puddleUniforms.uReveal.value = smoothstep(0, 0.35, revealK);
+    // La goutte touche l'eau : une onde ordinaire de la flaque, comme celles des autres gouttes.
+    if (P >= FALL_END && lastStageP < FALL_END) {
+      puddleUniforms.uDrops.value[dropIndex++ % 4].set(0, 0, puddleUniforms.uTime.value, 1.4);
+    }
+    lastStageP = P;
     // Le bleu uni ne sert qu'à raccorder la chute à la flaque : il s'éteint dès que la caméra bouge.
     puddleUniforms.uFlatAmount.value = 1 - smoothstep(0, 0.12, growT);
     // Âge (en secondes) des ondes nées quand l'arbre sort de l'eau.
@@ -2293,8 +2295,8 @@ void main() {
     // Textes
     panels[0].style.opacity = String(1 - smoothstep(0, 0.3, P));
     panels[0].style.transform = `scale(${1 - shrink * 0.25})`;
-    panels[1].style.opacity = String(P <= 1 ? smoothstep(0.35, 1, revealK) : 1 - smoothstep(0, 0.12, growT));
-    panels[1].style.transform = `translateY(${P <= 1 ? (1 - smoothstep(0.35, 1, revealK)) * 20 : -smoothstep(0, 0.12, growT) * 30}px)`;
+    panels[1].style.opacity = String(P <= 1 ? smoothstep(0.25, 1, revealK) : 1 - smoothstep(0, 0.12, growT));
+    panels[1].style.transform = `translateY(${P <= 1 ? (1 - smoothstep(0.25, 1, revealK)) * 20 : -smoothstep(0, 0.12, growT) * 30}px)`;
     panels[2].style.opacity = String(smoothstep(0.7, 1, growT) * backdrop);
     panels[2].style.transform = `translateY(${(1 - smoothstep(0.7, 1, growT)) * 24}px)`;
     for (const k in branches) {
