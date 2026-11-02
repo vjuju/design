@@ -2217,7 +2217,7 @@ void main() {
       sphere.visible = true;
       puddle.visible = false;
       sphere.position.set(0, 0, 0);
-      sphere.scale.setScalar(Math.max(1 - shrink, 0.0001));
+      sphere.scale.setScalar(THREE.MathUtils.lerp(1, 0.07, shrink));   // reste visible jusqu'à l'onde
       camera.fov = 25;
       camera.position.set(0, 0, restZ);
       camera.lookAt(0, 0, 0);
