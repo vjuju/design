@@ -726,6 +726,31 @@ void main() {
   bloom.compositeMaterial.needsUpdate = true;
   composer.addPass(bloom);
 
+  // Pendant la chute, le bleu de l'eau (#220852) gagne l'écran depuis le centre.
+  // Posé après le halo pour que la couleur affichée soit exactement celle-là.
+  const approachPass = new THREE.ShaderPass({
+    uniforms: {
+      tDiffuse: { value: null },
+      uColor: { value: new THREE.Vector3(34 / 255, 8 / 255, 82 / 255) },
+      uRadius: { value: 0 }, uOpacity: { value: 0 }, uAspect: { value: 1 },
+    },
+    vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `
+      uniform sampler2D tDiffuse;
+      uniform vec3 uColor;
+      uniform float uRadius;
+      uniform float uOpacity;
+      uniform float uAspect;
+      varying vec2 vUv;
+      void main() {
+        vec4 c = texture2D(tDiffuse, vUv);
+        float d = length((vUv - 0.5) * vec2(uAspect, 1.0));
+        float m = 1.0 - smoothstep(uRadius * 0.55, uRadius, d);
+        gl_FragColor = vec4(max(c.rgb, uColor * m * uOpacity), 1.0);
+      }`,
+  });
+  composer.addPass(approachPass);
+
   /* =====================================================================
      Sphère (Sphere.js), sans micro : les « variations » suivent le pointeur.
      ===================================================================== */
@@ -834,7 +859,7 @@ void main() {
 
     function grow(start, dir, length, radius, depth, t0) {
       if (branches.length > 1400) return;
-      const n = Math.max(4, Math.round(length * (depth === 0 ? 22 : 9)));   // tronc plus finement découpé : son pied s'évase en douceur
+      const n = Math.max(4, Math.round(length * 9));
       const step = length / n;
       const pts = [], times = [], radii = [];
       const p = start.clone();
@@ -845,9 +870,7 @@ void main() {
         pts.push(p.clone());
         times.push(t0 + i * step * slow);
         const u = i / n;
-        // Le pied du tronc s'évase en courbe là où il sort de l'eau.
-        const flare = depth === 0 ? 1 + 1.3 * Math.exp(-u * 16) : 1;
-        radii.push(radius * (terminal ? 1 - 0.85 * u : 1 - 0.3 * u) * flare);
+        radii.push(radius * (terminal ? 1 - 0.85 * u : 1 - 0.3 * u));
         d.x += (rnd() - 0.5) * g.curl;
         d.z += (rnd() - 0.5) * g.curl;
         d.y += (rnd() - 0.5) * g.curl * 0.55 + (depth < 2 ? 0.035 + g.tropism : g.tropism * 0.4);   // tropisme vers la lumière
@@ -2222,6 +2245,7 @@ void main() {
       // et disparaît en pleine vitesse, au moment exact où naît l'onde.
       const x = clamp01(P / FALL_END);
       sphere.scale.setScalar(Math.exp(-Math.log(1 / 0.07) * Math.pow(x, 2.5)));
+      approachPass.uniforms.uRadius.value = 1.25 * Math.pow(x, 1.4);
       camera.fov = 25;
       camera.position.set(0, 0, restZ);
       camera.lookAt(0, 0, 0);
@@ -2252,6 +2276,11 @@ void main() {
     treeUniforms.uGrow.value = grow * 1.06;
     treeUniforms.uFade.value = backdrop;
     puddleUniforms.uReveal.value = smoothstep(0, 0.35, revealK);
+    // Le bleu uni s'efface quand la flaque apparaît.
+    approachPass.uniforms.uOpacity.value = P <= 0 ? 0 : P < FALL_END ? 1 : P <= 1 ? 1 - puddleUniforms.uReveal.value : 0;
+    approachPass.uniforms.uAspect.value = config.width / config.height;
+    if (P >= FALL_END) approachPass.uniforms.uRadius.value = 1.25;
+    approachPass.enabled = approachPass.uniforms.uOpacity.value > 0;
     // La goutte touche l'eau : une onde ordinaire de la flaque, comme celles des autres gouttes.
     if (P >= FALL_END && lastStageP < FALL_END) {
       puddleUniforms.uDrops.value[dropIndex++ % 4].set(0, 0, puddleUniforms.uTime.value, 1.4);
