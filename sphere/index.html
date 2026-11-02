@@ -2348,9 +2348,6 @@ void main() {
     requestAnimationFrame(tick);
   }
   setView(0);
-  // Lecture seule, pour les tests : où en est l'animation.
-  window.reskifState = () => ({ P, B, branch });
-  window.reskifSeek = v => { P = target = v; };      // pour les tests : figer l'animation à un instant
   requestAnimationFrame(tick);
 })();
 </script>
