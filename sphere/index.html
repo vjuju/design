@@ -1083,7 +1083,7 @@ void main() {
      ===================================================================== */
   const PUDDLE_SCALE = 7;      // unités du monde pour une « largeur d'écran » d'ondes
   const puddleUniforms = {
-    uTime: { value: 0 }, uReveal: { value: 0 }, uOpacity: { value: 0 }, uSprout: { value: -1 }, uPreview: { value: 0 }, uFlat: { value: null },
+    uTime: { value: 0 }, uReveal: { value: 0 }, uOpacity: { value: 0 }, uSprout: { value: -1 }, uPreview: { value: 0 }, uFlat: { value: null }, uFlatAmount: { value: 1 },
     uCenter: { value: new THREE.Vector2(100, 0) },
     uColorA: { value: new THREE.Color('#ff3e00') }, uColorB: { value: new THREE.Color('#0063ff') },
     uDrops: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 0, -99, 0)) },
@@ -1104,6 +1104,7 @@ void main() {
       uniform float uSprout;
       uniform float uPreview;
       uniform vec3 uFlat;
+      uniform float uFlatAmount;
       uniform vec2 uCenter;
       uniform vec3 uColorA;
       uniform vec3 uColorB;
@@ -1129,7 +1130,7 @@ void main() {
           if (age > 0.0 && age < 6.0) h += ring(p, uDrops[i].xy, age) * uDrops[i].w;
         }
         // L'onde de la goutte qui ouvre la flaque.
-        h += ring(p, vec2(0.0), uReveal * 3.0) * 1.6 * step(0.001, uReveal);
+        h += ring(p, vec2(0.0), uReveal * 4.5) * 1.6 * step(0.001, uReveal);
         // L'arbre perce la surface : deux ondes partent de son pied.
         if (uSprout > 0.0) {
           h += ring(p, vec2(0.0), uSprout) * 1.5;
@@ -1157,13 +1158,13 @@ void main() {
         col += vec3(0.35, 0.45, 0.9) * clamp(length(g) * 0.004, 0.0, 1.0) * 0.25;
         // La flaque se découvre depuis le point d'impact.
         float rr = length(p);
-        float front = uReveal * 1.8;
+        float front = uReveal * 1.5;               // suit l'onde de la goutte, sans la devancer
         float mask = max(smoothstep(front, front - 0.15, rr), uPreview * 0.35);   // l'eau se devine avant l'impact
         col += vec3(0.55, 0.7, 1.0) * exp(-pow((rr - front) * 25.0, 2.0)) * (1.0 - smoothstep(0.6, 1.0, uReveal)) * 0.5 * step(0.001, uReveal);
         // Les bords se perdent dans la nuit.
         col *= 1.0 - smoothstep(2.5, 4.5, rr);
         // Hors de l'onde : le bleu uni sur lequel on est arrivé.
-        gl_FragColor = vec4(mix(uFlat, col, mask) * uOpacity, 1.0);
+        gl_FragColor = vec4(mix(uFlat * uFlatAmount, col, mask) * uOpacity, 1.0);
       }`,
   }));
   puddle.rotation.x = -Math.PI / 2;
@@ -2092,7 +2093,7 @@ void main() {
      Depuis le panneau 2, B va de 0 à 2 vers l'univers d'un profil :
      0 → 1 : l'arbre se rétracte dans le sol.  1 → 2 : entrée de l'élément.
      ===================================================================== */
-  const DURATIONS = reduceMotion ? [1400, 1400] : [4400, 5200];
+  const DURATIONS = reduceMotion ? [1400, 1400] : [6200, 5200];
   let P = 0, target = 0, arrivedAt = 0;
   let branch = null, B = 0, BT = 0, pendingGo = null;
   const views = { 0: 'p0', 1: 'p1', 2: 'p2', feu: 'b-feu', air: 'b-air', eau: 'b-eau', terre: 'b-terre' };
@@ -2221,7 +2222,7 @@ void main() {
      ===================================================================== */
   const treeTarget = new THREE.Vector3();
   const PUDDLE_VIEW = { back: 3.2, height: 5.2 };    // caméra en plongée sur la flaque
-  const FALL_END = 0.7;                               // la sphère s'éteint, l'onde naît
+  const FALL_END = 0.58;                              // la sphère s'éteint, l'onde naît (puis 2,6 s d'onde)
   let treeUsed = false;
   function stage(time) {
     // 0 → 1 : la sphère rapetisse sur place jusqu'à disparaître (0 → 0.7) ;
@@ -2278,7 +2279,9 @@ void main() {
     camera.updateProjectionMatrix();
     treeUniforms.uGrow.value = grow * 1.06;
     treeUniforms.uFade.value = backdrop;
-    puddleUniforms.uReveal.value = easeOutCubic(revealK);
+    puddleUniforms.uReveal.value = 1 - Math.pow(1 - revealK, 2);   // onde lente, qui ralentit encore en s'élargissant
+    // Le bleu uni ne sert qu'à raccorder la chute à la flaque : il s'éteint dès que la caméra bouge.
+    puddleUniforms.uFlatAmount.value = 1 - smoothstep(0, 0.12, growT);
     // Âge (en secondes) des ondes nées quand l'arbre sort de l'eau.
     puddleUniforms.uSprout.value = growT > 0.1 ? (growT - 0.1) * DURATIONS[1] / 1000 : -1;
     puddleUniforms.uOpacity.value = 1 - smoothstep(0.55, 1, growT);
