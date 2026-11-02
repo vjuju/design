@@ -58,6 +58,8 @@
   .panel.live { pointer-events: auto; }
   #p0 { padding-right: max(20px, env(safe-area-inset-right, 0px)); }
 
+  .hero { display: flex; flex-direction: column; align-items: center; gap: clamp(16px, 3vmin, 28px); }
+  .logo { width: clamp(120px, 22vmin, 200px); height: auto; filter: drop-shadow(0 0 18px rgba(0, 0, 0, .6)); }
   #p0 h1 {
     margin: 0;
     font: 800 clamp(30px, 8.4vmin, 92px)/.95 var(--display);
@@ -94,17 +96,7 @@
   .role.w { color: var(--warm); }
   .role.c { color: var(--cold); }
 
-  #p2 { place-items: center start; text-align: left; }
-  .how { display: flex; flex-direction: column; align-items: flex-start; gap: 18px; max-width: 40rem; }
-  .how p {
-    margin: 0;
-    max-width: 34ch;
-    font: 300 italic clamp(20px, 3.4vmin, 34px)/1.3 var(--text);
-    text-wrap: pretty;
-    text-shadow: 0 0 18px rgba(0, 0, 0, .9);
-  }
-  .how p + p { font-size: clamp(17px, 2.6vmin, 24px); color: rgba(255, 255, 255, .8); }
-  #p3 { align-items: stretch; }
+  #p2 { align-items: stretch; }
   .choose { display: flex; flex-direction: column; justify-content: space-between; gap: 24px; width: min(880px, 100%); }
   .choose h2 {
     margin: 0;
@@ -173,7 +165,7 @@
   .next:hover { color: var(--ink); }
   .next svg { animation: nudge 2.2s ease-in-out infinite; }
   @keyframes nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
-  body:not([data-panel="0"]):not([data-panel="1"]):not([data-panel="2"]) .next, body.moving .next { opacity: 0; pointer-events: none; }
+  body:not([data-panel="0"]):not([data-panel="1"]) .next, body.moving .next { opacity: 0; pointer-events: none; }
 
   .branch { place-items: end start; text-align: left; }
   .branch.top { place-items: start start; }
@@ -278,7 +270,10 @@
 <canvas id="scene" tabindex="0" aria-label="Animation 3D. Sur le premier panneau, survoler le centre de la sphère l'accélère, s'en éloigner la ralentit."></canvas>
 
 <section class="panel" id="p0" aria-label="Accueil">
-  <h1>Le virtuel au service du réel</h1>
+  <div class="hero">
+    <img class="logo" src="reskif_logo.svg" alt="Reskif" width="605" height="185">
+    <h1>Le virtuel au service du réel</h1>
+  </div>
 </section>
 
 <section class="panel" id="p1" aria-label="Le réseau" aria-hidden="true">
@@ -292,15 +287,7 @@
   </div>
 </section>
 
-<section class="panel" id="p2" aria-label="Comment ça marche" aria-hidden="true">
-  <div class="how">
-    <span class="kicker">Comment ça marche</span>
-    <p>Après vous être présenté·e rapidement, vous serez sollicité·e, selon votre volonté, pour contribuer à des projets sélectionnés, apportés par des étudiant·es, des associations et des entrepreneur·ses.</p>
-    <p>Outre les humains, une IA aide à créer les liens et simplifie l'exécution technique.</p>
-  </div>
-</section>
-
-<section class="panel" id="p3" aria-label="Rejoindre" aria-hidden="true">
+<section class="panel" id="p2" aria-label="Rejoindre" aria-hidden="true">
   <div class="choose">
     <h2>Et vous, qui <span style="white-space:nowrap">êtes-vous&nbsp;?</span></h2>
     <div>
@@ -400,8 +387,7 @@
 <nav class="nav" aria-label="Panneaux">
   <button type="button" data-go="0" aria-label="Le virtuel au service du réel" aria-current="step"></button>
   <button type="button" data-go="1" aria-label="Le réseau"></button>
-  <button type="button" data-go="2" aria-label="Comment ça marche"></button>
-  <button type="button" data-go="3" aria-label="Qui êtes-vous ?"></button>
+  <button type="button" data-go="2" aria-label="Qui êtes-vous ?"></button>
 </nav>
 
 <button type="button" class="next" id="next">
@@ -1087,29 +1073,37 @@ void main() {
   scene.add(tree);
 
   /* =====================================================================
-     Flaque d'eau : fond du panneau « Comment ça marche ».
-     Des gouttes tombent, leurs ondes se croisent et reflètent les deux
-     lumières de la sphère. Le pointeur fait aussi des ronds dans l'eau.
+     Flaque d'eau : fond du panneau de définition.
+     Un vrai plan d'eau en 3D, posé au pied de l'arbre : la goutte y tombe,
+     son onde découvre la flaque, puis l'arbre en sort.
+     Les ondes reflètent un ciel de nuit et deux lampadaires aux couleurs
+     de la sphère. Le pointeur fait aussi des ronds dans l'eau.
      ===================================================================== */
+  const PUDDLE_SCALE = 7;      // unités du monde pour une « largeur d'écran » d'ondes
   const puddleUniforms = {
-    uTime: { value: 0 }, uAspect: { value: 1 }, uReveal: { value: 0 }, uOpacity: { value: 0 },
+    uTime: { value: 0 }, uReveal: { value: 0 }, uOpacity: { value: 0 },
+    uCenter: { value: new THREE.Vector2(100, 0) },
     uColorA: { value: new THREE.Color('#ff3e00') }, uColorB: { value: new THREE.Color('#0063ff') },
-    uDrops: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0.5, 0.5, -99, 0)) },
+    uDrops: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 0, -99, 0)) },
   };
-  const puddle = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
-    uniforms: puddleUniforms, depthTest: false, depthWrite: false,
+  const puddle = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.ShaderMaterial({
+    uniforms: puddleUniforms, depthWrite: false,
     vertexShader: `
-      varying vec2 vUv;
-      void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
+      varying vec3 vWorld;
+      void main() {
+        vec4 w = modelMatrix * vec4(position, 1.0);
+        vWorld = w.xyz;
+        gl_Position = projectionMatrix * viewMatrix * w;
+      }`,
     fragmentShader: `
       uniform float uTime;
-      uniform float uAspect;
       uniform float uReveal;
       uniform float uOpacity;
+      uniform vec2 uCenter;
       uniform vec3 uColorA;
       uniform vec3 uColorB;
       uniform vec4 uDrops[4];
-      varying vec2 vUv;
+      varying vec3 vWorld;
       float hash(float n) { return fract(sin(n) * 43758.5453); }
       float ring(vec2 p, vec2 c, float age) {
         float d = length(p - c) - age * 0.32;
@@ -1122,51 +1116,65 @@ void main() {
           float period = 2.8 + hash(fi * 7.1) * 2.6;
           float tt = uTime + hash(fi * 3.3) * period;
           float cycle = floor(tt / period);
-          vec2 c = vec2(hash(fi * 12.9 + cycle * 1.7) * uAspect, hash(fi * 4.1 + cycle * 3.9));
+          vec2 c = vec2(hash(fi * 12.9 + cycle * 1.7) - 0.5, hash(fi * 4.1 + cycle * 3.9) - 0.5) * 1.6;
           h += ring(p, c, mod(tt, period)) * (0.6 + hash(fi + cycle) * 0.6);
         }
         for (int i = 0; i < 4; i++) {
           float age = uTime - uDrops[i].z;
-          if (age > 0.0 && age < 6.0) h += ring(p, vec2(uDrops[i].x * uAspect, uDrops[i].y), age) * uDrops[i].w;
+          if (age > 0.0 && age < 6.0) h += ring(p, uDrops[i].xy, age) * uDrops[i].w;
         }
-        // La première goutte, celle qui ouvre le panneau.
-        h += ring(p, vec2(0.5 * uAspect, 0.5), uReveal * 3.0) * 1.4 * step(0.001, uReveal);
+        // L'onde de la goutte qui ouvre la flaque.
+        h += ring(p, vec2(0.0), uReveal * 3.0) * 1.6 * step(0.001, uReveal);
         h += sin(p.x * 9.0 + uTime * 0.7) * sin(p.y * 7.0 - uTime * 0.5) * 0.05;
         return h;
       }
+      vec3 sky(vec3 r) {
+        vec3 c = mix(vec3(0.006, 0.002, 0.02), vec3(0.035, 0.012, 0.09), clamp(r.y, 0.0, 1.0));
+        vec3 la = normalize(vec3(0.45, 0.8, -0.4)), lb = normalize(vec3(-0.5, 0.78, -0.42));
+        c += uColorA * (pow(max(dot(r, la), 0.0), 900.0) * 1.4 + pow(max(dot(r, la), 0.0), 40.0) * 0.05);
+        c += uColorB * (pow(max(dot(r, lb), 0.0), 700.0) * 1.5 + pow(max(dot(r, lb), 0.0), 30.0) * 0.06);
+        return c;
+      }
       void main() {
-        vec2 p = vec2(vUv.x * uAspect, vUv.y);
+        vec2 p = (vWorld.xz - uCenter) / ${PUDDLE_SCALE.toFixed(1)};
         float e = 0.0015;
         float h = height(p);
         vec2 g = vec2(height(p + vec2(e, 0.0)) - h, height(p + vec2(0.0, e)) - h) / e;
-        vec3 n = normalize(vec3(-g * 0.012, 1.0));
-        // Le ciel nocturne et deux lampadaires, reflétés et brouillés par les ondes.
-        vec2 rp = vUv + n.xy * 0.22;
-        vec3 sky = mix(vec3(0.003, 0.0, 0.012), vec3(0.018, 0.006, 0.05), rp.y);
-        vec2 la = (rp - vec2(0.78, 0.72)) * vec2(uAspect, 1.0) * vec2(1.0, 0.45);
-        vec2 lb = (rp - vec2(0.2, 0.28)) * vec2(uAspect, 1.0) * vec2(1.0, 0.45);
-        sky += uColorA * 0.55 * exp(-dot(la, la) * 260.0) + uColorA * 0.06 * exp(-length(la) * 9.0);
-        sky += uColorB * 0.6 * exp(-dot(lb, lb) * 220.0) + uColorB * 0.08 * exp(-length(lb) * 8.0);
-        float spec = pow(max(dot(n, normalize(vec3(0.35, 0.45, 1.0))), 0.0), 400.0);
-        float rim = clamp(length(g) * 0.004, 0.0, 1.0);        // crêtes des ondes
-        vec3 col = sky + spec * 0.35 + vec3(0.35, 0.45, 0.9) * rim * 0.12;
-        // La flaque se découvre depuis le centre, au rythme de la première onde.
-        float r = length(p - vec2(0.5 * uAspect, 0.5));
-        float front = uReveal * 1.6;
-        float mask = smoothstep(front, front - 0.12, r);
-        col += vec3(0.55, 0.7, 1.0) * exp(-pow((r - front) * 30.0, 2.0)) * (1.0 - smoothstep(0.7, 1.0, uReveal)) * 0.6;
+        vec3 n = normalize(vec3(-g.x * 0.012, 1.0, -g.y * 0.012));
+        vec3 v = normalize(vWorld - cameraPosition);
+        vec3 r = reflect(v, n);
+        vec3 col = sky(r);
+        col += vec3(0.35, 0.45, 0.9) * clamp(length(g) * 0.004, 0.0, 1.0) * 0.25;
+        // La flaque se découvre depuis le point d'impact.
+        float rr = length(p);
+        float front = uReveal * 1.8;
+        float mask = smoothstep(front, front - 0.15, rr);
+        col += vec3(0.55, 0.7, 1.0) * exp(-pow((rr - front) * 25.0, 2.0)) * (1.0 - smoothstep(0.6, 1.0, uReveal)) * 0.5;
+        // Les bords se perdent dans la nuit.
+        col *= 1.0 - smoothstep(2.5, 4.5, rr);
         gl_FragColor = vec4(col * mask * uOpacity, 1.0);
       }`,
   }));
-  puddle.frustumCulled = false;
+  puddle.rotation.x = -Math.PI / 2;
+  puddle.position.set(100, 0, 0);           // au pied de l'arbre
   puddle.renderOrder = -1;
   puddle.visible = false;
   scene.add(puddle);
 
+  // La goutte qui tombe.
+  const drop = new THREE.Mesh(new THREE.SphereGeometry(0.09, 24, 16), new THREE.MeshBasicMaterial({ color: new THREE.Color('#d6e4ff') }));
+  drop.visible = false;
+  scene.add(drop);
+
   let dropIndex = 0, lastDropAt = 0;
+  const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  const pickRay = new THREE.Raycaster();
   function addDrop(x, y, strength) {
+    pickRay.setFromCamera(new THREE.Vector2(x / config.width * 2 - 1, -(y / config.height) * 2 + 1), camera);
+    const hit = new THREE.Vector3();
+    if (!pickRay.ray.intersectPlane(groundPlane, hit)) return;
     const d = puddleUniforms.uDrops.value[dropIndex++ % 4];
-    d.set(x / config.width, 1 - y / config.height, puddleUniforms.uTime.value, strength);
+    d.set((hit.x - 100) / PUDDLE_SCALE, hit.z / PUDDLE_SCALE, puddleUniforms.uTime.value, strength);
   }
 
   /* =====================================================================
@@ -1185,7 +1193,6 @@ void main() {
   function resize() {
     config.width = innerWidth; config.height = innerHeight;
     camera.aspect = config.width / config.height;
-    puddleUniforms.uAspect.value = camera.aspect;
     restZ = camera.aspect >= 1 ? 7 : Math.max(7, 1.45 / (Math.tan(halfFov) * camera.aspect) + 0.2);
     frameTree();
     camera.updateProjectionMatrix();
@@ -2053,15 +2060,15 @@ void main() {
      Depuis le panneau 2, B va de 0 à 2 vers l'univers d'un profil :
      0 → 1 : l'arbre se rétracte dans le sol.  1 → 2 : entrée de l'élément.
      ===================================================================== */
-  const DURATIONS = reduceMotion ? [900, 900, 1200] : [2600, 2400, 4600];
+  const DURATIONS = reduceMotion ? [1400, 1400] : [4400, 5200];
   let P = 0, target = 0, arrivedAt = 0;
   let branch = null, B = 0, BT = 0, pendingGo = null;
-  const views = { 0: 'p0', 1: 'p1', 2: 'p2', 3: 'p3', feu: 'b-feu', air: 'b-air', eau: 'b-eau', terre: 'b-terre' };
+  const views = { 0: 'p0', 1: 'p1', 2: 'p2', feu: 'b-feu', air: 'b-air', eau: 'b-eau', terre: 'b-terre' };
   const viewEls = Object.fromEntries(Object.entries(views).map(([k, id]) => [k, document.getElementById(id)]));
-  const panels = [0, 1, 2, 3].map(i => viewEls[i]);
+  const panels = [0, 1, 2].map(i => viewEls[i]);
   const navButtons = [...document.querySelectorAll('.nav button')];
   const nextLabel = document.getElementById('next-label');
-  const LABELS = ['Survolez le cœur · Défilez pour entrer', 'Défilez pour continuer', 'Défilez pour continuer', ''];
+  const LABELS = ['Survolez le cœur · Défilez pour entrer', 'Défilez pour continuer', ''];
   let shown = null;
 
   function setView(name) {
@@ -2073,9 +2080,9 @@ void main() {
       viewEls[k].classList.toggle('live', k === name);
       viewEls[k].setAttribute('aria-hidden', String(k !== name));
     }
-    document.querySelectorAll('.choice').forEach(b => b.tabIndex = name === '3' ? 0 : -1);
+    document.querySelectorAll('.choice').forEach(b => b.tabIndex = name === '2' ? 0 : -1);
     document.querySelectorAll('.back').forEach(b => b.tabIndex = b.closest('.panel') === viewEls[name] ? 0 : -1);
-    const idx = name in branches ? 3 : Number(name);
+    const idx = name in branches ? 2 : Number(name);
     navButtons.forEach((b, k) => k === idx ? b.setAttribute('aria-current', 'step') : b.removeAttribute('aria-current'));
     if (LABELS[idx]) nextLabel.textContent = LABELS[idx];
   }
@@ -2090,7 +2097,7 @@ void main() {
   }
 
   function openBranch(key, btn) {
-    if (branch || P !== 3 || target !== 3) return;
+    if (branch || P !== 2 || target !== 2) return;
     const origin = pictoOrigin(btn);
     branch = key;
     BT = 2;
@@ -2116,7 +2123,7 @@ void main() {
   }
   function goTo(i) {
     if (branch) { closeBranch(i); return; }
-    target = Math.min(Math.max(i, 0), 3);
+    target = Math.min(Math.max(i, 0), 2);
   }
 
   addEventListener('wheel', e => {
@@ -2134,8 +2141,8 @@ void main() {
     if (Math.abs(dy) > 40) go(Math.sign(dy));
   }, { passive: true });
 
-  addEventListener('pointerdown', e => { if (P > 1.5 && P < 2.5 && !branch) addDrop(e.clientX, e.clientY, 1.4); });
-  canvas.addEventListener('click', () => { if (!branch && target < 3 && P === target) go(1); });
+  addEventListener('pointerdown', e => { if (P > 0.9 && P < 1.1 && !branch) addDrop(e.clientX, e.clientY, 1.4); });
+  canvas.addEventListener('click', () => { if (!branch && target < 2 && P === target) go(1); });
   addEventListener('keydown', e => {
     const onButton = e.target.closest && e.target.closest('button');
     if (['ArrowDown', 'PageDown'].includes(e.key) || (e.key === ' ' && !onButton) || (e.key === 'Enter' && e.target === canvas)) { e.preventDefault(); go(1); }
@@ -2153,7 +2160,7 @@ void main() {
   let pointer = null, airPointer = null;
   addEventListener('pointermove', e => {
     if (e.pointerType !== 'touch') pointer = { x: e.clientX, y: e.clientY };
-    if (P > 1.5 && P < 2.5 && !branch && performance.now() - lastDropAt > 280) { addDrop(e.clientX, e.clientY, 0.7); lastDropAt = performance.now(); }
+    if (P > 0.9 && P < 1.1 && !branch && performance.now() - lastDropAt > 280) { addDrop(e.clientX, e.clientY, 0.7); lastDropAt = performance.now(); }
     airPointer = { x: e.clientX / config.width * 2 - 1, y: -(e.clientY / config.height) * 2 + 1, t: performance.now() };
   });
   document.addEventListener('pointerleave', () => { pointer = null; airPointer = null; });
@@ -2181,58 +2188,68 @@ void main() {
      Mise en scène à partir de P et B
      ===================================================================== */
   const treeTarget = new THREE.Vector3();
+  const DIVE_END = 0.55;
+  const PUDDLE_VIEW = { back: 3.2, height: 5.2 };    // caméra en plongée sur la flaque
   let treeUsed = false;
   function stage(time) {
-    const dive = easeInOut(clamp01(P));
-    const puddleT = clamp01(P - 1);                        // 1 → 2 : la flaque
-    const panelT = clamp01(P - 2);                         // 2 → 3 : l'arbre
-    const growT = panelT;
-    const grow = 1 - Math.pow(1 - growT, 1.7);             // démarre vite, se pose en douceur
+    // 0 → 1 : plongée dans la sphère (0 → 0.55), chute de la goutte (0.55 → 0.8), la flaque s'ouvre (0.8 → 1).
+    const dive = easeInOut(clamp01(P / DIVE_END));
+    const dropK = clamp01((P - DIVE_END) / 0.25);
+    const revealK = clamp01((P - DIVE_END - 0.25) / (1 - DIVE_END - 0.25));
+    // 1 → 2 : la caméra se relève depuis la flaque, l'arbre en sort.
+    const growT = clamp01(P - 1);
+    const grow = 1 - Math.pow(1 - clamp01((growT - 0.12) / 0.88), 1.7);
     const backdrop = 1 - smoothstep(0.7, 1, B);            // l'arrière-plan s'efface une fois l'écran couvert
+    const orbitBase = time * 0.00004;
 
-    if (P <= 1) {
+    if (P < DIVE_END) {
       // Plongée : la caméra traverse la surface puis rejoint le centre.
       sphere.visible = true;
       tree.visible = false;
+      puddle.visible = false;
+      drop.visible = false;
       if (treeUsed) { plantTree(); treeUsed = false; }   // la prochaine fois, un autre arbre
       camera.fov = THREE.MathUtils.lerp(25, 75, smoothstep(0.35, 1, dive));
       camera.position.set(0, 0, THREE.MathUtils.lerp(restZ, 0, dive));
       camera.lookAt(0, 0, 0);
-    } else if (P <= 2) {
-      // La flaque d'eau occupe tout l'écran.
-      sphere.visible = false;
-      tree.visible = false;
-      if (treeUsed) { plantTree(); treeUsed = false; }
     } else {
-      // On bascule sur l'arbre, qui pousse pendant que la flaque s'efface.
       sphere.visible = false;
-      tree.visible = true;
-      treeUsed = true;
-      camera.fov = TREE_FOV;
+      puddle.visible = true;
+      if (P <= 1 && treeUsed) { plantTree(); treeUsed = false; }
+      tree.visible = P > 1;
+      if (P > 1) treeUsed = true;
+      // Pose « flaque » : on regarde l'eau en plongée. Pose « arbre » : le point de vue habituel.
+      const m = easeInOut(clamp01(growT / 0.8));
       const dist = treeDist * THREE.MathUtils.lerp(0.55, 1, smoothstep(0, 1, growT));
-      // Le bas de l'image passe à 2 % de la hauteur de l'arbre : la base reste juste sous la fenêtre.
-      const lookY = dist * treeTan + treeData.maxY * 0.02;
-      const orbit = time * 0.00004 + growT * 0.9;
-      treeTarget.set(tree.position.x, lookY, 0);
-      camera.position.set(tree.position.x + Math.sin(orbit) * dist, lookY, Math.cos(orbit) * dist);
+      const lookY = dist * treeTan + treeData.maxY * 0.02;   // base du tronc juste sous la fenêtre
+      const horiz = THREE.MathUtils.lerp(PUDDLE_VIEW.back, dist, m);
+      const camY = THREE.MathUtils.lerp(PUDDLE_VIEW.height, lookY, m);
+      const targetY = THREE.MathUtils.lerp(0, lookY, m);
+      const orbit = orbitBase + growT * 0.9;
+      camera.fov = TREE_FOV;
+      treeTarget.set(tree.position.x, targetY, 0);
+      camera.position.set(tree.position.x + Math.sin(orbit) * horiz, camY, Math.cos(orbit) * horiz);
       camera.lookAt(treeTarget);
+      // La goutte tombe vers le point où poussera l'arbre.
+      drop.visible = dropK > 0 && dropK < 1;
+      const fall = dropK * dropK;
+      drop.position.set(tree.position.x, THREE.MathUtils.lerp(2.4, 0, fall), 0);
+      drop.scale.set(1, 1 + fall * 2.2, 1);
     }
     camera.updateProjectionMatrix();
     treeUniforms.uGrow.value = grow * 1.06;
     treeUniforms.uFade.value = backdrop;
-    puddleUniforms.uReveal.value = easeOutCubic(puddleT);
-    puddleUniforms.uOpacity.value = P <= 2 ? 1 : 1 - smoothstep(0, 0.35, panelT);
-    puddle.visible = P > 1 && puddleUniforms.uOpacity.value > 0;
+    puddleUniforms.uReveal.value = easeOutCubic(revealK);
+    puddleUniforms.uOpacity.value = 1 - smoothstep(0.55, 1, growT);
+    if (puddleUniforms.uOpacity.value <= 0) puddle.visible = false;
 
     // Textes
     panels[0].style.opacity = String(1 - smoothstep(0, 0.35, dive));
     panels[0].style.transform = `scale(${1 + dive * 0.6})`;
-    panels[1].style.opacity = String(P <= 1 ? smoothstep(0.82, 1, dive) : 1 - smoothstep(0, 0.15, puddleT));
-    panels[1].style.transform = `translateY(${-smoothstep(0, 0.15, puddleT) * 30}px)`;
-    panels[2].style.opacity = String(P <= 2 ? smoothstep(0.55, 1, puddleT) : 1 - smoothstep(0, 0.12, panelT));
-    panels[2].style.transform = `translateY(${P <= 2 ? (1 - smoothstep(0.55, 1, puddleT)) * 24 : -smoothstep(0, 0.12, panelT) * 30}px)`;
-    panels[3].style.opacity = String(smoothstep(0.7, 1, panelT) * backdrop);
-    panels[3].style.transform = `translateY(${(1 - smoothstep(0.7, 1, panelT)) * 24}px)`;
+    panels[1].style.opacity = String(P <= 1 ? smoothstep(0.35, 1, revealK) : 1 - smoothstep(0, 0.12, growT));
+    panels[1].style.transform = `translateY(${P <= 1 ? (1 - smoothstep(0.35, 1, revealK)) * 20 : -smoothstep(0, 0.12, growT) * 30}px)`;
+    panels[2].style.opacity = String(smoothstep(0.7, 1, growT) * backdrop);
+    panels[2].style.transform = `translateY(${(1 - smoothstep(0.7, 1, growT)) * 24}px)`;
     for (const k in branches) {
       const on = branch === k ? smoothstep(0.7, 1, B - 1) : 0;
       viewEls[k].style.opacity = String(on);
@@ -2242,8 +2259,9 @@ void main() {
     const moving = P !== target || B !== BT;
     document.body.classList.toggle('moving', moving);
     if (branch && B >= 1) setView(branch);
-    else setView(P === target ? target : Math.min(3, Math.round(P)));
+    else setView(P === target ? target : Math.min(2, Math.round(P)));
   }
+
 
   /* =====================================================================
      Boucle (delta en millisecondes, comme Time.js)
@@ -2257,7 +2275,7 @@ void main() {
     if (P !== target) {
       const dir = Math.sign(target - P);
       const seg = dir > 0 ? Math.floor(P) : Math.ceil(P) - 1;
-      const dur = DURATIONS[Math.min(Math.max(seg, 0), 2)] * (dir < 0 ? 0.65 : 1);
+      const dur = DURATIONS[Math.min(Math.max(seg, 0), 1)] * (dir < 0 ? 0.65 : 1);
       P += dir * delta / dur;
       if ((dir > 0 && P >= target) || (dir < 0 && P <= target)) { P = target; arrivedAt = performance.now(); }
     }
@@ -2282,17 +2300,17 @@ void main() {
         fxRenderer.setRenderTarget(null);
         fxRenderer.clear();
         document.querySelectorAll('.picto.away').forEach(el => el.classList.remove('away'));
-        if (pendingGo !== null) { target = Math.min(Math.max(pendingGo, 0), 3); pendingGo = null; }
+        if (pendingGo !== null) { target = Math.min(Math.max(pendingGo, 0), 2); pendingGo = null; }
       }
     }
 
     const h = hoverSpeed();
-    const diving = P > 0 && P < 1 && target > P;
+    const diving = P > 0 && P < DIVE_END && target > P;
     speed = h.speed + (diving ? 4 : 0);
     agitation = Math.max(h.agitation, diving ? 0.8 : 0);
-    if (P < 1) updateSphere(delta);
+    if (P < DIVE_END) updateSphere(delta);
     treeUniforms.uTime.value += delta / 1000;
-    if (P > 1 && P < 3) puddleUniforms.uTime.value += delta / 1000;
+    if (P > DIVE_END && P < 2) puddleUniforms.uTime.value += delta / 1000;
     if (branch) {
       const br = branches[branch];
       br.update(delta, B);
