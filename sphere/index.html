@@ -2245,7 +2245,10 @@ void main() {
       sphere.visible = true;
       puddle.visible = false;
       sphere.position.set(0, 0, 0);
-      sphere.scale.setScalar(THREE.MathUtils.lerp(1, 0.07, shrink));   // reste visible jusqu'à l'onde
+      // La chute accélère jusqu'au bout : la sphère rapetisse de plus en plus vite (en proportion)
+      // et disparaît en pleine vitesse, au moment exact où naît l'onde.
+      const x = clamp01(P / FALL_END);
+      sphere.scale.setScalar(Math.exp(-Math.log(1 / 0.07) * Math.pow(x, 2.5)));
       approachUniforms.uAmount.value = Math.pow(clamp01(P / FALL_END), 1.6);
       approach.visible = P > 0;
       camera.fov = 25;
