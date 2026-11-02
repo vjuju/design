@@ -2194,15 +2194,12 @@ void main() {
      ===================================================================== */
   const treeTarget = new THREE.Vector3();
   const PUDDLE_VIEW = { back: 3.2, height: 5.2 };    // caméra en plongée sur la flaque
-  const FALL_END = 0.82;                              // la sphère touche l'eau
-  const sphereTarget = new THREE.Vector3(), camFrom = new THREE.Vector3(), camTo = new THREE.Vector3();
+  const FALL_END = 0.7;                               // la sphère s'éteint, l'onde naît
   let treeUsed = false;
   function stage(time) {
-    // 0 → 1 : la sphère rapetisse (0 → 0.35), la caméra la suit au-dessus de la flaque (0.25 → 0.7),
-    // elle tombe dans l'eau (0.7 → 0.82), son onde découvre la flaque (0.82 → 1).
-    const shrink = easeInOut(clamp01(P / 0.35));
-    const travel = easeInOut(clamp01((P - 0.25) / 0.45));
-    const fall = clamp01((P - 0.7) / (FALL_END - 0.7));
+    // 0 → 1 : la sphère rapetisse sur place jusqu'à disparaître (0 → 0.7) ;
+    // une onde naît à cet endroit et découvre la flaque (0.7 → 1).
+    const shrink = easeInOut(clamp01(P / FALL_END));
     const revealK = clamp01((P - FALL_END) / (1 - FALL_END));
     // 1 → 2 : la caméra se relève depuis la flaque, l'arbre en sort.
     const growT = clamp01(P - 1);
@@ -2215,23 +2212,22 @@ void main() {
     tree.visible = P > 1;
     if (P > 1) treeUsed = true;
 
-    if (P <= 1) {
-      // La sphère rapetisse, file au-dessus de la flaque et y tombe ; la caméra l'accompagne.
-      sphere.visible = fall < 1;
-      puddle.visible = P > 0.25;
-      sphere.position.set(
-        THREE.MathUtils.lerp(0, C.x, travel),
-        THREE.MathUtils.lerp(0, 1.6, travel) * (1 - fall * fall),
-        THREE.MathUtils.lerp(0, C.z, travel));
-      sphere.scale.setScalar(THREE.MathUtils.lerp(1, 0.12, shrink) * (1 - smoothstep(0.8, 1, fall)));
-      camFrom.set(0, 0, restZ);
-      camTo.set(C.x + Math.sin(orbitBase) * PUDDLE_VIEW.back, PUDDLE_VIEW.height, C.z + Math.cos(orbitBase) * PUDDLE_VIEW.back);
-      camera.position.lerpVectors(camFrom, camTo, travel);
-      // La caméra suit la sphère, puis se pose sur la flaque : on la voit tomber dans l'eau.
-      sphereTarget.copy(sphere.position);
-      sphereTarget.y *= 1 - smoothstep(0.55, 1, travel);
-      camera.fov = THREE.MathUtils.lerp(25, TREE_FOV, travel);
-      camera.lookAt(sphereTarget);
+    if (P < FALL_END) {
+      // La caméra ne bouge pas : la sphère rapetisse jusqu'à n'être plus qu'un point.
+      sphere.visible = true;
+      puddle.visible = false;
+      sphere.position.set(0, 0, 0);
+      sphere.scale.setScalar(Math.max(1 - shrink, 0.0001));
+      camera.fov = 25;
+      camera.position.set(0, 0, restZ);
+      camera.lookAt(0, 0, 0);
+    } else if (P <= 1) {
+      // Le point s'est éteint au centre de l'écran : l'onde part de là, sur la flaque vue en plongée.
+      sphere.visible = false;
+      puddle.visible = true;
+      camera.fov = TREE_FOV;
+      camera.position.set(C.x + Math.sin(orbitBase) * PUDDLE_VIEW.back, PUDDLE_VIEW.height, C.z + Math.cos(orbitBase) * PUDDLE_VIEW.back);
+      camera.lookAt(C);
     } else {
       sphere.visible = false;
       puddle.visible = true;
@@ -2252,14 +2248,13 @@ void main() {
     treeUniforms.uGrow.value = grow * 1.06;
     treeUniforms.uFade.value = backdrop;
     puddleUniforms.uReveal.value = easeOutCubic(revealK);
-    puddleUniforms.uPreview.value = smoothstep(0.55, 1, travel);
     // Âge (en secondes) des ondes nées quand l'arbre sort de l'eau.
     puddleUniforms.uSprout.value = growT > 0.1 ? (growT - 0.1) * DURATIONS[1] / 1000 : -1;
     puddleUniforms.uOpacity.value = 1 - smoothstep(0.55, 1, growT);
     if (puddleUniforms.uOpacity.value <= 0) puddle.visible = false;
 
     // Textes
-    panels[0].style.opacity = String(1 - smoothstep(0, 0.25, P));
+    panels[0].style.opacity = String(1 - smoothstep(0, 0.3, P));
     panels[0].style.transform = `scale(${1 - shrink * 0.25})`;
     panels[1].style.opacity = String(P <= 1 ? smoothstep(0.35, 1, revealK) : 1 - smoothstep(0, 0.12, growT));
     panels[1].style.transform = `translateY(${P <= 1 ? (1 - smoothstep(0.35, 1, revealK)) * 20 : -smoothstep(0, 0.12, growT) * 30}px)`;
