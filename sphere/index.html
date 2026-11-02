@@ -1159,41 +1159,17 @@ void main() {
         // Les bords se perdent dans la nuit.
         float rr = length(p);
         col *= 1.0 - smoothstep(2.5, 4.5, rr);
-        // À l'impact, la flaque remplace en fondu le bleu uni sur lequel on est arrivé.
+        // À l'impact, la flaque apparaît en fondu depuis le noir.
         gl_FragColor = vec4(mix(uFlat * uFlatAmount, col, uReveal) * uOpacity, 1.0);
       }`,
   }));
   puddle.rotation.x = -Math.PI / 2;
-  puddleUniforms.uFlat.value = new THREE.Color(0.045, 0.024, 0.15);
+  puddleUniforms.uFlat.value = new THREE.Color(0, 0, 0);   // la flaque apparaît depuis le noir
   puddle.position.set(100, 0, 0);           // au pied de l'arbre
   puddle.renderOrder = -1;
   puddle.visible = false;
   scene.add(puddle);
 
-
-  // Pendant que la sphère rapetisse, le fond passe du noir au bleu de l'eau :
-  // on vient de loin et on arrive au-dessus de la flaque.
-  const WATER_FLAT = new THREE.Color(0.045, 0.024, 0.15);
-  const approachUniforms = { uAmount: { value: 0 }, uColor: { value: WATER_FLAT } };
-  const approach = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
-    uniforms: approachUniforms, depthTest: false, depthWrite: false,
-    vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
-    fragmentShader: `
-      uniform float uAmount;
-      uniform vec3 uColor;
-      varying vec2 vUv;
-      void main() {
-        float v = 1.0 - smoothstep(0.3, 1.2, length(vUv - 0.5) * 1.6);
-        // Le halo se resserre en arrivant : d'abord une lueur lointaine, puis toute la surface.
-        float spread = mix(0.25, 1.0, uAmount);
-        float glow = mix(1.0 - smoothstep(0.0, spread, length(vUv - 0.5)), 1.0, uAmount * uAmount);
-        gl_FragColor = vec4(uColor * mix(0.8, 1.05, v) * glow * uAmount, 1.0);
-      }`,
-  }));
-  approach.frustumCulled = false;
-  approach.renderOrder = -2;
-  approach.visible = false;
-  scene.add(approach);
 
   let dropIndex = 0, lastDropAt = 0;
   const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -2246,8 +2222,6 @@ void main() {
       // et disparaît en pleine vitesse, au moment exact où naît l'onde.
       const x = clamp01(P / FALL_END);
       sphere.scale.setScalar(Math.exp(-Math.log(1 / 0.07) * Math.pow(x, 2.5)));
-      approachUniforms.uAmount.value = Math.pow(clamp01(P / FALL_END), 1.6);
-      approach.visible = P > 0;
       camera.fov = 25;
       camera.position.set(0, 0, restZ);
       camera.lookAt(0, 0, 0);
@@ -2255,14 +2229,12 @@ void main() {
       // Le point s'est éteint au centre de l'écran : l'onde part de là, sur la flaque vue en plongée.
       sphere.visible = false;
       puddle.visible = true;
-      approach.visible = false;
       camera.fov = TREE_FOV;
       camera.position.set(C.x + Math.sin(orbitBase) * PUDDLE_VIEW.back, PUDDLE_VIEW.height, C.z + Math.cos(orbitBase) * PUDDLE_VIEW.back);
       camera.lookAt(C);
     } else {
       sphere.visible = false;
       puddle.visible = true;
-      approach.visible = false;
       // Pose « flaque » : on regarde l'eau en plongée. Pose « arbre » : le point de vue habituel.
       const m = easeInOut(clamp01(growT / 0.8));
       const dist = treeDist * THREE.MathUtils.lerp(0.55, 1, smoothstep(0, 1, growT));
