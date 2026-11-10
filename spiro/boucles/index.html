@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spiro — boucles</title>
+<meta name="description" content="Un ruban fermé en huit, tordu dans l'espace, tracé par un millier de fils très fins : là où le ruban se présente de face il s'ouvre en voile, là où il passe de profil il se serre en un trait dense.">
+<style>
+  :root { --ink: #1c1b19; --muted: #77736b; --rule: #d6d2ca; --panel: #ffffff; --bg: #e4e3e0; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --ink: #efedea; --muted: #a29d93; --rule: #34312c; --panel: #1b1a18; --bg: #121110; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    display: grid; grid-template-columns: minmax(0, 1fr) 300px; min-height: 100vh;
+  }
+  main { display: grid; place-items: center; padding: 24px 16px; }
+  canvas { width: min(calc((100vh - 48px) * 2 / 3), 100%); aspect-ratio: 2 / 3; box-shadow: 0 10px 40px rgba(0,0,0,.1); display: block; }
+  aside { background: var(--panel); border-left: 1px solid var(--rule); padding: 24px 20px; overflow: auto; }
+  h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -.02em; }
+  aside > p { margin: 0 0 20px; color: var(--muted); }
+  aside a { color: inherit; }
+  label { display: block; margin: 14px 0 0; font-size: 12px; color: var(--muted); }
+  label span { float: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; }
+  .row { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+  button { font: inherit; padding: 8px 12px; border: 1px solid var(--rule); background: transparent; color: var(--ink); border-radius: 6px; cursor: pointer; }
+  button.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+  .colors { display: flex; gap: 10px; margin-top: 8px; }
+  input[type=color] { width: 44px; height: 28px; border: 1px solid var(--rule); padding: 0; background: none; }
+  @media (max-width: 760px) { body { grid-template-columns: 1fr; } aside { border-left: 0; border-top: 1px solid var(--rule); } }
+</style>
+</head>
+<body>
+<main><canvas id="c" width="1600" height="2400"></canvas></main>
+<aside>
+  <h1>Boucles</h1>
+  <p>Un ruban fermé en huit, tordu dans l'espace, tracé par des centaines de fils. De face, le ruban s'ouvre en voile ; de profil, il se serre en un trait dense. <a href="../">← les sphères</a></p>
+
+  <label>Graine <span id="v-seed"></span><input id="seed" type="range" min="1" max="9999" value="14"></label>
+  <label>Fils <span id="v-n"></span><input id="n" type="range" min="50" max="2500" value="1200"></label>
+  <label>Largeur du ruban <span id="v-w"></span><input id="w" type="range" min="0" max="100" value="70"></label>
+  <label>Torsion <span id="v-tw"></span><input id="tw" type="range" min="0" max="100" value="50"></label>
+  <label>Serrage sur le bord <span id="v-p"></span><input id="p" type="range" min="10" max="60" value="30"></label>
+  <label>Fils égarés <span id="v-wild"></span><input id="wild" type="range" min="0" max="100" value="35"></label>
+  <label>Irrégularité de la forme <span id="v-irr"></span><input id="irr" type="range" min="0" max="100" value="40"></label>
+  <label>Opacité du fil <span id="v-a"></span><input id="a" type="range" min="2" max="60" value="22"></label>
+  <label>Encre / papier</label>
+  <div class="colors"><input id="ink" type="color" value="#0b3a72"><input id="paper" type="color" value="#c0c0c0"></div>
+
+  <div class="row">
+    <button class="primary" id="again">Nouvelle graine</button>
+    <button id="png">PNG</button>
+    <button id="svg">SVG</button>
+  </div>
+</aside>
+
+<script>
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const gauss = r => Math.sqrt(-2 * Math.log(1 - r())) * Math.cos(2 * Math.PI * r());
+const TAU = Math.PI * 2, STEPS = 420;
+const $ = id => document.getElementById(id);
+
+/* La forme : une courbe fermée C(t) en 8, et un ruban autour d'elle.
+   P(t, s) = C(t) + s · w(t) · W(t)
+   - W(t) : direction du ruban, qui tourne autour de l'axe vertical au fil de t (la torsion) ;
+   - w(t) : largeur, qui gonfle par endroits pour faire des voiles ;
+   - s    : la place du fil en travers du ruban, tirée en puissance pour serrer les fils sur un bord. */
+function makeForm(r, o) {
+  const harm = () => [1, 2, 3].map(m => ({ m, a: gauss(r) * .08 * o.irr / m, ph: r() * TAU }));
+  return {
+    hx: harm(), hy: harm(), hz: harm(),
+    round: .7 + r() * .15,                                  // largeur des boucles
+    depth: .3 + r() * .35,                                   // profondeur du 8 (axe z)
+    tw0: r() * TAU, twK: (.6 + r() * 1.4) * o.tw * (r() < .5 ? -1 : 1), twPh: r() * TAU,
+    w0: .08 + .45 * o.w, wBump: r() * TAU, wK: .3 + r() * .7,
+    rot: (r() - .5) * .6, tilt: (r() - .5) * .6,
+  };
+}
+const fourier = (h, t) => h.reduce((s, k) => s + k.a * Math.sin(k.m * t + k.ph), 0);
+
+function base(f, t) {
+  // le 8 : sin(2t) en x, sin(t) en y → deux boucles l'une au-dessus de l'autre
+  return [
+    f.round * Math.sin(2 * t) + fourier(f.hx, t),
+    1.3 * Math.sin(t) + fourier(f.hy, t),
+    f.depth * Math.cos(t) + fourier(f.hz, t),
+  ];
+}
+
+function point(f, t, s, wob) {
+  let [x, y, z] = base(f, t);
+  // normale de la courbe dans le plan du dessin
+  const e = 1e-3, a = base(f, t + e), b = base(f, t - e);
+  let nx = -(a[1] - b[1]), ny = a[0] - b[0];
+  const nl = Math.hypot(nx, ny) || 1; nx /= nl; ny /= nl;
+  // le ruban tourne entre la normale (de face : il s'ouvre en voile) et la profondeur (de profil : un trait)
+  const ang = f.tw0 + f.twK * Math.sin(t + f.twPh);
+  const width = f.w0 * (1 + f.wK * Math.max(0, Math.sin(2 * t + f.wBump)));
+  const d = s * width;
+  x += d * Math.cos(ang) * nx + wob[0];
+  y += d * Math.cos(ang) * ny + wob[1];
+  z += d * Math.sin(ang) + wob[2];
+  // on tourne un peu la forme avant de l'aplatir (projection orthographique)
+  const cr = Math.cos(f.rot), sr = Math.sin(f.rot), ct = Math.cos(f.tilt), st = Math.sin(f.tilt);
+  const x1 = x * cr + z * sr, z1 = -x * sr + z * cr;
+  const y1 = y * ct - z1 * st;
+  return [x1, y1];
+}
+
+function build(o) {
+  const r = mulberry32(o.seed), f = makeForm(r, o);
+  const lines = [];
+  for (let i = 0; i < o.n; i++) {
+    let s = Math.pow(r(), 1 / o.p) ;                          // 0..1, beaucoup de fils près de 1 : bord dense
+    s = 1 - s;                                               // le bord dense est en s = 0
+    const wild = r() < .06 * o.wild;                          // quelques fils s'échappent du ruban
+    if (wild) s += gauss(r) * .4;
+    const amp = (.004 + .05 * s * s + (wild ? .06 : 0)) * (.3 + o.wild);
+    const wob = [0, 1, 2].map(() => [1, 2].map(m => ({ m, a: gauss(r) * amp / m, ph: r() * TAU })));
+    const pts = [];
+    for (let j = 0; j <= STEPS; j++) {
+      const t = j / STEPS * TAU;
+      pts.push(point(f, t, s, wob.map(h => fourier(h, t))));
+    }
+    pts.wild = wild;
+    lines.push(pts);
+  }
+  // cadrage : on centre et on remplit la feuille avec une marge
+  let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+  for (const l of lines) if (!l.wild) for (const [x, y] of l) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  const W = 1000, H = 1500, m = 90;
+  const k = Math.min((W - 2 * m) / (x1 - x0), (H - 2 * m) / (y1 - y0));
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  return lines.map(l => l.map(([x, y]) => [W / 2 + (x - cx) * k, H / 2 - (y - cy) * k]));
+}
+
+let current = null, opts = null;
+function read() {
+  return {
+    seed: +$('seed').value, n: +$('n').value, w: $('w').value / 100, tw: $('tw').value / 100 * 2.2,
+    p: $('p').value / 10, wild: $('wild').value / 100, irr: $('irr').value / 100, a: $('a').value / 100,
+    ink: $('ink').value, paper: $('paper').value,
+  };
+}
+function render() {
+  opts = read();
+  for (const k of ['seed', 'n', 'w', 'tw', 'p', 'wild', 'irr', 'a']) $('v-' + k).textContent = $(k).value;
+  current = build(opts);
+  const c = $('c'), g = c.getContext('2d'), sc = c.width / 1000;
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.fillStyle = opts.paper; g.fillRect(0, 0, c.width, c.height);
+  g.setTransform(sc, 0, 0, sc, 0, 0);
+  g.strokeStyle = opts.ink; g.globalAlpha = opts.a; g.lineWidth = .45; g.lineJoin = 'round';
+  for (const l of current) {
+    g.beginPath(); g.moveTo(l[0][0], l[0][1]);
+    for (let i = 1; i < l.length; i++) g.lineTo(l[i][0], l[i][1]);
+    g.stroke();
+  }
+  g.globalAlpha = 1;
+}
+
+let timer;
+document.querySelectorAll('input').forEach(i => i.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(render, 30); }));
+$('again').onclick = () => { $('seed').value = 1 + Math.floor(Math.random() * 9999); render(); };
+const save = (blob, name) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); };
+$('png').onclick = () => $('c').toBlob(b => save(b, `boucles-${opts.seed}.png`));
+$('svg').onclick = () => {
+  const d = current.map(l => 'M' + l.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L')).join('');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1500"><rect width="1000" height="1500" fill="${opts.paper}"/><path d="${d}" fill="none" stroke="${opts.ink}" stroke-opacity="${opts.a}" stroke-width=".45"/></svg>`;
+  save(new Blob([svg], { type: 'image/svg+xml' }), `boucles-${opts.seed}.svg`);
+};
+render();
+</script>
+</body>
+</html>

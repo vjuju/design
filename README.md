@@ -16,6 +16,7 @@ piste, avec le script qui fabrique et la planche qui montre le résultat.
 | [`gigot/`](gigot/) | design system de gigot.app : palette, logo, pictogramme, bouton animé et aplats sur photo, façon Keith Haring |
 | [`sphere/`](sphere/) | site de Reskif : la sphère de Bruno Simon tombe dans une flaque, un arbre en sort et mène à quatre profils (feu, air avec The Spirit d'Edan Kwan, eau, buste en éclats) — [en ligne](https://vjuju.github.io/design/sphere/) |
 | [`spiro/`](spiro/) | effet spirographe : sphères en fil de fer déformées puis projetées à plat, tracées au trait fin, export SVG pour traceur |
+| [`spiro/boucles/`](spiro/boucles/) | un ruban en huit tordu dans l'espace, tracé par un millier de fils fins : voiles de face, trait dense de profil |
 | [`gigot/accueil/`](gigot/accueil/) | maquette de l'accueil de gigot.app avec le design system : cartes, aperçu au survol, fiche, clair / sombre |
 
 ## Reskif (`sphere/`)
