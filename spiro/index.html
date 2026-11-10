@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spiro — sphères déformées</title>
+<meta name="description" content="Des sphères en fil de fer, déformées et projetées à plat, tracées au trait fin comme au traceur : un effet spirographe généré par une graine.">
+<style>
+  :root {
+    --paper: #efedea;
+    --ink: #1c1b19;
+    --muted: #77736b;
+    --rule: #d6d2ca;
+    --panel: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #efedea; --muted: #a29d93; --rule: #34312c; --panel: #1b1a18;
+    }
+    :root:not([data-theme="light"]) body { background: #121110; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #e9e7e3; color: var(--ink);
+    font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    display: grid; grid-template-columns: minmax(0, 1fr) 300px; min-height: 100vh;
+  }
+  main { display: grid; place-items: center; padding: 24px 16px; }
+  #art { width: min(88vh, 100%); aspect-ratio: 1; background: var(--paper); box-shadow: 0 10px 40px rgba(0,0,0,.08); }
+  #art svg { width: 100%; height: 100%; display: block; }
+  aside { background: var(--panel); border-left: 1px solid var(--rule); padding: 24px 20px; overflow: auto; }
+  h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -.02em; }
+  aside > p { margin: 0 0 20px; color: var(--muted); }
+  label { display: block; margin: 14px 0 0; font-size: 12px; color: var(--muted); }
+  label span { float: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; }
+  .row { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+  button { font: inherit; padding: 8px 12px; border: 1px solid var(--rule); background: transparent; color: var(--ink); border-radius: 6px; cursor: pointer; }
+  button.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+  .colors { display: flex; gap: 10px; margin-top: 8px; }
+  input[type=color] { width: 44px; height: 28px; border: 1px solid var(--rule); padding: 0; background: none; }
+  @media (max-width: 760px) {
+    body { grid-template-columns: 1fr; }
+    aside { border-left: 0; border-top: 1px solid var(--rule); }
+  }
+</style>
+</head>
+<body>
+<main><div id="art"></div></main>
+<aside>
+  <h1>Spiro</h1>
+  <p>Deux sphères en fil de fer (méridiens + parallèles), déformées puis projetées à plat. La moiré naît de la superposition des deux faces.</p>
+
+  <label>Graine <span id="v-seed"></span><input id="seed" type="range" min="1" max="9999" value="27"></label>
+  <label>Méridiens <span id="v-mer"></span><input id="mer" type="range" min="20" max="200" value="110"></label>
+  <label>Parallèles <span id="v-par"></span><input id="par" type="range" min="10" max="150" value="80"></label>
+  <label>Déformation <span id="v-def"></span><input id="def" type="range" min="0" max="100" value="55"></label>
+  <label>Creux (fossette) <span id="v-dent"></span><input id="dent" type="range" min="0" max="100" value="45"></label>
+  <label>Torsion (spirale) <span id="v-twist"></span><input id="twist" type="range" min="-100" max="100" value="0"></label>
+  <label>Épaisseur du trait <span id="v-sw"></span><input id="sw" type="range" min="2" max="20" value="7"></label>
+  <label style="margin-top:16px"><input id="hidden" type="checkbox"> Montrer la face arrière (plus de moiré)</label>
+  <label>Encres</label>
+  <div class="colors"><input id="c1" type="color" value="#e5007d"><input id="c2" type="color" value="#0e6f6f"></div>
+
+  <div class="row">
+    <button class="primary" id="again">Nouvelle graine</button>
+    <button id="dl">Télécharger le SVG</button>
+  </div>
+</aside>
+
+<script>
+/* ---------- hasard reproductible ---------- */
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const randUnit = r => { // direction aléatoire sur la sphère
+  const z = r() * 2 - 1, a = r() * Math.PI * 2, s = Math.sqrt(1 - z * z);
+  return [s * Math.cos(a), s * Math.sin(a), z];
+};
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+
+/* ---------- rotation 3D ---------- */
+function rotMatrix(ax, ay, az) {
+  const [ca, sa, cb, sb, cc, sc] = [Math.cos(ax), Math.sin(ax), Math.cos(ay), Math.sin(ay), Math.cos(az), Math.sin(az)];
+  return [
+    [cb * cc, sa * sb * cc - ca * sc, ca * sb * cc + sa * sc],
+    [cb * sc, sa * sb * sc + ca * cc, ca * sb * sc - sa * cc],
+    [-sb, sa * cb, ca * cb],
+  ];
+}
+const apply = (m, p) => [dot(m[0], p), dot(m[1], p), dot(m[2], p)];
+
+/* ---------- une forme = une sphère + un champ de déformation ---------- */
+function makeShape(r, o) {
+  const lobes = [0, 1, 2].map(() => ({ d: randUnit(r), a: (r() - .25) * 1.1 * o.def }));
+  // la fossette se creuse près d'un pôle : c'est là que méridiens et parallèles tourbillonnent
+  const dentDir = [(r() - .5) * .5, (r() - .5) * .5, 1], n = Math.hypot(...dentDir);
+  return {
+    lobes, dentDir: dentDir.map(v => v / n),
+    dentAmp: .6 * o.dent, dentWidth: .12 + r() * .15,
+    scale: [1 + (r() - .3) * .7 * o.def, 1 + (r() - .5) * .5 * o.def, 1 + (r() - .5) * .4 * o.def],
+    bend: (r() - .5) * 1.4 * o.def,
+    rot: rotMatrix(r() * 6.28, r() * 6.28, r() * 6.28),
+    twist: o.twist,
+  };
+}
+
+// point de la surface pour (θ latitude depuis le pôle, φ longitude)
+function surface(s, theta, phi) {
+  phi += s.twist * theta;                         // torsion : les méridiens deviennent des spirales
+  const p = [Math.sin(theta) * Math.cos(phi), Math.sin(theta) * Math.sin(phi), Math.cos(theta)];
+  let rad = 1;
+  for (const l of s.lobes) { const k = dot(p, l.d); rad += l.a * k * k * Math.sign(k); } // bosses douces
+  rad -= s.dentAmp * Math.exp(-(1 - dot(p, s.dentDir)) / s.dentWidth);                  // fossette
+  let q = [p[0] * rad * s.scale[0], p[1] * rad * s.scale[1], p[2] * rad * s.scale[2]];
+  q[0] += s.bend * q[2] * q[2];                   // courbure en haricot
+  return apply(s.rot, q);                         // on tourne, puis on garde x, y (projection orthographique)
+}
+
+/* ---------- tracé ---------- */
+// la face est-elle tournée vers nous ? signe de la normale (∂S/∂θ × ∂S/∂φ) en z
+function facing(s, theta, phi) {
+  const e = 1e-3, th = Math.min(Math.max(theta, 2e-3), Math.PI - 2e-3);
+  const a = surface(s, th + e, phi), b = surface(s, th - e, phi);
+  const c = surface(s, th, phi + e), d = surface(s, th, phi - e);
+  const u = [a[0] - b[0], a[1] - b[1]], v = [c[0] - d[0], c[1] - d[1]];
+  return u[0] * v[1] - u[1] * v[0] > 0;
+}
+
+// une ligne (θ(t), φ(t)) découpée en morceaux visibles
+function trace(s, f, steps, hidden, out) {
+  let cur = [];
+  for (let j = 0; j <= steps; j++) {
+    const [theta, phi] = f(j / steps);
+    if (hidden || facing(s, theta, phi)) cur.push(surface(s, theta, phi));
+    else if (cur.length) { if (cur.length > 1) out.push(cur); cur = []; }
+  }
+  if (cur.length > 1) out.push(cur);
+}
+
+function polylines(s, nMer, nPar, hidden, steps = 260) {
+  const lines = [];
+  for (let i = 0; i < nMer; i++) {               // méridiens : φ fixe, θ varie
+    const phi = i / nMer * Math.PI * 2;
+    trace(s, t => [t * Math.PI, phi], steps, hidden, lines);
+  }
+  for (let i = 1; i < nPar; i++) {               // parallèles : θ fixe, φ varie
+    const theta = i / nPar * Math.PI;
+    trace(s, t => [theta, t * Math.PI * 2], steps, hidden, lines);
+  }
+  return lines;
+}
+
+function fit(lines, cx, cy, size) {             // recentre et met à l'échelle chaque forme
+  let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+  for (const l of lines) for (const p of l) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
+  const k = size / Math.max(x1 - x0, y1 - y0), mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+  return lines.map(l => l.map(p => [cx + (p[0] - mx) * k, cy + (p[1] - my) * k]));
+}
+
+const toPath = lines => lines.map(l => 'M' + l.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L')).join('');
+
+const $ = id => document.getElementById(id);
+const W = 1000;
+
+function render() {
+  const o = {
+    seed: +$('seed').value, mer: +$('mer').value, par: +$('par').value,
+    def: $('def').value / 100, dent: $('dent').value / 100, twist: $('twist').value / 100 * 3,
+    sw: $('sw').value / 10, hidden: $('hidden').checked, c1: $('c1').value, c2: $('c2').value,
+  };
+  for (const k of ['seed', 'mer', 'par', 'def', 'dent', 'twist', 'sw']) $('v-' + k).textContent = $(k).value;
+
+  const r = mulberry32(o.seed);
+  const shapes = [
+    { color: o.c1, cx: W * .40, cy: W * .62 },
+    { color: o.c2, cx: W * .60, cy: W * .38 },
+  ];
+  let body = '';
+  for (const sh of shapes) {
+    const s = makeShape(r, o);
+    const lines = fit(polylines(s, o.mer, o.par, o.hidden), sh.cx, sh.cy, W * (.50 + r() * .08));
+    body += `<path d="${toPath(lines)}" fill="none" stroke="${sh.color}" stroke-width="${o.sw}" stroke-linejoin="round" style="mix-blend-mode:multiply"/>`;
+  }
+  $('art').innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${W}"><rect width="${W}" height="${W}" fill="#efedea"/>${body}</svg>`;
+}
+
+document.querySelectorAll('input').forEach(i => i.addEventListener('input', render));
+$('again').onclick = () => { $('seed').value = 1 + Math.floor(Math.random() * 9999); render(); };
+$('dl').onclick = () => {
+  const blob = new Blob([$('art').innerHTML], { type: 'image/svg+xml' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = `spiro-${$('seed').value}.svg`; a.click();
+};
+render();
+</script>
+</body>
+</html>
