@@ -76,10 +76,13 @@ Une page autonome, sans dépendance ni CDN : `web/index.html`. Le même dessin q
   couleurs se mélangent selon la distance à chacune : le dégradé naît de la
   rencontre. Une légère répulsion les empêche de s'empiler.
 - **Curseur.** Il attire doucement les atomes proches (ressort amorti) : les
-  liaisons s'étirent et la molécule suit un peu. Un clic fait naître une
-  molécule à la place de la plus ancienne.
-- **Fin.** Au bout de 16 à 28 s, la molécule se rétracte, les feuilles d'abord,
-  et renaît ailleurs.
+  liaisons s'étirent et la molécule suit un peu.
+- **Vie des atomes.** Chaque atome vit 7 à 15 s, puis rentre lentement dans son
+  parent (5 s), les feuilles d'abord : un atome qui a encore des enfants attend
+  qu'ils soient partis. Pendant 18 à 34 s, la molécule fait bourgeonner de
+  nouveaux atomes pour rester entre X et Y ; ensuite elle s'éteint atome par
+  atome, jamais d'un coup, et une autre naît ailleurs. Un clic fait naître une
+  molécule et met la plus ancienne en déclin.
 
 Réglages dans l'URL, mêmes noms que le script : `?palette=nuit&plans=8&atomes=2-4&coude=90&evasement=1`,
 plus `rencontre` (viscosité entre molécules), `attraction` et `vitesse`.

@@ -44,7 +44,11 @@
     distance à chacune : le dégradé naît de la rencontre.
   - Le curseur attire doucement les atomes proches (ressort amorti) : les
     liaisons s'étirent, la molécule suit un peu.
-  - Au bout de sa vie, elle se rétracte dans sa racine et renaît ailleurs.
+  - Chaque atome a sa propre vie (7 à 15 s). Quand elle s'achève, il rentre
+    lentement dans son parent (5 s), mais seulement s'il est une feuille ; un
+    autre bourgeonne ailleurs pour le remplacer. Au bout de 18 à 34 s, la
+    molécule cesse de pousser et s'éteint atome par atome, jamais d'un coup ;
+    une autre naît ailleurs.
 */
 
 const PALETTES = {
@@ -69,7 +73,7 @@ const R = {
   attraction: num("attraction", 1),
   vitesse: num("vitesse", 1),
 };
-const MAXA = 48, MAXB = 40, MAXP = 10;
+const MAXA = 64, MAXB = 56, MAXP = 12;
 const calme = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // ---------------------------------------------------------------- WebGL
@@ -190,39 +194,43 @@ const gauss = () => { let u = 0, v = 0; while (!u) u = Math.random(); while (!v)
 const choix = l => l[Math.floor(Math.random() * l.length)];
 const rad = Math.PI / 180;
 
-function pousser(n) {
-  const rayon = () => (Math.random() < .5 ? hasard(40, 64) : hasard(18, 32)) * e;
-  const atomes = [{ x: 0, y: 0, r: rayon(), parent: -1 }];
-  const ref = [hasard(0, 2 * Math.PI)];
-  const libres = [[0, choix([-1, 1]) * R.coude]];
-  const liens = [];
-  for (let essais = 0; atomes.length < n && essais < n * 60; essais++) {
-    const p = Math.random() > .15 ? atomes.length - 1 : Math.floor(Math.random() * atomes.length);
-    if (!libres[p].length) continue;
-    const dev = choix(libres[p]);
-    const cap = ref[p] + (dev + gauss() * R.ecartCoude) * rad;
-    const par = atomes[p], r = rayon(), dist = (par.r + r) * hasard(1.3, 1.9);
-    const a = { x: par.x + dist * Math.cos(cap), y: par.y + dist * Math.sin(cap), r, parent: p };
+const rayonAtome = () => (Math.random() < .5 ? hasard(40, 64) : hasard(18, 32)) * e;
+const vivant = a => a.mort === null;
+
+// Fait bourgeonner un atome sur la molécule : à ~90° de la liaison qui arrive
+// à son parent, sans chevaucher ni traverser les autres. Renvoie vrai si c'est fait.
+function bourgeonner(plan) {
+  const parents = plan.atomes.filter(a => vivant(a) && a.libres.length);
+  if (!parents.length) return false;
+  for (let essai = 0; essai < 24; essai++) {
+    // le plus souvent au bout de la chaîne, parfois ailleurs : une branche
+    const par = Math.random() > .15 ? parents[parents.length - 1] : choix(parents);
+    const dev = choix(par.libres);
+    const cap = par.cap + (dev + gauss() * R.ecartCoude) * rad;
+    const r = rayonAtome(), dist = (par.r + r) * hasard(1.3, 1.9);
+    const a = { x: par.x + dist * Math.cos(cap), y: par.y + dist * Math.sin(cap), r };
     let ok = true;
-    for (let k = 0; k < atomes.length && ok; k++) {
-      const b = atomes[k];
-      if (Math.hypot(a.x - b.x, a.y - b.y) < (a.r + b.r) * 1.15) ok = false;
-      if (k === p) continue;
+    for (const b of plan.atomes) {
+      if (Math.hypot(a.x - b.x, a.y - b.y) < (a.r + b.r) * 1.15) { ok = false; break; }
+      if (b === par) continue;
       const vx = a.x - par.x, vy = a.y - par.y;
       const t = Math.max(0, Math.min(1, ((b.x - par.x) * vx + (b.y - par.y) * vy) / (vx * vx + vy * vy)));
-      if (Math.hypot(b.x - par.x - t * vx, b.y - par.y - t * vy) < b.r + .4 * a.r) ok = false;
+      if (Math.hypot(b.x - par.x - t * vx, b.y - par.y - t * vy) < b.r + .4 * a.r) { ok = false; break; }
     }
     if (!ok) continue;
-    libres[p].splice(libres[p].indexOf(dev), 1);
-    atomes.push(a); ref.push(cap);
-    libres.push(Math.random() < .5 ? [R.coude, -R.coude] : [-R.coude, R.coude]);
-    liens.push({ i: p, j: atomes.length - 1, col: Math.min(par.r, r) * hasard(.3, .42) });
+    par.libres.splice(par.libres.indexOf(dev), 1);
+    plan.atomes.push(nouvelAtome(a.x, a.y, r, par, cap, dev, Math.min(par.r, r) * hasard(.3, .42)));
+    return true;
   }
-  // centre la molécule sur son barycentre, pour qu'elle tourne sur elle-même
-  const cx = atomes.reduce((s, a) => s + a.x, 0) / atomes.length;
-  const cy = atomes.reduce((s, a) => s + a.y, 0) / atomes.length;
-  for (const a of atomes) { a.x -= cx; a.y -= cy; a.ox = 0; a.oy = 0; a.vx = 0; a.vy = 0; }
-  return { atomes, liens };
+  return false;
+}
+
+function nouvelAtome(x, y, r, parent, cap, dev, col) {
+  return { x, y, r, parent, cap, dev, col,
+           libres: parent ? (Math.random() < .5 ? [R.coude, -R.coude] : [-R.coude, R.coude])
+                          : [0, choix([-1, 1]) * R.coude],   // la racine : deux liaisons à angle droit
+           naissance: horloge, vie: hasard(VIE_ATOME[0], VIE_ATOME[1]), mort: null,
+           g: 0, ox: 0, oy: 0, vx: 0, vy: 0 };
 }
 
 // ---------------------------------------------------------------- Les molécules
@@ -230,9 +238,15 @@ let palette = q.get("palette") in PALETTES ? q.get("palette") : "lagon";
 const plans = [];
 let horloge = 0;
 
+// Une molécule pousse pendant `pousse` secondes en gardant entre X et Y atomes :
+// chaque atome a sa propre vie et, quand il meurt, un autre bourgeonne ailleurs.
+// Passé ce temps, plus rien ne pousse et elle s'éteint atome par atome.
+const VIE_ATOME = [7, 15], MORT = 5, BOURGEON = .55;
+
 function naitre(plan, x, y, delai = 0) {
-  const n = Math.floor(hasard(R.atomesMin, R.atomesMax + 1));
-  Object.assign(plan, pousser(n));
+  plan.atomes = [];
+  plan.cible = Math.floor(hasard(R.atomesMin, R.atomesMax + 1));
+  plan.rempli = false;
   const ang = hasard(0, 2 * Math.PI), v = hasard(8, 18) * e * R.vitesse * (calme ? .3 : 1);
   plan.x = x ?? hasard(.05, .95) * W;
   plan.y = y ?? hasard(.05, .95) * H;
@@ -240,26 +254,66 @@ function naitre(plan, x, y, delai = 0) {
   plan.rot = hasard(0, 2 * Math.PI);
   plan.vrot = hasard(-.06, .06) * (calme ? .3 : 1);
   plan.naissance = horloge + delai;
-  plan.vie = hasard(16, 28);
+  plan.finPousse = plan.naissance + hasard(18, 34);
+  plan.prochain = plan.naissance;
   // une couleur que ses voisines n'ont pas déjà, si possible
   const prises = plans.filter(p => p !== plan).map(p => p.couleur);
   const libres = PALETTES[palette].couleurs.filter(c => !prises.includes(c));
   plan.couleur = choix(libres.length ? libres : PALETTES[palette].couleurs);
 }
 
-for (let i = 0; i < R.plans; i++) { const p = {}; plans.push(p); naitre(p, undefined, undefined, i * 0.6); }
+function nouveauPlan(x, y, delai) { const p = {}; plans.push(p); naitre(p, x, y, delai); return p; }
+for (let i = 0; i < R.plans; i++) nouveauPlan(undefined, undefined, i * 0.6);
 
-// Durée d'apparition d'un atome, décalée selon son rang : les atomes bourgeonnent l'un après l'autre.
-const BOURGEON = .55, DISPARITION = 2.2;
 const doux = t => (t <= 0 ? 0 : t >= 1 ? 1 : 1 - Math.pow(1 - t, 3));
+const lisse = t => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 const rebond = t => (t <= 0 ? 0 : t >= 1 ? 1 : 1 + 2.2 * Math.pow(t - 1, 3) + 1.2 * Math.pow(t - 1, 2));
 
-function croissance(plan, k) {
-  const age = horloge - plan.naissance;
-  const n = plan.atomes.length;
-  const entree = rebond((age - k * BOURGEON) / (BOURGEON * 1.6));
-  const sortie = doux((age - plan.vie + (n - 1 - k) * .35 + DISPARITION) / 1.1);  // les feuilles d'abord
-  return Math.max(0, entree * (1 - sortie));
+// Fait vivre une molécule : naissances, morts, et la fin de la molécule elle-même.
+// Renvoie faux quand elle n'a plus d'atome et doit céder la place.
+function vivre(plan) {
+  if (horloge < plan.naissance) return true;
+  const enfants = new Map();
+  for (const a of plan.atomes) if (a.parent) enfants.set(a.parent, (enfants.get(a.parent) || 0) + 1);
+
+  // naissances : la racine d'abord, puis des bourgeons jusqu'à la cible
+  if (!plan.atomes.length && horloge < plan.finPousse) {
+    const r = nouvelAtome(0, 0, rayonAtome(), null, hasard(0, 2 * Math.PI), 0, 0);
+    r.vie = plan.finPousse - horloge + hasard(2, 5);   // la racine part en dernier
+    plan.atomes.push(r);
+    plan.prochain = horloge + BOURGEON;
+  }
+  const vivants = plan.atomes.filter(vivant).length;
+  if (vivants >= plan.cible) plan.rempli = true;
+  if (horloge >= plan.prochain && horloge < plan.finPousse && vivants < plan.cible) {
+    bourgeonner(plan);
+    plan.prochain = horloge + (plan.rempli ? hasard(1.5, 4) : BOURGEON);
+  }
+
+  // morts : un atome dont la vie est finie s'éteint, mais seulement s'il est
+  // une feuille ; sinon il attend que ses enfants soient partis.
+  for (const a of plan.atomes) {
+    if (vivant(a) && horloge > a.naissance + a.vie && !enfants.get(a)) a.mort = horloge;
+  }
+  // l'atome éteint quitte la molécule et rend sa direction à son parent
+  plan.atomes = plan.atomes.filter(a => {
+    if (a.mort === null || horloge - a.mort < MORT) return true;
+    if (a.parent && vivant(a.parent)) a.parent.libres.push(a.dev);
+    return false;
+  });
+  for (const a of plan.atomes) {
+    const entree = rebond((horloge - a.naissance) / (BOURGEON * 1.6));
+    const sortie = a.mort === null ? 0 : lisse((horloge - a.mort) / MORT);
+    a.g = Math.max(0, entree * (1 - sortie));
+  }
+  return plan.atomes.length > 0 || horloge < plan.finPousse;
+}
+
+// Faire décliner une molécule : elle ne pousse plus, ses atomes finissent leur vie
+// au plus vite, mais s'éteignent toujours lentement, les feuilles d'abord.
+function decliner(plan) {
+  plan.finPousse = Math.min(plan.finPousse, horloge);
+  for (const a of plan.atomes) a.vie = Math.min(a.vie, horloge - a.naissance);
 }
 
 // ---------------------------------------------------------------- Curseur
@@ -268,9 +322,11 @@ addEventListener("pointermove", ev => { souris.x = ev.clientX; souris.y = ev.cli
 addEventListener("pointerleave", () => { souris.actif = false; });
 document.addEventListener("mouseleave", () => { souris.actif = false; });
 canvas.addEventListener("pointerdown", ev => {
-  // faire naître une molécule sous le doigt, à la place de la plus vieille
-  const vieille = plans.reduce((a, b) => (a.naissance < b.naissance ? a : b));
-  naitre(vieille, ev.clientX, ev.clientY);
+  // faire naître une molécule sous le doigt ; la plus vieille commence à s'éteindre
+  if (plans.length >= MAXP) return;
+  const actives = plans.filter(p => horloge < p.finPousse);
+  if (actives.length) decliner(actives.reduce((a, b) => (a.naissance < b.naissance ? a : b)));
+  nouveauPlan(ev.clientX, ev.clientY, 0);
 });
 
 // ---------------------------------------------------------------- Palette
@@ -313,10 +369,14 @@ function image(maintenant) {
     }
   }
 
-  plans.forEach((plan, ip) => {
-    const age = horloge - plan.naissance;
-    if (age > plan.vie + 1) { naitre(plan); return; }
+  // les molécules éteintes cèdent la place ; on en refait naître s'il en manque
+  for (let i = plans.length - 1; i >= 0; i--) {
+    if (!vivre(plans[i])) {
+      if (plans.length > R.plans) plans.splice(i, 1); else naitre(plans[i]);
+    }
+  }
 
+  plans.forEach((plan, ip) => {
     // dérive, avec un virage doux pour rester dans le cadre
     if (plan.x < marge) plan.vx += 12 * e * dt; if (plan.x > W - marge) plan.vx -= 12 * e * dt;
     if (plan.y < marge) plan.vy += 12 * e * dt; if (plan.y > H - marge) plan.vy -= 12 * e * dt;
@@ -331,8 +391,7 @@ function image(maintenant) {
     plan.x += plan.vx * dt; plan.y += plan.vy * dt; plan.rot += plan.vrot * dt;
 
     const cos = Math.cos(plan.rot), sin = Math.sin(plan.rot);
-    const monde = [];
-    plan.atomes.forEach((a, k) => {
+    for (const a of plan.atomes) {
       const bx = plan.x + a.x * cos - a.y * sin, by = plan.y + a.x * sin + a.y * cos;
       // ressort amorti vers une cible tirée par le curseur
       let tx = 0, ty = 0;
@@ -344,26 +403,22 @@ function image(maintenant) {
       a.vx += ((tx - a.ox) * 14 - a.vx * 6) * dt;
       a.vy += ((ty - a.oy) * 14 - a.vy * 6) * dt;
       a.ox += a.vx * dt; a.oy += a.vy * dt;
-      monde.push({ x: bx + a.ox, y: by + a.oy, g: croissance(plan, k) });
-    });
-
-    // un atome naissant sort de son parent en glissant le long de sa liaison
-    plan.atomes.forEach((a, k) => {
-      const m = monde[k];
-      if (a.parent >= 0) {
-        const pm = monde[a.parent], g = doux(m.g);
-        m.x = pm.x + (m.x - pm.x) * g; m.y = pm.y + (m.y - pm.y) * g;
+      a.mx = bx + a.ox; a.my = by + a.oy;
+    }
+    // un atome qui naît sort de son parent en glissant le long de sa liaison ;
+    // un atome qui meurt y rentre lentement. (Les parents précèdent toujours leurs enfants.)
+    for (const a of plan.atomes) {
+      if (a.parent) {
+        const g = doux(a.g);
+        a.mx = a.parent.mx + (a.mx - a.parent.mx) * g;
+        a.my = a.parent.my + (a.my - a.parent.my) * g;
+        if (nb < MAXB && a.g > 0 && a.parent.g > 0) {
+          bufLienA.set([a.parent.mx, a.parent.my, a.mx, a.my], nb * 4);
+          bufLienB.set([a.col * Math.min(a.g, a.parent.g), a.parent.r * a.parent.g, a.r * a.g, ip], nb * 4);
+          nb++;
+        }
       }
-      if (na < MAXA && m.g > 0) {
-        bufAtome.set([m.x, m.y, a.r * m.g, ip], na * 4); na++;
-      }
-    });
-    for (const l of plan.liens) {
-      const A = monde[l.i], B = monde[l.j], g = Math.min(A.g, B.g);
-      if (g <= 0 || nb >= MAXB) continue;
-      bufLienA.set([A.x, A.y, B.x, B.y], nb * 4);
-      bufLienB.set([l.col * g, plan.atomes[l.i].r * A.g, plan.atomes[l.j].r * B.g, ip], nb * 4);
-      nb++;
+      if (na < MAXA && a.g > 0) { bufAtome.set([a.mx, a.my, a.r * a.g, ip], na * 4); na++; }
     }
     bufCouleur.set(hex(plan.couleur), ip * 3);
   });
