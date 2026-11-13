@@ -3,14 +3,15 @@
     "seed": 3,
     "palette": "aurore",
     "format": "affiche",
-    "molecules": 3,
+    "plans": 6,
     "atomes": [
-      6,
-      11
+      3,
+      5
     ],
     "satellites": 4,
     "zone": "droite",
-    "anneaux": 0.25,
+    "coude": 90.0,
+    "evasement": 1.0,
     "fusion": 1.0,
     "echelle": 1.0,
     "titre": "ABSTRACT",
@@ -21,14 +22,15 @@
     "seed": 11,
     "palette": "lagon",
     "format": "affiche",
-    "molecules": 3,
+    "plans": 6,
     "atomes": [
-      6,
-      11
+      3,
+      5
     ],
     "satellites": 4,
     "zone": "droite",
-    "anneaux": 0.25,
+    "coude": 90.0,
+    "evasement": 1.0,
     "fusion": 1.0,
     "echelle": 1.0,
     "titre": "TECHNOLOGY",
@@ -39,14 +41,15 @@
     "seed": 8,
     "palette": "sous-bois",
     "format": "affiche",
-    "molecules": 3,
+    "plans": 6,
     "atomes": [
-      6,
-      11
+      3,
+      5
     ],
     "satellites": 4,
     "zone": "droite",
-    "anneaux": 0.25,
+    "coude": 90.0,
+    "evasement": 1.0,
     "fusion": 1.0,
     "echelle": 1.0,
     "titre": "RELIER",
@@ -57,14 +60,15 @@
     "seed": 21,
     "palette": "corail",
     "format": "affiche",
-    "molecules": 4,
+    "plans": 8,
     "atomes": [
-      6,
-      11
+      3,
+      5
     ],
     "satellites": 4,
     "zone": "partout",
-    "anneaux": 0.25,
+    "coude": 90.0,
+    "evasement": 1.0,
     "fusion": 1.0,
     "echelle": 1.0,
     "titre": "",
@@ -75,14 +79,15 @@
     "seed": 5,
     "palette": "nuit",
     "format": "affiche",
-    "molecules": 4,
+    "plans": 8,
     "atomes": [
-      6,
-      11
+      2,
+      4
     ],
     "satellites": 4,
     "zone": "partout",
-    "anneaux": 0.25,
+    "coude": 90.0,
+    "evasement": 1.0,
     "fusion": 1.0,
     "echelle": 1.0,
     "titre": "",
@@ -93,14 +98,15 @@
     "seed": 14,
     "palette": "aurore",
     "format": "affiche",
-    "molecules": 3,
+    "plans": 6,
     "atomes": [
-      6,
-      11
+      3,
+      5
     ],
     "satellites": 4,
     "zone": "bas",
-    "anneaux": 0.25,
+    "coude": 90.0,
+    "evasement": 0.6,
     "fusion": 1.6,
     "echelle": 1.0,
     "titre": "",
@@ -111,14 +117,15 @@
     "seed": 30,
     "palette": "lagon",
     "format": "carre",
-    "molecules": 5,
+    "plans": 7,
     "atomes": [
-      5,
-      9
+      3,
+      6
     ],
     "satellites": 4,
     "zone": "partout",
-    "anneaux": 0.25,
+    "coude": 90.0,
+    "evasement": 1.0,
     "fusion": 1.0,
     "echelle": 1.0,
     "titre": "",
@@ -129,14 +136,15 @@
     "seed": 42,
     "palette": "sous-bois",
     "format": "carre",
-    "molecules": 4,
+    "plans": 6,
     "atomes": [
-      6,
-      11
+      3,
+      5
     ],
     "satellites": 4,
     "zone": "partout",
-    "anneaux": 0.5,
+    "coude": 75,
+    "evasement": 1.4,
     "fusion": 1.0,
     "echelle": 1.0,
     "titre": "",
@@ -147,14 +155,15 @@
     "seed": 9,
     "palette": "nuit",
     "format": "paysage",
-    "molecules": 6,
+    "plans": 10,
     "atomes": [
-      5,
-      10
+      3,
+      6
     ],
     "satellites": 4,
     "zone": "partout",
-    "anneaux": 0.25,
+    "coude": 90.0,
+    "evasement": 1.0,
     "fusion": 1.0,
     "echelle": 1.0,
     "titre": "",

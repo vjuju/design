@@ -5,29 +5,28 @@ rendues en SVG vectoriel pur : une couleur ou un dégradé par molécule.
 
 Comment une image est fabriquée
 -------------------------------
-1. Croissance. Chaque molécule pousse comme un petit arbre : un premier atome
-   (un disque), puis des voisins posés à distance de liaison, dans une
-   direction qui tourne doucement, avec parfois une branche. Les atomes ne se
-   chevauchent pas : c'est la liaison qui les relie.
-2. Champ de distance. Chaque atome est un disque, chaque liaison une capsule
-   plus fine (le « col »). On les réunit par un minimum lissé (smooth-min) :
-   là où deux formes se rapprochent, la matière coule de l'une à l'autre,
-   exactement comme deux gouttes qui se touchent.
-3. Contour vectoriel. Le champ est échantillonné sur une grille fine, la
-   courbe de niveau zéro est extraite par marching squares, rééchantillonnée
-   à pas régulier puis lissée en courbes de Bézier (Catmull-Rom). Le résultat
-   est un vrai tracé SVG, net à toutes les tailles, éditable dans Illustrator
-   ou Figma.
-4. Couleur. Chaque molécule reçoit un dégradé linéaire (deux ou trois
-   couleurs) orienté au hasard ; les satellites isolés prennent une couleur
-   franche. Certains atomes sont creusés en anneau.
+1. Plans. L'image superpose plusieurs plans, du fond vers l'avant. Chaque
+   plan porte une petite molécule de X à Y atomes (`--atomes X Y`) et sa
+   propre couleur ; les plans se chevauchent librement.
+2. Croissance. Dans un plan, chaque nouvel atome part à environ 90° de la
+   liaison qui arrive (`--coude`, avec un écart aléatoire), à gauche ou à
+   droite : trois atomes liés ne sont presque jamais alignés.
+3. Champ de distance. Chaque atome est un disque, chaque liaison un col fin
+   qui s'évase en trompette à sa base (`--evasement`). On les réunit par un
+   minimum lissé (smooth-min) : la matière coule de l'un à l'autre comme deux
+   gouttes qui se touchent.
+4. Contour vectoriel. La courbe de niveau zéro est extraite par marching
+   squares, rééchantillonnée puis lissée en courbes de Bézier (Catmull-Rom) :
+   un vrai tracé SVG, net à toutes les tailles, éditable dans Figma.
+5. Couleur. Un dégradé linéaire par plan, orienté au hasard ; les satellites
+   isolés sont en aplat.
 
 Utilisation
 -----------
     python3 molecule.py                          # une affiche au hasard
     python3 molecule.py --seed 7 --palette lagon
     python3 molecule.py --serie 12 -o output/    # douze affiches + manifeste
-    python3 molecule.py --format carre --molecules 4 --titre "TECHNOLOGY" \\
+    python3 molecule.py --plans 8 --atomes 2 4 --titre "TECHNOLOGY" \\
                         --sous-titre "CONNECT"
 
 Seule dépendance : numpy.
@@ -131,7 +130,6 @@ class Atome:
     x: float
     y: float
     r: float
-    anneau: float = 0.0  # rayon du trou (0 : atome plein)
 
 
 @dataclass
@@ -143,56 +141,66 @@ class Molecule:
 
 
 def faire_pousser(rng: random.Random, x: float, y: float, n: int, echelle: float,
-                  obstacles: list[Atome], zone: tuple[float, float, float, float],
-                  anneaux: float) -> Molecule:
-    """Fait pousser une molécule de `n` atomes à partir de (x, y), sans sortir de `zone`
-    (x0, x1, y0, y1 en unités SVG)."""
+                  zone: tuple[float, float, float, float], coude: float = 90.0,
+                  ecart_coude: float = 18.0, branches: float = 0.15) -> Molecule:
+    """Fait pousser un plan de `n` atomes à partir de (x, y), sans sortir de `zone`
+    (x0, x1, y0, y1 en unités SVG).
+
+    Trois atomes liés à la suite ne sont presque jamais alignés : chaque
+    nouvel atome part à `coude` degrés (± `ecart_coude`) de la liaison qui
+    arrive, d'un côté ou de l'autre."""
     zx0, zx1, zy0, zy1 = zone
 
     def rayon() -> float:
         # Mélange de gros atomes et de petits : c'est ce contraste qui fait vivre la forme.
         if rng.random() < 0.5:
-            return rng.uniform(40, 66) * echelle
-        return rng.uniform(17, 32) * echelle
+            return rng.uniform(40, 64) * echelle
+        return rng.uniform(18, 32) * echelle
 
     m = Molecule()
     m.atomes.append(Atome(x, y, rayon()))
-    caps = [rng.uniform(0, 2 * math.pi)]  # direction de croissance de chaque atome
-    degre = [0]
+    # Pour chaque atome : la direction de référence et les déviations encore libres.
+    ref = [rng.uniform(0, 2 * math.pi)]
+    libres = [[0.0, rng.choice([-1, 1]) * coude]]  # la racine : deux liaisons à angle droit
 
-    def libre(a: Atome) -> bool:
-        for b in m.atomes:
-            if math.hypot(a.x - b.x, a.y - b.y) < (a.r + b.r) * 1.08:
+    def place_libre(a: Atome, p: int) -> bool:
+        if not (zx0 < a.x < zx1 and zy0 < a.y < zy1):
+            return False
+        par = m.atomes[p]
+        for k, b in enumerate(m.atomes):
+            if math.hypot(a.x - b.x, a.y - b.y) < (a.r + b.r) * 1.15:
                 return False
-        for b in obstacles:  # les autres molécules : on les frôle sans les envahir
-            if math.hypot(a.x - b.x, a.y - b.y) < (a.r + b.r) * 0.75:
+            if k == p:
+                continue
+            # la nouvelle liaison ne doit pas traverser un autre atome
+            vx, vy = a.x - par.x, a.y - par.y
+            t = max(0.0, min(1.0, ((b.x - par.x) * vx + (b.y - par.y) * vy) / (vx * vx + vy * vy)))
+            if math.hypot(b.x - par.x - t * vx, b.y - par.y - t * vy) < b.r + 0.4 * a.r:
                 return False
-        return zx0 < a.x < zx1 and zy0 < a.y < zy1
+        return True
 
     essais = 0
-    while len(m.atomes) < n and essais < n * 40:
+    while len(m.atomes) < n and essais < n * 60:
         essais += 1
-        # Le plus souvent on prolonge le dernier atome (chaîne), parfois on branche.
-        if rng.random() < 0.55:
-            p = len(m.atomes) - 1
-        else:
-            p = rng.randrange(len(m.atomes))
-        if degre[p] >= 3:
+        # On prolonge le dernier atome ; parfois, rarement, on branche ailleurs.
+        p = len(m.atomes) - 1 if rng.random() > branches else rng.randrange(len(m.atomes))
+        if not libres[p]:
             continue
+        dev = rng.choice(libres[p])
+        cap = ref[p] + math.radians(dev + rng.gauss(0, ecart_coude))
         parent = m.atomes[p]
-        cap = caps[p] + rng.gauss(0, 1.1)
         r = rayon()
-        d = (parent.r + r) * rng.uniform(1.2, 1.7)
+        d = (parent.r + r) * rng.uniform(1.3, 1.9)
         a = Atome(parent.x + d * math.cos(cap), parent.y + d * math.sin(cap), r)
-        if not libre(a):
+        if not place_libre(a, p):
             continue
-        if r > 38 * echelle and rng.random() < anneaux:
-            a.anneau = r * rng.uniform(0.38, 0.52)
+        libres[p].remove(dev)
         m.atomes.append(a)
-        caps.append(cap)
-        degre.append(1)
-        degre[p] += 1
-        col = min(parent.r, r) * rng.uniform(0.38, 0.55)
+        ref.append(cap)
+        sens = [coude, -coude]
+        rng.shuffle(sens)
+        libres.append(sens)
+        col = min(parent.r, r) * rng.uniform(0.3, 0.42)
         m.liaisons.append((p, len(m.atomes) - 1, col))
     return m
 
@@ -207,19 +215,26 @@ def smin(a: np.ndarray, b: np.ndarray, k: float) -> np.ndarray:
     return b * (1 - h) + a * h - k * h * (1 - h)
 
 
-def champ(m: Molecule, X: np.ndarray, Y: np.ndarray, k: float) -> np.ndarray:
+def champ(m: Molecule, X: np.ndarray, Y: np.ndarray, k: float, evasement: float) -> np.ndarray:
+    """Distance au contour de la molécule, négative à l'intérieur.
+
+    Chaque liaison est un col fin (une capsule) soudé à ses deux atomes par un
+    minimum lissé à large rayon : c'est ce congé qui évase la base du col,
+    comme une goutte qui s'étire. Les liaisons ainsi formées sont ensuite
+    réunies entre elles avec un lissage plus léger."""
+    disques = [np.hypot(X - a.x, Y - a.y) - a.r for a in m.atomes]
     d = np.full(X.shape, 1e9)
     for (i, j, col) in m.liaisons:
         a, b = m.atomes[i], m.atomes[j]
         bx, by = b.x - a.x, b.y - a.y
         t = np.clip(((X - a.x) * bx + (Y - a.y) * by) / (bx * bx + by * by), 0, 1)
-        dc = np.hypot(X - a.x - t * bx, Y - a.y - t * by) - col
-        d = smin(d, dc, k)
-    for a in m.atomes:
-        d = smin(d, np.hypot(X - a.x, Y - a.y) - a.r, k)
-    for a in m.atomes:  # les anneaux : on creuse après la fusion
-        if a.anneau:
-            d = np.maximum(d, a.anneau - np.hypot(X - a.x, Y - a.y))
+        lien = np.hypot(X - a.x - t * bx, Y - a.y - t * by) - col
+        if evasement > 0:
+            lien = smin(lien, disques[i], evasement * 0.75 * a.r)
+            lien = smin(lien, disques[j], evasement * 0.75 * b.r)
+        d = smin(d, lien, k)
+    for disque in disques:
+        d = smin(d, disque, k)
     return d
 
 
@@ -318,7 +333,7 @@ def bezier(p: np.ndarray) -> str:
     return "".join(morceaux) + "Z"
 
 
-def trace(m: Molecule, k: float, pas: float, ecart: float) -> str:
+def trace(m: Molecule, k: float, pas: float, ecart: float, evasement: float) -> str:
     marge = k * 2 + 4 * pas
     xs = [a.x - a.r for a in m.atomes] + [a.x + a.r for a in m.atomes]
     ys = [a.y - a.r for a in m.atomes] + [a.y + a.r for a in m.atomes]
@@ -327,7 +342,7 @@ def trace(m: Molecule, k: float, pas: float, ecart: float) -> str:
     gx = x0 + pas * np.arange(int((x1 - x0) / pas) + 2)
     gy = y0 + pas * np.arange(int((y1 - y0) / pas) + 2)
     X, Y = np.meshgrid(gx, gy)
-    boucles = contours(champ(m, X, Y, k), x0, y0, pas)
+    boucles = contours(champ(m, X, Y, k, evasement), x0, y0, pas)
     return "".join(bezier(reechantillonner(b, ecart)) for b in boucles)
 
 
@@ -336,10 +351,14 @@ def trace(m: Molecule, k: float, pas: float, ecart: float) -> str:
 # --------------------------------------------------------------------------
 
 def composer(seed: int | None = None, palette: str = "aurore", format_: str = "affiche",
-             molecules: int = 3, atomes: tuple[int, int] = (6, 11), satellites: int = 4,
-             zone: str = "droite", anneaux: float = 0.25, fusion: float = 1.0,
-             echelle: float = 1.0, titre: str = "", sous_titre: str = "") -> tuple[str, dict]:
-    """Renvoie (svg, recette)."""
+             plans: int = 6, atomes: tuple[int, int] = (3, 5), satellites: int = 4,
+             zone: str = "droite", coude: float = 90.0, evasement: float = 1.0,
+             fusion: float = 1.0, echelle: float = 1.0, titre: str = "",
+             sous_titre: str = "") -> tuple[str, dict]:
+    """Renvoie (svg, recette).
+
+    `plans` plans se superposent, du fond vers l'avant ; chacun porte entre
+    atomes[0] et atomes[1] atomes reliés, et sa propre couleur."""
     if seed is None:
         seed = random.randrange(10 ** 6)
     rng = random.Random(seed)
@@ -349,36 +368,35 @@ def composer(seed: int | None = None, palette: str = "aurore", format_: str = "a
     zx0, zx1, zy0, zy1 = ZONES[zone]
     cadre = (zx0 * W - (60 * e if zx0 <= 0 else 0), zx1 * W + 60 * e, zy0 * H - 60 * e, zy1 * H + 60 * e)
 
-    tout: list[Atome] = []
+    racines: list[tuple[float, float]] = []
     mols: list[Molecule] = []
     degrades = pal["degrades"][:]
     rng.shuffle(degrades)
-    for n in range(molecules):
-        for _ in range(30):
+    for n in range(plans):
+        # Les plans se chevauchent librement ; seules leurs racines s'écartent un peu.
+        for _ in range(40):
             x, y = rng.uniform(zx0, zx1) * W, rng.uniform(zy0, zy1) * H
-            if all(math.hypot(x - a.x, y - a.y) > a.r + 70 * e for a in tout):
+            if all(math.hypot(x - u, y - v) > 140 * e for u, v in racines):
                 break
-        m = faire_pousser(rng, x, y, rng.randint(*atomes), e, tout, cadre, anneaux)
+        racines.append((x, y))
+        m = faire_pousser(rng, x, y, rng.randint(*atomes), e, cadre, coude)
         m.couleurs = degrades[n % len(degrades)]
+        if n >= len(degrades) and len(m.couleurs) > 1:  # plus de plans que de dégradés : on varie
+            m.couleurs = m.couleurs[::-1]
         m.angle = rng.uniform(0, 360)
-        tout += m.atomes
         mols.append(m)
     for _ in range(satellites):  # gouttes isolées, ou deux gouttes soudées
-        for _ in range(60):
-            x, y = rng.uniform(zx0, zx1) * W, rng.uniform(zy0, zy1) * H
-            if all(math.hypot(x - a.x, y - a.y) > a.r + 30 * e for a in tout):
-                break
-        m = faire_pousser(rng, x, y, 1 if rng.random() < 0.7 else 2, e * 0.5, tout, cadre, 0)
+        x, y = rng.uniform(zx0, zx1) * W, rng.uniform(zy0, zy1) * H
+        m = faire_pousser(rng, x, y, 1 if rng.random() < 0.7 else 2, e * 0.5, cadre, coude)
         m.couleurs = [rng.choice(pal["satellites"])]
-        m.angle = rng.uniform(0, 360)
-        tout += m.atomes
         mols.append(m)
+    rng.shuffle(mols)  # les satellites se glissent entre les plans
 
-    k = 13 * e * fusion
+    k = 10 * e * fusion
     pas = max(1.0, 2.0 * e)
     defs, corps = [], []
     for idx, m in enumerate(mols):
-        d = trace(m, k, pas, ecart=5 * e)
+        d = trace(m, k, pas, ecart=5 * e, evasement=evasement)
         if not d:
             continue
         if len(m.couleurs) == 1:
@@ -416,9 +434,9 @@ def composer(seed: int | None = None, palette: str = "aurore", format_: str = "a
            f'<defs>{"".join(defs)}</defs>'
            f'<rect width="{W}" height="{H}" fill="{pal["fond"]}"/>'
            + "".join(corps) + "".join(textes) + "</svg>\n")
-    recette = dict(seed=seed, palette=palette, format=format_, molecules=molecules,
-                   atomes=list(atomes), satellites=satellites, zone=zone, anneaux=anneaux,
-                   fusion=fusion, echelle=echelle, titre=titre, sous_titre=sous_titre)
+    recette = dict(seed=seed, palette=palette, format=format_, plans=plans,
+                   atomes=list(atomes), satellites=satellites, zone=zone, coude=coude,
+                   evasement=evasement, fusion=fusion, echelle=echelle, titre=titre, sous_titre=sous_titre)
     return svg, recette
 
 
@@ -430,10 +448,14 @@ def main() -> None:
     ap.add_argument("--format", dest="format_", choices=FORMATS, default="affiche")
     ap.add_argument("--zone", choices=ZONES, default=None,
                     help="où naissent les molécules (droite par défaut avec un titre, sinon partout)")
-    ap.add_argument("--molecules", type=int, default=3, help="nombre de molécules colorées")
-    ap.add_argument("--atomes", type=int, nargs=2, default=(6, 11), metavar=("MIN", "MAX"))
+    ap.add_argument("--plans", type=int, default=6, help="nombre de plans superposés")
+    ap.add_argument("--atomes", type=int, nargs=2, default=(3, 5), metavar=("X", "Y"),
+                    help="atomes par plan, tirés entre X et Y")
     ap.add_argument("--satellites", type=int, default=4, help="petites gouttes isolées")
-    ap.add_argument("--anneaux", type=float, default=0.25, help="part des atomes creusés (0–1)")
+    ap.add_argument("--coude", type=float, default=90.0,
+                    help="angle moyen entre deux liaisons qui se suivent, en degrés")
+    ap.add_argument("--evasement", type=float, default=1.0,
+                    help="évasement des liaisons à leur base (0 : col droit)")
     ap.add_argument("--fusion", type=float, default=1.0, help="viscosité des jonctions (0.3–2)")
     ap.add_argument("--echelle", type=float, default=1.0, help="taille des atomes")
     ap.add_argument("--titre", default="")
@@ -450,8 +472,8 @@ def main() -> None:
         seed = base + n
         palette = a.palette or random.Random(seed).choice(list(PALETTES))
         zone = a.zone or ("droite" if (a.titre or a.sous_titre) else "partout")
-        svg, rec = composer(seed, palette, a.format_, a.molecules, tuple(a.atomes),
-                            a.satellites, zone, a.anneaux, a.fusion, a.echelle,
+        svg, rec = composer(seed, palette, a.format_, a.plans, tuple(a.atomes),
+                            a.satellites, zone, a.coude, a.evasement, a.fusion, a.echelle,
                             a.titre, a.sous_titre)
         nom = f"molecule-{palette}-{seed}.svg"
         (out / nom).write_text(svg, encoding="utf-8")

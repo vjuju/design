@@ -19,12 +19,12 @@ SERIE = [
     (3, "aurore", dict(titre="ABSTRACT", sous_titre="SPACE")),
     (11, "lagon", dict(titre="TECHNOLOGY", sous_titre="CONNECT")),
     (8, "sous-bois", dict(titre="RELIER", sous_titre="LE VIVANT")),
-    (21, "corail", dict(zone="partout", molecules=4)),
-    (5, "nuit", dict(zone="partout", molecules=4)),
-    (14, "aurore", dict(zone="bas", fusion=1.6)),
-    (30, "lagon", dict(format_="carre", zone="partout", molecules=5, atomes=(5, 9))),
-    (42, "sous-bois", dict(format_="carre", zone="partout", molecules=4, anneaux=0.5)),
-    (9, "nuit", dict(format_="paysage", zone="partout", molecules=6, atomes=(5, 10))),
+    (21, "corail", dict(zone="partout", plans=8)),
+    (5, "nuit", dict(zone="partout", plans=8, atomes=(2, 4))),
+    (14, "aurore", dict(zone="bas", fusion=1.6, evasement=0.6)),
+    (30, "lagon", dict(format_="carre", zone="partout", plans=7, atomes=(3, 6))),
+    (42, "sous-bois", dict(format_="carre", zone="partout", plans=6, coude=75, evasement=1.4)),
+    (9, "nuit", dict(format_="paysage", zone="partout", plans=10, atomes=(3, 6))),
 ]
 
 PAGE = """<!DOCTYPE html>
@@ -60,7 +60,7 @@ PAGE = """<!DOCTYPE html>
 <body>
 <header>
   <h1>Molécules</h1>
-  <p>Des atomes reliés par des liaisons, fondus comme des gouttes. Chaque image est un
+  <p>Plusieurs plans superposés, chacun portant quelques atomes reliés par des liaisons évasées, fondus comme des gouttes. Chaque image est un
   SVG vectoriel pur (tracés de Bézier, dégradés linéaires), éditable dans Figma ou
   Illustrator. Même graine, même image.</p>
 </header>
@@ -77,12 +77,14 @@ def commande(rec: dict) -> str:
     if rec["format"] != "affiche":
         parts.append(f"--format {rec['format']}")
     parts.append(f"--zone {rec['zone']}")
-    if rec["molecules"] != 3:
-        parts.append(f"--molecules {rec['molecules']}")
-    if rec["atomes"] != [6, 11]:
+    if rec["plans"] != 6:
+        parts.append(f"--plans {rec['plans']}")
+    if rec["atomes"] != [3, 5]:
         parts.append(f"--atomes {rec['atomes'][0]} {rec['atomes'][1]}")
-    if rec["anneaux"] != 0.25:
-        parts.append(f"--anneaux {rec['anneaux']}")
+    if rec["coude"] != 90:
+        parts.append(f"--coude {rec['coude']:g}")
+    if rec["evasement"] != 1.0:
+        parts.append(f"--evasement {rec['evasement']:g}")
     if rec["fusion"] != 1.0:
         parts.append(f"--fusion {rec['fusion']}")
     if rec["titre"]:
