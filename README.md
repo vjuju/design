@@ -18,6 +18,7 @@ piste, avec le script qui fabrique et la planche qui montre le résultat.
 | [`gigot/accueil/`](gigot/accueil/) | maquette de l'accueil de gigot.app avec le design system : cartes, aperçu au survol, fiche, clair / sombre |
 | [`molecule/`](molecule/) | molécules vectorielles qui fusionnent comme des gouttes, un dégradé par molécule, en SVG — [planche](https://vjuju.github.io/design/molecule/) |
 | [`molecule/web/`](molecule/web/) | les mêmes molécules vivantes en WebGL2 : elles naissent, dérivent, fusionnent en dégradé et suivent le curseur — [en ligne](https://vjuju.github.io/design/molecule/web/) |
+| [`molecule/app/`](molecule/app/) | l'espace de discussion d'Organyzm redessiné avec les molécules : fil, Glia, Discussion / Base, clair / sombre |
 
 ## Reskif (`sphere/`)
 

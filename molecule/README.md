@@ -13,6 +13,8 @@ les tailles et éditable dans Figma ou Illustrator.
 | `build_page.py` | tire la série de référence dans `output/` et écrit `index.html` |
 | `output/` | les SVG + `recettes.json` (la recette de chaque image) |
 | `index.html` | la planche |
+| `app/index.html` | maquette de l'espace de discussion d'Organyzm, redessinée avec les molécules |
+| `app/decor.py` | génère le logo, l'avatar de Glia et le bandeau de l'app avec `molecule.py` |
 | `web/index.html` | la version vivante, en WebGL2 : naissance, dérive, fusion en dégradé, attraction du curseur |
 
 ## Utilisation
@@ -95,3 +97,14 @@ calculé dans un shader ; c'est ce principe qu'on applique ici à nos formes
 (cols évasés, coudes à 90°), en WebGL2 nu plutôt qu'avec three.js, qui
 n'apporterait qu'un quad plein écran. Le shader se transpose tel quel dans un
 `ShaderMaterial` si la page doit un jour vivre dans une scène three.js.
+
+## L'app (`app/`)
+
+La structure de l'espace de discussion d'Organyzm (barre des espaces, fil,
+bascule Discussion / Base, carte d'action de Glia, citations, saisie) dans le
+langage des molécules : fond blanc, titres fins espacés en capitales, texte en
+Inter 13–14 px, dégradés aurore pour l'humain, lagon pour Glia. Le logo,
+l'avatar de Glia et le bandeau de l'en-tête sortent de `molecule.py`
+(`python3 app/decor.py`). Thème sombre automatique (palette nuit), barre
+latérale repliable sur mobile. Maquette : un message envoyé s'ajoute au fil,
+rien ne part sur le réseau.

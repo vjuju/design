@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Organyzm · General</title>
+<meta name="description" content="Maquette de l'espace de discussion d'Organyzm, redessinée avec le langage visuel des molécules.">
+<link rel="icon" href="logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --fond: #ffffff;
+    --fond-2: #fafafb;
+    --encre: #26252d;
+    --doux: #6f6e7a;
+    --pale: #a3a2ad;
+    --trait: #ececf1;
+    --survol: #f4f4f7;
+    --a1: #d36ee0; --a2: #7c8cf0; --a3: #4aa8f5;
+    --g1: #12c9de; --g2: #7fcf98;
+    --degrade: linear-gradient(120deg, var(--a1), var(--a2) 55%, var(--a3));
+    --degrade-glia: linear-gradient(120deg, var(--g1), var(--g2));
+    --ombre: 0 1px 2px rgb(20 18 40 / .04), 0 4px 16px rgb(20 18 40 / .05);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --fond: #120d2b; --fond-2: #17123a; --encre: #ece8ff; --doux: #a9a3c9; --pale: #6f6993;
+      --trait: #2a2450; --survol: #1f1946;
+      --ombre: 0 1px 2px rgb(0 0 0 / .3), 0 6px 20px rgb(0 0 0 / .25);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --fond: #120d2b; --fond-2: #17123a; --encre: #ece8ff; --doux: #a9a3c9; --pale: #6f6993;
+    --trait: #2a2450; --survol: #1f1946;
+    --ombre: 0 1px 2px rgb(0 0 0 / .3), 0 6px 20px rgb(0 0 0 / .25);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--fond); color: var(--encre);
+    font: 400 14px/1.55 Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: inherit; }
+  .etiquette { font-size: 10.5px; font-weight: 500; letter-spacing: .22em; text-transform: uppercase; color: var(--pale); }
+
+  .app { display: grid; grid-template-columns: 248px 1fr; height: 100dvh; }
+
+  /* ---------------------------------------------------------------- Barre latérale */
+  aside { display: flex; flex-direction: column; border-right: 1px solid var(--trait); background: var(--fond-2); min-height: 0; }
+  .marque { display: flex; align-items: center; gap: 10px; padding: 16px 16px 14px; border-bottom: 1px solid var(--trait); }
+  .marque img { width: 28px; height: 28px; }
+  .marque strong { font-weight: 500; font-size: 14px; letter-spacing: .02em; flex: 1; }
+  .icone { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; border: 0;
+           background: transparent; color: var(--doux); }
+  .icone:hover { background: var(--survol); color: var(--encre); }
+  .icone svg { width: 14px; height: 14px; }
+
+  nav.espaces { padding: 14px 10px; flex: 1; overflow: auto; }
+  .lien { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 10px; border: 0;
+          border-radius: 8px; background: transparent; text-align: left; font-size: 13.5px; }
+  .lien:hover { background: var(--survol); }
+  .lien[aria-current="page"] { background: var(--fond); box-shadow: var(--ombre); font-weight: 500; }
+  .point { width: 7px; height: 7px; border-radius: 50%; background: var(--a3); flex: none; }
+  .point.chaud { background: var(--degrade); }
+  .groupe { display: flex; align-items: center; justify-content: space-between; margin: 18px 10px 6px; }
+  .rangee { display: flex; align-items: center; gap: 4px; }
+  .rangee .lien { flex: 1; }
+  .nouveau { color: var(--doux); }
+  .nouveau .plus { width: 7px; text-align: center; color: var(--a2); }
+
+  .moi { border-top: 1px solid var(--trait); padding: 12px 14px 14px; }
+  .moi .ligne { display: flex; align-items: center; gap: 10px; }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; flex: none;
+            font-size: 12px; font-weight: 500; color: #fff; background: var(--degrade); }
+  .moi .nom { flex: 1; min-width: 0; line-height: 1.3; }
+  .moi .nom span { display: block; font-size: 11.5px; color: var(--pale); overflow: hidden; text-overflow: ellipsis; }
+  .texte-btn { border: 0; background: none; padding: 4px 0; }
+  .texte-btn:hover { color: var(--encre); }
+  .notifs { margin-top: 12px; color: var(--a2); }
+
+  /* ---------------------------------------------------------------- Colonne principale */
+  main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  header.tete { position: relative; overflow: hidden; display: flex; align-items: center; gap: 16px;
+                padding: 22px 24px; min-height: 104px; border-bottom: 1px solid var(--trait); }
+  header.tete > *:not(.decor) { position: relative; z-index: 1; }
+  .decor { position: absolute; inset: 0; pointer-events: none;
+           -webkit-mask-image: linear-gradient(to right, transparent 26%, #000 72%);
+           mask-image: linear-gradient(to right, transparent 26%, #000 72%); }
+  .decor img { position: absolute; right: 0; top: 50%; width: 76%; transform: translateY(-50%); opacity: .9; }
+  .outils { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .outils .actions { display: flex; gap: 6px; }
+  .titre { flex: 1; min-width: 0; }
+  h1 { margin: 0; font-weight: 300; font-size: 20px; letter-spacing: .32em; text-transform: uppercase; line-height: 1.3; }
+  .sous-titre { margin: 2px 0 0; font-size: 12px; color: var(--doux); }
+  .segments { display: flex; padding: 3px; border: 1px solid var(--trait); border-radius: 999px;
+              background: color-mix(in srgb, var(--fond-2) 85%, transparent); backdrop-filter: blur(8px); }
+  .segments button { border: 0; background: none; border-radius: 999px; padding: 6px 14px; color: var(--doux); }
+  .segments button[aria-selected="true"] { background: var(--fond); color: var(--encre); box-shadow: var(--ombre); }
+  .segments button[aria-selected="true"]::before { content: ""; display: inline-block; width: 6px; height: 6px;
+       border-radius: 50%; background: var(--degrade); margin-right: 8px; vertical-align: 1px; }
+  .menu-mobile { display: none; }
+
+  .fil { flex: 1; overflow: auto; position: relative; }
+  .pastille { border: 1px solid var(--trait); background: color-mix(in srgb, var(--fond) 80%, transparent);
+              backdrop-filter: blur(6px); border-radius: 999px; padding: 5px 12px; color: var(--doux); }
+  .pastille:hover { color: var(--encre); border-color: var(--pale); }
+
+  .messages { max-width: 820px; padding: 20px 24px 24px; }
+  .messages > .etiquette { display: block; margin: 0 0 14px; }
+  .systeme { margin: 10px 0; font-size: 12px; color: var(--pale); font-style: italic; }
+  .msg { position: relative; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 0 12px; padding: 8px 10px; margin: 2px -10px;
+         border-radius: 10px; }
+  .msg:hover { background: var(--fond-2); }
+  .msg .av { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 11px;
+             font-weight: 500; color: #fff; background: var(--degrade); margin-top: 2px; }
+  .msg .av.glia { background: none; }
+  .msg .av.glia img { width: 30px; height: 30px; }
+  .meta { display: flex; align-items: baseline; gap: 8px; font-size: 12px; }
+  .meta b { font-weight: 600; font-size: 12.5px; }
+  .meta .ia { font-size: 9.5px; letter-spacing: .18em; padding: 1px 6px; border-radius: 999px; color: #fff; background: var(--degrade-glia); }
+  .meta time { color: var(--pale); font-size: 11px; }
+  .glia-nom { background: var(--degrade-glia); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .corps p { margin: 2px 0 0; overflow-wrap: anywhere; }
+  .corps a { color: var(--a2); text-decoration: none; }
+  .corps a:hover { text-decoration: underline; }
+  .mention { color: var(--a1); font-weight: 500; }
+  .cite { margin: 4px 0 2px; padding: 2px 0 2px 10px; border-left: 2px solid; border-image: var(--degrade-glia) 1;
+          font-size: 12px; color: var(--doux); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cite b { font-weight: 600; color: var(--encre); margin-right: 4px; }
+  .plus-actions { position: absolute; right: 8px; top: 8px; opacity: 0; }
+  .msg:hover .plus-actions, .plus-actions:focus-visible { opacity: 1; }
+
+  .carte { margin: 8px 0 4px; padding: 12px 14px; border: 1px solid var(--trait); border-radius: 12px; background: var(--fond);
+           box-shadow: var(--ombre); }
+  .carte .etiquette { display: flex; align-items: center; gap: 8px; }
+  .carte .etiquette::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--degrade-glia); }
+  .carte h3 { margin: 6px 0 2px; font-size: 13.5px; font-weight: 500; }
+  .carte .etat { margin: 0; font-size: 12px; color: var(--doux); }
+  .carte .etat::before { content: "✕ "; color: #e0607a; }
+
+  .ecrire { display: flex; align-items: flex-end; gap: 8px; padding: 12px 24px 16px; border-top: 1px solid var(--trait); }
+  .champ { flex: 1; display: flex; align-items: flex-end; gap: 4px; border: 1px solid var(--trait); border-radius: 14px;
+           background: var(--fond-2); padding: 4px 4px 4px 6px; }
+  .champ:focus-within { border-color: var(--a2); background: var(--fond); }
+  .champ textarea { flex: 1; resize: none; border: 0; outline: 0; background: none; padding: 7px 4px; max-height: 140px;
+                    font-size: 13.5px; line-height: 1.45; }
+  .champ textarea::placeholder { color: var(--pale); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .envoyer { border: 0; border-radius: 10px; padding: 8px 14px; color: #fff; background: var(--degrade);
+             font-size: 10.5px; font-weight: 500; letter-spacing: .22em; text-transform: uppercase; }
+  .envoyer:disabled { opacity: .35; cursor: default; }
+
+  .base-vide { display: none; padding: 48px 24px; max-width: 520px; color: var(--doux); }
+  .base-vide h2 { margin: 0 0 8px; font-weight: 300; font-size: 15px; letter-spacing: .28em; text-transform: uppercase; color: var(--encre); }
+  .base .base-vide { display: block; }
+  .base .messages, .base .ecrire { display: none; }
+
+  :focus-visible { outline: 2px solid var(--a2); outline-offset: 2px; }
+
+  @media (max-width: 760px) {
+    .app { grid-template-columns: 1fr; }
+    aside { position: fixed; inset: 0 auto 0 0; width: 260px; z-index: 10; transform: translateX(-100%);
+            transition: transform .25s ease; box-shadow: var(--ombre); }
+    .app.ouvert aside { transform: none; }
+    .menu-mobile { display: grid; }
+    header.tete { padding: 12px 16px; gap: 10px; min-height: 0; flex-wrap: wrap; }
+    .decor { opacity: .55; -webkit-mask-image: linear-gradient(to right, transparent 55%, #000 95%);
+             mask-image: linear-gradient(to right, transparent 55%, #000 95%); }
+    .decor img { width: 150%; right: -40%; }
+    .titre { flex: 1 1 60%; }
+    .sous-titre { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .outils { flex-direction: row-reverse; align-items: center; width: 100%; justify-content: space-between; }
+    h1 { font-size: 16px; letter-spacing: .24em; }
+    .segments button { padding: 5px 10px; }
+    .messages { padding: 0 16px 16px; }
+    .ecrire { padding: 10px 16px 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <aside aria-label="Espaces">
+    <div class="marque">
+      <img src="logo.svg" alt="">
+      <strong>Organyzm</strong>
+      <button class="icone" aria-label="Changer d'organisation">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6l4 4 4-4"/></svg>
+      </button>
+    </div>
+    <nav class="espaces">
+      <button class="lien"><span class="point"></span>Mon espace</button>
+      <div class="groupe"><span class="etiquette">Teamspaces</span></div>
+      <div class="rangee">
+        <button class="lien" aria-current="page"><span class="point chaud"></span>General</button>
+        <button class="icone" aria-label="Ajouter à General">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>
+        </button>
+      </div>
+      <button class="lien nouveau"><span class="plus">+</span>Nouveau teamspace</button>
+    </nav>
+    <div class="moi">
+      <div class="ligne">
+        <span class="avatar">J</span>
+        <div class="nom">Julien<span>@julien:organyzm.me</span></div>
+        <button class="texte-btn etiquette">Sortir</button>
+      </div>
+      <button class="texte-btn etiquette notifs">Activer les notifications</button>
+    </div>
+  </aside>
+
+  <main id="principal">
+    <header class="tete">
+      <button class="icone menu-mobile" aria-label="Ouvrir les espaces" id="menu">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/></svg>
+      </button>
+      <div class="titre">
+        <h1>General</h1>
+        <p class="sous-titre">Teamspace · 1 membre · vous le gérez</p>
+      </div>
+      <div class="outils">
+        <div class="segments etiquette" role="tablist" aria-label="Vue">
+          <button role="tab" aria-selected="true" data-vue="discussion">Discussion</button>
+          <button role="tab" aria-selected="false" data-vue="base">Base</button>
+        </div>
+        <div class="actions"><button class="pastille etiquette">Appel</button><button class="pastille etiquette">Vidéo</button></div>
+      </div>
+      <div class="decor" aria-hidden="true"><img src="bandeau.svg" alt=""></div>
+    </header>
+
+    <div class="fil" id="fil">
+      <section class="messages" id="messages" aria-live="polite">
+        <span class="etiquette">Messages plus anciens</span>
+
+        <p class="systeme">Glia est entré(e).</p>
+
+        <article class="msg">
+          <span class="av glia"><img src="glia.svg" alt=""></span>
+          <div class="corps">
+            <div class="meta"><b class="glia-nom">Glia</b><span class="ia">IA</span><time>9/11 15:43</time></div>
+            <p>Bienvenue Julien dans Organyzm ! Je suis Glia, le génie de General. Appelez-moi en commençant un message par « Glia, … » : je réponds ici.</p>
+          </div>
+          <button class="icone plus-actions" aria-label="Actions">···</button>
+        </article>
+
+        <p class="systeme">Julien est entré(e).</p>
+
+        <article class="msg">
+          <span class="av">J</span>
+          <div class="corps">
+            <div class="meta"><b>Vous</b><time>10/11 10:48</time></div>
+            <p><span class="mention">@Glia</span> récupère le contenu de <a href="https://www.notion.so/Organyzm-D-cider-ensemble-quoi-produire-4140a7c663d081dbbacee09c6469a353?source=copy_link">notion.so/Organyzm-D-cider-ensemble-quoi-produire</a></p>
+            <div class="carte">
+              <span class="etiquette">Glia veut faire</span>
+              <h3>Recherche du contenu de la page Notion spécifiée</h3>
+              <p class="etat">Refusé : aucun texte lisible sur cette page</p>
+            </div>
+          </div>
+          <button class="icone plus-actions" aria-label="Actions">···</button>
+        </article>
+
+        <article class="msg">
+          <span class="av glia"><img src="glia.svg" alt=""></span>
+          <div class="corps">
+            <div class="meta"><b class="glia-nom">Glia</b><span class="ia">IA</span><time>10/11 10:49</time></div>
+            <div class="cite"><b>Julien</b>@Glia récupère le contenu de https://www.notion.so/Organyzm-D-cider-ensemble-quoi-produire…</div>
+            <p>Je n'ai pas pu consulter Internet (pas de réponse à temps).</p>
+          </div>
+          <button class="icone plus-actions" aria-label="Actions">···</button>
+        </article>
+
+        <article class="msg">
+          <span class="av">J</span>
+          <div class="corps">
+            <div class="meta"><b>Vous</b><time>10/11 16:46</time></div>
+            <p><span class="mention">@Glia</span> donne moi les limites du fonctionnement décris là <a href="https://www.notion.so/Organyzm-D-cider-ensemble-quoi-produire-4140a7c663d081dbbacee09c6469a353?source=copy_link">notion.so/Organyzm-D-cider-ensemble-quoi-produire</a></p>
+          </div>
+          <button class="icone plus-actions" aria-label="Actions">···</button>
+        </article>
+
+        <article class="msg">
+          <span class="av glia"><img src="glia.svg" alt=""></span>
+          <div class="corps">
+            <div class="meta"><b class="glia-nom">Glia</b><span class="ia">IA</span><time>10/11 16:46</time></div>
+            <div class="cite"><b>Julien</b>@Glia donne moi les limites du fonctionnement décris là https://www.notion.so/Organyzm-D-c…</div>
+            <p>Dans cet espace, « Notion » lit seulement la page Notion choisie à son installation, et ce lien en désigne une autre. Un gestionnaire de l'espace peut changer cette page (réinstaller « Notion » dans la base).</p>
+          </div>
+          <button class="icone plus-actions" aria-label="Actions">···</button>
+        </article>
+      </section>
+
+      <section class="base-vide">
+        <h2>Base</h2>
+        <p>Les connaissances partagées de General : pages, documents et outils installés (comme « Notion ») que Glia peut consulter.</p>
+      </section>
+    </div>
+
+    <form class="ecrire" id="ecrire">
+      <div class="champ">
+        <button type="button" class="icone" aria-label="Joindre un fichier">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 7.5l-5.2 5.2a3.2 3.2 0 01-4.5-4.5l5.6-5.6a2.1 2.1 0 013 3l-5.5 5.5a1 1 0 01-1.5-1.5l5-5"/></svg>
+        </button>
+        <textarea id="texte" rows="1" placeholder="Écrire dans General · @Glia pour l'appeler" aria-label="Message"></textarea>
+      </div>
+      <button class="envoyer" id="envoyer" disabled>Envoyer</button>
+    </form>
+  </main>
+</div>
+
+<script>
+  // Maquette : les messages envoyés s'ajoutent au fil, rien ne part sur le réseau.
+  const app = document.getElementById("app"), fil = document.getElementById("fil");
+  const messages = document.getElementById("messages"), texte = document.getElementById("texte");
+  const envoyer = document.getElementById("envoyer");
+  fil.scrollTop = fil.scrollHeight;
+
+  document.getElementById("menu").onclick = () => app.classList.toggle("ouvert");
+  document.querySelector(".espaces").addEventListener("click", () => app.classList.remove("ouvert"));
+
+  for (const b of document.querySelectorAll(".segments button")) {
+    b.onclick = () => {
+      document.querySelectorAll(".segments button").forEach(x => x.setAttribute("aria-selected", x === b));
+      app.classList.toggle("base", b.dataset.vue === "base");
+    };
+  }
+
+  const ajuster = () => {
+    texte.style.height = "auto";
+    texte.style.height = texte.scrollHeight + "px";
+    envoyer.disabled = !texte.value.trim();
+  };
+  texte.addEventListener("input", ajuster);
+  ajuster();
+  texte.addEventListener("keydown", ev => {
+    if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); document.getElementById("ecrire").requestSubmit(); }
+  });
+
+  const echapper = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  document.getElementById("ecrire").addEventListener("submit", ev => {
+    ev.preventDefault();
+    const v = texte.value.trim();
+    if (!v) return;
+    const d = new Date();
+    const date = `${d.getDate()}/${d.getMonth() + 1} ${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+    const html = echapper(v)
+      .replace(/https?:\/\/\S+/g, u => `<a href="${u}">${u.replace(/^https?:\/\/(www\.)?/, "").slice(0, 60)}</a>`)
+      .replace(/^@Glia\b/, '<span class="mention">@Glia</span>');
+    messages.insertAdjacentHTML("beforeend", `
+      <article class="msg">
+        <span class="av">J</span>
+        <div class="corps"><div class="meta"><b>Vous</b><time>${date}</time></div><p>${html}</p></div>
+        <button class="icone plus-actions" aria-label="Actions">···</button>
+      </article>`);
+    texte.value = ""; ajuster();
+    fil.scrollTop = fil.scrollHeight;
+  });
+</script>
+</body>
+</html>
