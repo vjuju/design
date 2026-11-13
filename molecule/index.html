@@ -15,7 +15,8 @@
          font: 16px/1.5 "Helvetica Neue", Helvetica, Arial, sans-serif; }
   header { max-width: 1200px; margin: 0 auto; padding: 48px 16px 24px; }
   h1 { font-weight: 400; letter-spacing: .3em; text-transform: uppercase; font-size: 28px; margin: 0 0 12px; }
-  header p { color: var(--muted); max-width: 640px; margin: 0; }
+  header p { color: var(--muted); max-width: 640px; margin: 0 0 8px; }
+  header a { color: var(--ink); }
   main { max-width: 1200px; margin: 0 auto; padding: 16px 16px 64px;
           display: grid; gap: 24px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
   figure { margin: 0; background: var(--card); border-radius: 6px; overflow: hidden;
@@ -34,6 +35,7 @@
   <p>Plusieurs plans superposés, chacun portant quelques atomes reliés par des liaisons évasées, fondus comme des gouttes. Chaque image est un
   SVG vectoriel pur (tracés de Bézier, dégradés linéaires), éditable dans Figma ou
   Illustrator. Même graine, même image.</p>
+  <p><a href="web/">Voir la version vivante →</a> les molécules naissent, dérivent, fusionnent en dégradé et se laissent attirer par le curseur.</p>
 </header>
 <main>
 <figure><img src="output/molecule-aurore-3.svg" alt="Molécules, palette aurore" loading="lazy"><figcaption><a href="output/molecule-aurore-3.svg" download>molecule-aurore-3.svg</a><code>python3 molecule.py --seed 3 --palette aurore --zone droite --titre &quot;ABSTRACT&quot; --sous-titre &quot;SPACE&quot;</code></figcaption></figure>

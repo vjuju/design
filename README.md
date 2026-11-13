@@ -17,6 +17,7 @@ piste, avec le script qui fabrique et la planche qui montre le résultat.
 | [`sphere/`](sphere/) | site de Reskif : la sphère de Bruno Simon tombe dans une flaque, un arbre en sort et mène à quatre profils (feu, air avec The Spirit d'Edan Kwan, eau, buste en éclats) — [en ligne](https://vjuju.github.io/design/sphere/) |
 | [`gigot/accueil/`](gigot/accueil/) | maquette de l'accueil de gigot.app avec le design system : cartes, aperçu au survol, fiche, clair / sombre |
 | [`molecule/`](molecule/) | molécules vectorielles qui fusionnent comme des gouttes, un dégradé par molécule, en SVG — [planche](https://vjuju.github.io/design/molecule/) |
+| [`molecule/web/`](molecule/web/) | les mêmes molécules vivantes en WebGL2 : elles naissent, dérivent, fusionnent en dégradé et suivent le curseur — [en ligne](https://vjuju.github.io/design/molecule/web/) |
 
 ## Reskif (`sphere/`)
 

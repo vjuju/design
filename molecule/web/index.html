@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Molécules vivantes</title>
+<meta name="description" content="Des molécules gooey qui naissent d'une couleur, dérivent, fusionnent en dégradé et se laissent attirer par le curseur. WebGL2, sans dépendance.">
+<style>
+  :root { --fond: #ffffff; --encre: #2b2b33; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--fond); color: var(--encre);
+               font: 13px/1.4 "Helvetica Neue", Helvetica, Arial, sans-serif; overflow: hidden; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  nav { position: fixed; left: 16px; bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap;
+        align-items: center; }
+  nav button { appearance: none; border: 0; padding: 0; width: 22px; height: 22px; border-radius: 50%;
+               cursor: pointer; outline-offset: 3px; box-shadow: 0 0 0 1px rgb(0 0 0 / .08); }
+  nav button[aria-pressed="true"] { outline: 2px solid var(--encre); }
+  h1 { position: fixed; left: 16px; top: 16px; margin: 0; font-weight: 400; font-size: 13px;
+       letter-spacing: .35em; text-transform: uppercase; pointer-events: none; opacity: .7; }
+  p.aide { position: fixed; right: 16px; bottom: 16px; margin: 0; opacity: .5; pointer-events: none; }
+  @media (max-width: 600px) { p.aide { display: none; } }
+  .erreur { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; text-align: center; }
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="Molécules colorées qui dérivent et fusionnent"></canvas>
+<h1>Molécules</h1>
+<nav aria-label="Palette"></nav>
+<p class="aide">survoler pour attirer · cliquer pour faire naître</p>
+
+<script>
+"use strict";
+/*
+  Le même dessin que molecule.py, mais calculé à chaque image par le GPU.
+
+  - Chaque molécule (un « plan ») pousse comme dans le script : des atomes
+    reliés par des liaisons qui tournent d'environ 90° à chaque pas, et dont la
+    base s'évase (congé par minimum lissé entre le col et l'atome).
+  - Elle naît d'une seule couleur : les atomes bourgeonnent l'un après l'autre,
+    chacun sortant de son parent le long de sa liaison.
+  - Elle dérive lentement. Quand deux molécules se frôlent, leurs champs se
+    fondent (minimum lissé entre plans) et leurs couleurs se mélangent selon la
+    distance à chacune : le dégradé naît de la rencontre.
+  - Le curseur attire doucement les atomes proches (ressort amorti) : les
+    liaisons s'étirent, la molécule suit un peu.
+  - Au bout de sa vie, elle se rétracte dans sa racine et renaît ailleurs.
+*/
+
+const PALETTES = {
+  aurore:     { fond: "#ffffff", encre: "#2b2b33", couleurs: ["#d36ee0", "#7c8cf0", "#4aa8f5", "#b46ee6", "#e07ad0", "#3fb4f2"] },
+  lagon:      { fond: "#ffffff", encre: "#2b2b33", couleurs: ["#12c9de", "#7fcf98", "#d8b33c", "#00c7e6", "#ff4f8b", "#9ccf7c"] },
+  "sous-bois":{ fond: "#f6f3ec", encre: "#2f3a2c", couleurs: ["#2f7d5b", "#7fb069", "#d9c35c", "#c4793a", "#3d8c95", "#8cc7a1"] },
+  corail:     { fond: "#fff8f3", encre: "#3a2a2a", couleurs: ["#ff5e7a", "#ff9a6b", "#ffd166", "#c86ad8", "#29b6c8", "#6fd3b8"] },
+  nuit:       { fond: "#120d2b", encre: "#ece8ff", couleurs: ["#ff4fa3", "#8b5cf6", "#22d3ee", "#34d399", "#f59e0b", "#60a5fa"] },
+};
+
+// Réglages (mêmes noms que dans molecule.py ; modifiables par l'URL : ?plans=8&atomes=2-4)
+const q = new URLSearchParams(location.search);
+const num = (k, d) => (q.has(k) && !isNaN(+q.get(k)) ? +q.get(k) : d);
+const [AMIN, AMAX] = (q.get("atomes") || "3-5").split("-").map(Number);
+const R = {
+  plans: Math.min(10, num("plans", 7)),
+  atomesMin: AMIN || 3, atomesMax: Math.max(AMIN || 3, AMAX || 5),
+  coude: num("coude", 90), ecartCoude: 18,
+  evasement: num("evasement", 1),
+  fusion: num("fusion", 1),        // douceur des raccords dans une molécule
+  rencontre: num("rencontre", 1),  // viscosité entre deux molécules qui se croisent
+  attraction: num("attraction", 1),
+  vitesse: num("vitesse", 1),
+};
+const MAXA = 48, MAXB = 40, MAXP = 10;
+const calme = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// ---------------------------------------------------------------- WebGL
+const canvas = document.getElementById("c");
+const gl = canvas.getContext("webgl2", { antialias: false, premultipliedAlpha: false });
+if (!gl) {
+  document.body.insertAdjacentHTML("beforeend",
+    '<div class="erreur">Ce navigateur ne sait pas faire de WebGL2 : les molécules ne peuvent pas s\'afficher.</div>');
+  throw new Error("WebGL2 indisponible");
+}
+
+const VS = `#version 300 es
+in vec2 p; void main(){ gl_Position = vec4(p, 0., 1.); }`;
+
+const FS = `#version 300 es
+precision highp float;
+#define MAXA ${MAXA}
+#define MAXB ${MAXB}
+#define MAXP ${MAXP}
+uniform vec2 uRes;            // taille en px CSS
+uniform float uDpr;
+uniform vec4 uAtome[MAXA];    // x, y, r, plan
+uniform vec4 uLienA[MAXB];    // ax, ay, bx, by
+uniform vec4 uLienB[MAXB];    // col, ra, rb, plan
+uniform int uNA, uNB, uNP;
+uniform vec3 uCouleur[MAXP];
+uniform vec3 uFond;
+uniform float uK, uKplan, uEv, uSigma;
+out vec4 sortie;
+
+float smin(float a, float b, float k) {
+  k = max(k, 1e-3);
+  float h = clamp(.5 + .5 * (b - a) / k, 0., 1.);
+  return mix(b, a, h) - k * h * (1. - h);
+}
+
+void main() {
+  vec2 p = vec2(gl_FragCoord.x, uRes.y * uDpr - gl_FragCoord.y) / uDpr;
+  float d[MAXP];
+  for (int i = 0; i < MAXP; i++) d[i] = 1e4;
+
+  for (int i = 0; i < MAXB; i++) {
+    if (i >= uNB) break;
+    vec4 A = uLienA[i], B = uLienB[i];
+    vec2 a = A.xy, b = A.zw, ba = b - a;
+    float t = clamp(dot(p - a, ba) / max(dot(ba, ba), 1e-4), 0., 1.);
+    float l = length(p - a - t * ba) - B.x;
+    if (uEv > 0.) {   // la base du col s'évase : congé large avec chaque atome
+      l = smin(l, length(p - a) - B.y, uEv * .75 * B.y);
+      l = smin(l, length(p - b) - B.z, uEv * .75 * B.z);
+    }
+    int k = int(B.w);
+    d[k] = smin(d[k], l, uK);
+  }
+  for (int i = 0; i < MAXA; i++) {
+    if (i >= uNA) break;
+    vec4 A = uAtome[i];
+    int k = int(A.w);
+    d[k] = smin(d[k], length(p - A.xy) - A.z, uK);
+  }
+
+  // Fusion entre molécules, et couleur pondérée par la proximité de chacune.
+  float D = 1e4, dmin = 1e4;
+  for (int i = 0; i < MAXP; i++) { if (i >= uNP) break; D = smin(D, d[i], uKplan); dmin = min(dmin, d[i]); }
+  vec3 c = vec3(0.); float ws = 0.;
+  for (int i = 0; i < MAXP; i++) {
+    if (i >= uNP) break;
+    float w = exp(-(d[i] - dmin) / uSigma);
+    c += w * uCouleur[i]; ws += w;
+  }
+  c /= max(ws, 1e-5);
+  float alpha = clamp(.5 - D / max(fwidth(D), 1e-4), 0., 1.);
+  sortie = vec4(mix(uFond, c, alpha), 1.);
+}`;
+
+function shader(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+const prog = gl.createProgram();
+gl.attachShader(prog, shader(gl.VERTEX_SHADER, VS));
+gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, FS));
+gl.linkProgram(prog);
+if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+gl.useProgram(prog);
+const vbo = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+const loc = gl.getAttribLocation(prog, "p");
+gl.enableVertexAttribArray(loc);
+gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+const U = {};
+for (const n of ["uRes", "uDpr", "uAtome", "uLienA", "uLienB", "uNA", "uNB", "uNP", "uCouleur",
+                 "uFond", "uK", "uKplan", "uEv", "uSigma"]) U[n] = gl.getUniformLocation(prog, n);
+const bufAtome = new Float32Array(MAXA * 4), bufLienA = new Float32Array(MAXB * 4),
+      bufLienB = new Float32Array(MAXB * 4), bufCouleur = new Float32Array(MAXP * 3);
+
+const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+
+// ---------------------------------------------------------------- Taille
+let W = 0, H = 0, dpr = 1, e = 1;
+function redimensionner() {
+  dpr = Math.min(devicePixelRatio || 1, 1.5);  // au-delà, le GPU travaille pour rien
+  W = innerWidth; H = innerHeight;
+  canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  e = Math.min(W, H) / 800 * (W < 600 ? 1.2 : 1);
+}
+addEventListener("resize", redimensionner);
+redimensionner();
+
+// ---------------------------------------------------------------- Croissance (port de faire_pousser)
+const hasard = (a, b) => a + Math.random() * (b - a);
+const gauss = () => { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random();
+                      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+const choix = l => l[Math.floor(Math.random() * l.length)];
+const rad = Math.PI / 180;
+
+function pousser(n) {
+  const rayon = () => (Math.random() < .5 ? hasard(40, 64) : hasard(18, 32)) * e;
+  const atomes = [{ x: 0, y: 0, r: rayon(), parent: -1 }];
+  const ref = [hasard(0, 2 * Math.PI)];
+  const libres = [[0, choix([-1, 1]) * R.coude]];
+  const liens = [];
+  for (let essais = 0; atomes.length < n && essais < n * 60; essais++) {
+    const p = Math.random() > .15 ? atomes.length - 1 : Math.floor(Math.random() * atomes.length);
+    if (!libres[p].length) continue;
+    const dev = choix(libres[p]);
+    const cap = ref[p] + (dev + gauss() * R.ecartCoude) * rad;
+    const par = atomes[p], r = rayon(), dist = (par.r + r) * hasard(1.3, 1.9);
+    const a = { x: par.x + dist * Math.cos(cap), y: par.y + dist * Math.sin(cap), r, parent: p };
+    let ok = true;
+    for (let k = 0; k < atomes.length && ok; k++) {
+      const b = atomes[k];
+      if (Math.hypot(a.x - b.x, a.y - b.y) < (a.r + b.r) * 1.15) ok = false;
+      if (k === p) continue;
+      const vx = a.x - par.x, vy = a.y - par.y;
+      const t = Math.max(0, Math.min(1, ((b.x - par.x) * vx + (b.y - par.y) * vy) / (vx * vx + vy * vy)));
+      if (Math.hypot(b.x - par.x - t * vx, b.y - par.y - t * vy) < b.r + .4 * a.r) ok = false;
+    }
+    if (!ok) continue;
+    libres[p].splice(libres[p].indexOf(dev), 1);
+    atomes.push(a); ref.push(cap);
+    libres.push(Math.random() < .5 ? [R.coude, -R.coude] : [-R.coude, R.coude]);
+    liens.push({ i: p, j: atomes.length - 1, col: Math.min(par.r, r) * hasard(.3, .42) });
+  }
+  // centre la molécule sur son barycentre, pour qu'elle tourne sur elle-même
+  const cx = atomes.reduce((s, a) => s + a.x, 0) / atomes.length;
+  const cy = atomes.reduce((s, a) => s + a.y, 0) / atomes.length;
+  for (const a of atomes) { a.x -= cx; a.y -= cy; a.ox = 0; a.oy = 0; a.vx = 0; a.vy = 0; }
+  return { atomes, liens };
+}
+
+// ---------------------------------------------------------------- Les molécules
+let palette = q.get("palette") in PALETTES ? q.get("palette") : "lagon";
+const plans = [];
+let horloge = 0;
+
+function naitre(plan, x, y, delai = 0) {
+  const n = Math.floor(hasard(R.atomesMin, R.atomesMax + 1));
+  Object.assign(plan, pousser(n));
+  const ang = hasard(0, 2 * Math.PI), v = hasard(8, 18) * e * R.vitesse * (calme ? .3 : 1);
+  plan.x = x ?? hasard(.05, .95) * W;
+  plan.y = y ?? hasard(.05, .95) * H;
+  plan.vx = Math.cos(ang) * v; plan.vy = Math.sin(ang) * v;
+  plan.rot = hasard(0, 2 * Math.PI);
+  plan.vrot = hasard(-.06, .06) * (calme ? .3 : 1);
+  plan.naissance = horloge + delai;
+  plan.vie = hasard(16, 28);
+  // une couleur que ses voisines n'ont pas déjà, si possible
+  const prises = plans.filter(p => p !== plan).map(p => p.couleur);
+  const libres = PALETTES[palette].couleurs.filter(c => !prises.includes(c));
+  plan.couleur = choix(libres.length ? libres : PALETTES[palette].couleurs);
+}
+
+for (let i = 0; i < R.plans; i++) { const p = {}; plans.push(p); naitre(p, undefined, undefined, i * 0.6); }
+
+// Durée d'apparition d'un atome, décalée selon son rang : les atomes bourgeonnent l'un après l'autre.
+const BOURGEON = .55, DISPARITION = 2.2;
+const doux = t => (t <= 0 ? 0 : t >= 1 ? 1 : 1 - Math.pow(1 - t, 3));
+const rebond = t => (t <= 0 ? 0 : t >= 1 ? 1 : 1 + 2.2 * Math.pow(t - 1, 3) + 1.2 * Math.pow(t - 1, 2));
+
+function croissance(plan, k) {
+  const age = horloge - plan.naissance;
+  const n = plan.atomes.length;
+  const entree = rebond((age - k * BOURGEON) / (BOURGEON * 1.6));
+  const sortie = doux((age - plan.vie + (n - 1 - k) * .35 + DISPARITION) / 1.1);  // les feuilles d'abord
+  return Math.max(0, entree * (1 - sortie));
+}
+
+// ---------------------------------------------------------------- Curseur
+const souris = { x: -1e4, y: -1e4, actif: false };
+addEventListener("pointermove", ev => { souris.x = ev.clientX; souris.y = ev.clientY; souris.actif = true; });
+addEventListener("pointerleave", () => { souris.actif = false; });
+document.addEventListener("mouseleave", () => { souris.actif = false; });
+canvas.addEventListener("pointerdown", ev => {
+  // faire naître une molécule sous le doigt, à la place de la plus vieille
+  const vieille = plans.reduce((a, b) => (a.naissance < b.naissance ? a : b));
+  naitre(vieille, ev.clientX, ev.clientY);
+});
+
+// ---------------------------------------------------------------- Palette
+const nav = document.querySelector("nav");
+function appliquerPalette(nom, recolorer) {
+  palette = nom;
+  const P = PALETTES[nom];
+  document.documentElement.style.setProperty("--fond", P.fond);
+  document.documentElement.style.setProperty("--encre", P.encre);
+  for (const b of nav.children) b.setAttribute("aria-pressed", b.dataset.p === nom);
+  if (recolorer) plans.forEach((p, i) => (p.couleur = P.couleurs[i % P.couleurs.length]));
+}
+for (const nom in PALETTES) {
+  const b = document.createElement("button");
+  b.dataset.p = nom; b.title = nom; b.setAttribute("aria-label", "Palette " + nom);
+  const [c1, c2] = PALETTES[nom].couleurs;
+  b.style.background = `linear-gradient(135deg, ${c1}, ${c2})`;
+  b.onclick = () => appliquerPalette(nom, true);
+  nav.append(b);
+}
+appliquerPalette(palette, false);
+
+// ---------------------------------------------------------------- Boucle
+let avant = performance.now();
+function image(maintenant) {
+  const dt = Math.min(.05, (maintenant - avant) / 1000);
+  avant = maintenant; horloge += dt;
+  const portee = 240 * e, force = .45 * R.attraction;
+  let na = 0, nb = 0;
+  const marge = 80 * e;
+
+  // Les molécules se repoussent doucement : elles se fondent par les bords
+  // au lieu de s'empiler, même quand le curseur les rassemble.
+  for (let i = 0; i < plans.length; i++) for (let j = i + 1; j < plans.length; j++) {
+    const A = plans[i], B = plans[j];
+    const dx = B.x - A.x, dy = B.y - A.y, dd = Math.hypot(dx, dy) + 1, seuil = 230 * e;
+    if (dd < seuil) {
+      const f = (1 - dd / seuil) * 40 * e * dt;
+      A.vx -= dx / dd * f; A.vy -= dy / dd * f; B.vx += dx / dd * f; B.vy += dy / dd * f;
+    }
+  }
+
+  plans.forEach((plan, ip) => {
+    const age = horloge - plan.naissance;
+    if (age > plan.vie + 1) { naitre(plan); return; }
+
+    // dérive, avec un virage doux pour rester dans le cadre
+    if (plan.x < marge) plan.vx += 12 * e * dt; if (plan.x > W - marge) plan.vx -= 12 * e * dt;
+    if (plan.y < marge) plan.vy += 12 * e * dt; if (plan.y > H - marge) plan.vy -= 12 * e * dt;
+    // le curseur tire aussi, un peu, la molécule entière
+    if (souris.actif) {
+      const dx = souris.x - plan.x, dy = souris.y - plan.y, dd = Math.hypot(dx, dy) + 1;
+      const f = Math.exp(-Math.pow(dd / (portee * 1.6), 2)) * 14 * e * R.attraction;
+      plan.vx += dx / dd * f * dt; plan.vy += dy / dd * f * dt;
+    }
+    const v = Math.hypot(plan.vx, plan.vy), vmax = 30 * e * R.vitesse;
+    if (v > vmax) { plan.vx *= vmax / v; plan.vy *= vmax / v; }
+    plan.x += plan.vx * dt; plan.y += plan.vy * dt; plan.rot += plan.vrot * dt;
+
+    const cos = Math.cos(plan.rot), sin = Math.sin(plan.rot);
+    const monde = [];
+    plan.atomes.forEach((a, k) => {
+      const bx = plan.x + a.x * cos - a.y * sin, by = plan.y + a.x * sin + a.y * cos;
+      // ressort amorti vers une cible tirée par le curseur
+      let tx = 0, ty = 0;
+      if (souris.actif) {
+        const dx = souris.x - bx, dy = souris.y - by, dd = Math.hypot(dx, dy);
+        const f = force * Math.exp(-Math.pow(dd / portee, 2));
+        tx = dx * f; ty = dy * f;
+      }
+      a.vx += ((tx - a.ox) * 14 - a.vx * 6) * dt;
+      a.vy += ((ty - a.oy) * 14 - a.vy * 6) * dt;
+      a.ox += a.vx * dt; a.oy += a.vy * dt;
+      monde.push({ x: bx + a.ox, y: by + a.oy, g: croissance(plan, k) });
+    });
+
+    // un atome naissant sort de son parent en glissant le long de sa liaison
+    plan.atomes.forEach((a, k) => {
+      const m = monde[k];
+      if (a.parent >= 0) {
+        const pm = monde[a.parent], g = doux(m.g);
+        m.x = pm.x + (m.x - pm.x) * g; m.y = pm.y + (m.y - pm.y) * g;
+      }
+      if (na < MAXA && m.g > 0) {
+        bufAtome.set([m.x, m.y, a.r * m.g, ip], na * 4); na++;
+      }
+    });
+    for (const l of plan.liens) {
+      const A = monde[l.i], B = monde[l.j], g = Math.min(A.g, B.g);
+      if (g <= 0 || nb >= MAXB) continue;
+      bufLienA.set([A.x, A.y, B.x, B.y], nb * 4);
+      bufLienB.set([l.col * g, plan.atomes[l.i].r * A.g, plan.atomes[l.j].r * B.g, ip], nb * 4);
+      nb++;
+    }
+    bufCouleur.set(hex(plan.couleur), ip * 3);
+  });
+
+  gl.uniform2f(U.uRes, W, H);
+  gl.uniform1f(U.uDpr, dpr);
+  gl.uniform4fv(U.uAtome, bufAtome);
+  gl.uniform4fv(U.uLienA, bufLienA);
+  gl.uniform4fv(U.uLienB, bufLienB);
+  gl.uniform1i(U.uNA, na); gl.uniform1i(U.uNB, nb); gl.uniform1i(U.uNP, plans.length);
+  gl.uniform3fv(U.uCouleur, bufCouleur);
+  gl.uniform3fv(U.uFond, hex(PALETTES[palette].fond));
+  gl.uniform1f(U.uK, 10 * e * R.fusion);
+  gl.uniform1f(U.uKplan, 24 * e * R.rencontre);
+  gl.uniform1f(U.uEv, R.evasement);
+  gl.uniform1f(U.uSigma, 26 * e);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  requestAnimationFrame(image);
+}
+requestAnimationFrame(image);
+</script>
+</body>
+</html>
