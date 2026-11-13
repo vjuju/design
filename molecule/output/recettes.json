@@ -1,0 +1,164 @@
+[
+  {
+    "seed": 3,
+    "palette": "aurore",
+    "format": "affiche",
+    "molecules": 3,
+    "atomes": [
+      6,
+      11
+    ],
+    "satellites": 4,
+    "zone": "droite",
+    "anneaux": 0.25,
+    "fusion": 1.0,
+    "echelle": 1.0,
+    "titre": "ABSTRACT",
+    "sous_titre": "SPACE",
+    "fichier": "molecule-aurore-3.svg"
+  },
+  {
+    "seed": 11,
+    "palette": "lagon",
+    "format": "affiche",
+    "molecules": 3,
+    "atomes": [
+      6,
+      11
+    ],
+    "satellites": 4,
+    "zone": "droite",
+    "anneaux": 0.25,
+    "fusion": 1.0,
+    "echelle": 1.0,
+    "titre": "TECHNOLOGY",
+    "sous_titre": "CONNECT",
+    "fichier": "molecule-lagon-11.svg"
+  },
+  {
+    "seed": 8,
+    "palette": "sous-bois",
+    "format": "affiche",
+    "molecules": 3,
+    "atomes": [
+      6,
+      11
+    ],
+    "satellites": 4,
+    "zone": "droite",
+    "anneaux": 0.25,
+    "fusion": 1.0,
+    "echelle": 1.0,
+    "titre": "RELIER",
+    "sous_titre": "LE VIVANT",
+    "fichier": "molecule-sous-bois-8.svg"
+  },
+  {
+    "seed": 21,
+    "palette": "corail",
+    "format": "affiche",
+    "molecules": 4,
+    "atomes": [
+      6,
+      11
+    ],
+    "satellites": 4,
+    "zone": "partout",
+    "anneaux": 0.25,
+    "fusion": 1.0,
+    "echelle": 1.0,
+    "titre": "",
+    "sous_titre": "",
+    "fichier": "molecule-corail-21.svg"
+  },
+  {
+    "seed": 5,
+    "palette": "nuit",
+    "format": "affiche",
+    "molecules": 4,
+    "atomes": [
+      6,
+      11
+    ],
+    "satellites": 4,
+    "zone": "partout",
+    "anneaux": 0.25,
+    "fusion": 1.0,
+    "echelle": 1.0,
+    "titre": "",
+    "sous_titre": "",
+    "fichier": "molecule-nuit-5.svg"
+  },
+  {
+    "seed": 14,
+    "palette": "aurore",
+    "format": "affiche",
+    "molecules": 3,
+    "atomes": [
+      6,
+      11
+    ],
+    "satellites": 4,
+    "zone": "bas",
+    "anneaux": 0.25,
+    "fusion": 1.6,
+    "echelle": 1.0,
+    "titre": "",
+    "sous_titre": "",
+    "fichier": "molecule-aurore-14.svg"
+  },
+  {
+    "seed": 30,
+    "palette": "lagon",
+    "format": "carre",
+    "molecules": 5,
+    "atomes": [
+      5,
+      9
+    ],
+    "satellites": 4,
+    "zone": "partout",
+    "anneaux": 0.25,
+    "fusion": 1.0,
+    "echelle": 1.0,
+    "titre": "",
+    "sous_titre": "",
+    "fichier": "molecule-lagon-30.svg"
+  },
+  {
+    "seed": 42,
+    "palette": "sous-bois",
+    "format": "carre",
+    "molecules": 4,
+    "atomes": [
+      6,
+      11
+    ],
+    "satellites": 4,
+    "zone": "partout",
+    "anneaux": 0.5,
+    "fusion": 1.0,
+    "echelle": 1.0,
+    "titre": "",
+    "sous_titre": "",
+    "fichier": "molecule-sous-bois-42.svg"
+  },
+  {
+    "seed": 9,
+    "palette": "nuit",
+    "format": "paysage",
+    "molecules": 6,
+    "atomes": [
+      5,
+      10
+    ],
+    "satellites": 4,
+    "zone": "partout",
+    "anneaux": 0.25,
+    "fusion": 1.0,
+    "echelle": 1.0,
+    "titre": "",
+    "sous_titre": "",
+    "fichier": "molecule-nuit-9.svg"
+  }
+]
